@@ -26,10 +26,10 @@ Keep this log short. Record decisions that affect architecture, scope, or team i
 
 ## D-004 — Keep MySQL and use a managed remote database in deployment
 
-- **Status:** TiDB Cloud Starter selected as the MVP target; account provisioning and smoke test remain.
+- **Status:** TiDB Cloud Starter is provisioned. Migrations `001`–`004` and destination/place seed `001_demo.sql` are applied; TLS connection and CHECK constraint enforcement were verified from the development machine. Vercel environment configuration and a deployed API smoke check remain.
 - **Decision:** Keep local MySQL for development. Use a TiDB Cloud Starter instance in MySQL compatibility mode for the shared demo, with TLS enabled; never use a teammate's laptop as the shared database.
 - **Reason:** The project already uses MySQL and `mysql2`; Starter currently includes a free monthly quota without requiring a credit card.
-- **Consequences and limits:** Starter currently includes 5 GiB row storage, 5 GiB columnar storage, and 50 million request units per month. When a free quota is reached, new connections are denied until usage resets or the instance is upgraded. Free Starter backups retain one day and manual backups are unavailable. Enable TLS with `DB_SSL=true`. TiDB disables `CHECK` constraint enforcement by default, so enable `tidb_enable_check_constraint` before applying migrations. Keep the pool size within provider limits and test the actual instance before the demo. Recheck quotas and terms before demo day.
+- **Consequences and limits:** The shared database is named `tripo`. Starter currently includes 5 GiB row storage, 5 GiB columnar storage, and 50 million request units per month. When a free quota is reached, new connections are denied until usage resets or the instance is upgraded. Free Starter backups retain one day and manual backups are unavailable. Enable TLS with `DB_SSL=true`. TiDB disables `CHECK` constraint enforcement by default, so enable `tidb_enable_check_constraint` before applying migrations; enforcement is enabled on the current instance. Keep the pool size within provider limits and test the deployed API before the demo. Recheck quotas and terms before demo day.
 
 ## D-005 — Prioritize the trip-planning vertical slice
 

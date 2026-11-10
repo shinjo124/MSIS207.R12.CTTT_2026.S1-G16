@@ -5,7 +5,7 @@ info:
   description: API for trip planning, curated destinations, sharing, and travel stories.
 servers:
   - url: /
-    description: Current API host
+    description: Same origin as the API docs, for local or deployed API
   - url: http://localhost:4000
     description: Local development
 paths:

@@ -13,8 +13,8 @@ The MVP demo is complete when a teammate can clone the repository, configure the
 - Frontend: React + Vite in `web/`.
 - API: Node.js + Express REST API using ES modules in `api/`.
 - Authentication: Clerk. The API verifies Clerk sessions; the app stores a local user profile mapped by Clerk user ID. Tripo does not store passwords.
-- Database: MySQL through `mysql2/promise`; schema migrations and seed data live in `api/database/`.
-- Hosting: deploy `web/` and `api/` as separate Vercel projects from this monorepo. The API runs as a Vercel Function. Use a separate, managed, remotely hosted MySQL service; the provider is not yet selected.
+- Database: MySQL through `mysql2/promise`; schema migrations and seed data live in `api/database/`. Use TiDB Cloud Starter in MySQL compatibility mode for the shared demo database; the provisioned database is named `tripo` and requires TLS.
+- Hosting: deploy `web/` and `api/` as separate Vercel projects from this monorepo. The API runs as a Vercel Function. The shared database is managed and remote; do not use a teammate's laptop database.
 - Local development: developers may use local MySQL. Production and shared demos must use the managed remote database, never a teammate's laptop database.
 - Secrets: never commit `.env`, keys, or passwords. Commit `.env.example` only. Keep Clerk secret, database credentials, and provider secrets in the API deployment's environment settings. Only public client keys may use the Vite `VITE_` prefix.
 
