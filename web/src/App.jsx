@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react';
+import { SignInButton, SignUpButton, Show, UserButton } from '@clerk/react';
+import PostsFeed from './features/posts/PostsFeed.jsx';
+import SharedTrip from './features/trips/SharedTrip.jsx';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
 
-export default function App() {
+export default function App({ getToken, isSignedIn = false, profileStatus = 'signed-out' }) {
+  const shareToken = window.location.pathname.match(/^\/share\/([a-f0-9]{64})$/)?.[1];
+  if (shareToken) return <main className="page-shell"><SharedTrip token={shareToken} /></main>;
+
   const [health, setHealth] = useState('Checking API…');
   const [destinations, setDestinations] = useState([]);
   const [category, setCategory] = useState('');
@@ -46,5 +52,67 @@ export default function App() {
     return () => controller.abort();
   }, [category]);
 
-  return <main><h1>Tripo</h1><p role="status">{health}</p></main>;
+  return (
+    <main className="page-shell">
+      <header className="topbar">
+        <a className="brand" href="#top" aria-label="Tripo home"><span className="brand-mark">T</span> tripo</a>
+        <span className="top-note">Make room for the good days.</span>
+        {getToken ? <>
+          <Show when="signed-out">
+            <div className="auth-controls">
+              <SignInButton mode="redirect"><button className="sign-in" type="button">Sign in</button></SignInButton>
+              <SignUpButton mode="redirect"><button className="sign-in" type="button">Sign up</button></SignUpButton>
+            </div>
+          </Show>
+          <Show when="signed-in"><UserButton /></Show>
+        </> : <span className="top-note">Add VITE_CLERK_PUBLISHABLE_KEY to enable sign in.</span>}
+      </header>
+
+      <section className="hero" id="top">
+        <div className="hero-copy">
+          <p className="eyebrow">GOOD TRIPS, WELL PLANNED</p>
+          <h1>More time<br />for <em>there.</em></h1>
+          <p className="hero-text">Bring the places, plans, and costs for your next trip together in one easy-to-share itinerary.</p>
+          <button className="primary-button" type="button" disabled>Create a trip <span aria-hidden="true">↗</span></button>
+        </div>
+        <div className="hero-art" aria-label="Illustration of a coastal trip">
+          <div className="sun" />
+          <div className="ridge ridge-back" />
+          <div className="ridge ridge-front" />
+          <div className="sea" />
+          <div className="art-label"><span>01</span> A little further, together</div>
+        </div>
+      </section>
+
+      <section className="destinations" aria-labelledby="destinations-title">
+        <div className="section-heading">
+          <div><p className="eyebrow">A PLACE TO START</p><h2 id="destinations-title">Find your kind of away.</h2></div>
+          <p>Curated ideas for your next shared adventure.</p>
+        </div>
+        <div className="category-filters" aria-label="Filter destinations by type">
+          {['', ...categories].map((item) => (
+            <button key={item || 'all'} type="button" aria-pressed={category === item} onClick={() => setCategory(item)}>
+              {item || 'All'}
+            </button>
+          ))}
+        </div>
+        {destinationStatus === 'loading' && <p className="empty-state" role="status">Loading destination ideas…</p>}
+        {destinationStatus === 'error' && <p className="empty-state error-state" role="alert">{destinationError}</p>}
+        {destinationStatus === 'empty' && <p className="empty-state">No destination ideas in this category yet.</p>}
+        {destinationStatus === 'ready' && <div className="destination-grid">
+          {destinations.length ? destinations.map((place) => (
+            <a className="destination-card" key={place.id} href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.mapQuery)}`} target="_blank" rel="noreferrer">
+              <div className={`destination-art destination-${place.category.toLowerCase()}`}><span>{place.category}</span><b aria-hidden="true">↗</b></div>
+              <div className="destination-meta"><h3>{place.name}</h3><span>{place.country}</span></div>
+              <p>{place.summary}</p>
+            </a>
+          )) : null}
+        </div>}
+      </section>
+
+      <PostsFeed getToken={getToken} isSignedIn={isSignedIn} profileStatus={profileStatus} />
+
+      <footer><span>tripo</span><span>Plan a little. Enjoy a lot.</span><span className="api-status"><i />{health}</span></footer>
+    </main>
+  );
 }
