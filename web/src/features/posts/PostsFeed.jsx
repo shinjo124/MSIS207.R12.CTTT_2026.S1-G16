@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiRequest } from '../../lib/api.js';
 
-export default function PostsFeed({ getToken, isSignedIn = false, profileStatus = 'signed-out' }) {
+export default function PostsFeed({ getToken, isSignedIn = false, profileStatus = 'signed-out', profileError = '' }) {
   const [posts, setPosts] = useState([]);
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState('');
@@ -150,7 +150,7 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
       {error && <p className="empty-state error-state" role="alert">{error}</p>}
       {!isSignedIn && <p className="story-signin-note">Sign in to publish, like, or comment on a story.</p>}
       {isSignedIn && profileStatus === 'loading' && <p className="story-signin-note" role="status">Setting up your profile…</p>}
-      {isSignedIn && profileStatus === 'error' && <p className="story-signin-note" role="alert">Could not set up your profile. Check the API connection and try again.</p>}
+      {isSignedIn && profileStatus === 'error' && <p className="story-signin-note" role="alert">Profile setup failed: {profileError || 'Check the API connection and try again.'}</p>}
       {status === 'ready' && <div className="story-grid">
         {posts.map((post) => (
           <article className="story-card" key={post.id}>

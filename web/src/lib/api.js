@@ -1,5 +1,5 @@
-export const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
-  || (import.meta.env.PROD ? 'https://tripo-api-eta.vercel.app' : 'http://localhost:4000');
+export const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL
+  || (import.meta.env.PROD ? 'https://tripo-api-eta.vercel.app' : 'http://localhost:4000')).replace(/\/+$/, '');
 
 export async function apiRequest(path, options = {}) {
   const { getToken, headers: inputHeaders, body: inputBody, ...requestOptions } = options;

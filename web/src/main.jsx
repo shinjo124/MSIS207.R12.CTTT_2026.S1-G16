@@ -10,6 +10,7 @@ const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 function AuthenticatedApp() {
   const { getToken, isLoaded, isSignedIn } = useAuth();
   const [profileStatus, setProfileStatus] = useState('signed-out');
+  const [profileError, setProfileError] = useState('');
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -20,16 +21,20 @@ function AuthenticatedApp() {
 
     const controller = new AbortController();
     setProfileStatus('loading');
+    setProfileError('');
     apiRequest('/auth/me', { getToken, signal: controller.signal })
       .then(() => setProfileStatus('ready'))
       .catch((error) => {
-        if (error.name !== 'AbortError') setProfileStatus('error');
+        if (error.name !== 'AbortError') {
+          setProfileError(error.message);
+          setProfileStatus('error');
+        }
       });
 
     return () => controller.abort();
   }, [getToken, isLoaded, isSignedIn]);
 
-  return <App getToken={getToken} isSignedIn={isLoaded && Boolean(isSignedIn)} profileStatus={isLoaded ? profileStatus : 'loading'} />;
+  return <App getToken={getToken} isSignedIn={isLoaded && Boolean(isSignedIn)} profileStatus={isLoaded ? profileStatus : 'loading'} profileError={profileError} />;
 }
 
 function AuthPage({ signUp }) {

@@ -4,7 +4,7 @@ import PostsFeed from './features/posts/PostsFeed.jsx';
 import SharedTrip from './features/trips/SharedTrip.jsx';
 import { apiBaseUrl } from './lib/api.js';
 
-export default function App({ getToken, isSignedIn = false, profileStatus = 'signed-out' }) {
+export default function App({ getToken, isSignedIn = false, profileStatus = 'signed-out', profileError = '' }) {
   const shareToken = window.location.pathname.match(/^\/share\/([a-f0-9]{64})$/)?.[1];
   if (shareToken) return <main className="page-shell"><SharedTrip token={shareToken} /></main>;
 
@@ -109,7 +109,7 @@ export default function App({ getToken, isSignedIn = false, profileStatus = 'sig
         </div>}
       </section>
 
-      <PostsFeed getToken={getToken} isSignedIn={isSignedIn} profileStatus={profileStatus} />
+      <PostsFeed getToken={getToken} isSignedIn={isSignedIn} profileStatus={profileStatus} profileError={profileError} />
 
       <footer><span>tripo</span><span>Plan a little. Enjoy a lot.</span><span className="api-status"><i />{health}</span></footer>
     </main>
