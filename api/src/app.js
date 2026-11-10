@@ -10,6 +10,8 @@ import { pool } from './db/pool.js';
 import destinationsRouter from './routes/destinations.js';
 import authRouter from './routes/auth.js';
 import shareRouter from './routes/share.js';
+import postsRouter from './routes/posts.js';
+import photosRouter from './routes/photos.js';
 
 const app = express();
 const openApiPath = new URL('../../docs/api/openapi.yaml', import.meta.url);
@@ -29,7 +31,10 @@ const apiLimiter = rateLimit({
 if (Number(process.env.TRUST_PROXY_HOPS) > 0) {
   app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS));
 }
-app.use(cors({ origin: allowedOrigins, allowedHeaders: ['Content-Type', 'Authorization'] }));
+app.use(cors({
+  origin: allowedOrigins,
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 app.use(express.json({ limit: '1mb' }));
 if (process.env.CLERK_SECRET_KEY) app.use(clerkMiddleware());
 // shortcut: per-process memory only; use a shared store before running multiple API instances.
@@ -48,10 +53,18 @@ app.get('/api/health', async (_req, res) => {
 app.use('/api/destinations', destinationsRouter);
 app.use('/api/auth', authRouter);
 app.use('/api', shareRouter);
+app.use('/api/posts', postsRouter);
+app.use('/api/trip-photos', photosRouter);
 
 app.use((error, _req, res, _next) => {
+  if (error.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({ error: { code: 'IMAGE_TOO_LARGE', message: 'Images must be 5 MB or smaller.' } });
+  }
+  if (error.code?.startsWith('LIMIT_')) {
+    return res.status(400).json({ error: { code: 'INVALID_IMAGE_UPLOAD', message: 'Upload one image in the image field.' } });
+  }
   console.error(error.message);
-  res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Internal server error.' } });
+  res.status(500).json({ error: 'Internal server error' });
 });
 
 export default app;
