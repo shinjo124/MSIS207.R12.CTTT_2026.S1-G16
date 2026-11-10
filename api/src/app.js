@@ -16,10 +16,15 @@ import photosRouter from './routes/photos.js';
 const app = express();
 const openApiPath = new URL('../../docs/api/openapi.yaml', import.meta.url);
 const openApiDocument = parse(await readFile(fileURLToPath(openApiPath), 'utf8'));
-const allowedOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173')
+const configuredOrigins = (process.env.CLIENT_ORIGIN || '')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
+const allowedOrigins = [
+  ...configuredOrigins,
+  'https://tripo-web.vercel.app',
+  ...(process.env.NODE_ENV === 'production' ? [] : ['http://localhost:5173']),
+];
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 120,

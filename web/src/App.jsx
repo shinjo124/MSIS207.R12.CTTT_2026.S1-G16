@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import { SignInButton, SignUpButton, Show, UserButton } from '@clerk/react';
 import PostsFeed from './features/posts/PostsFeed.jsx';
 import SharedTrip from './features/trips/SharedTrip.jsx';
-
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
+import { apiBaseUrl } from './lib/api.js';
 
 export default function App({ getToken, isSignedIn = false, profileStatus = 'signed-out' }) {
   const shareToken = window.location.pathname.match(/^\/share\/([a-f0-9]{64})$/)?.[1];
@@ -23,7 +22,7 @@ export default function App({ getToken, isSignedIn = false, profileStatus = 'sig
         if (!response.ok) throw new Error(result.database || 'API unavailable');
         setHealth('API and database connected');
       })
-      .catch(() => setHealth('API unavailable — start the API and MySQL'));
+      .catch(() => setHealth('API unavailable — check API URL and CORS settings'));
   }, []);
 
   useEffect(() => {
