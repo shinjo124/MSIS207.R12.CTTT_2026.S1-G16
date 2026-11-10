@@ -78,8 +78,7 @@ router.get('/', async (req, res, next) => {
               (SELECT COUNT(*) FROM post_comments c WHERE c.post_id = p.id) AS commentsCount
        FROM posts p JOIN users u ON u.id = p.author_user_id
        WHERE p.visibility = 'public'
-       ORDER BY p.created_at DESC, p.id DESC LIMIT ? OFFSET ?`,
-      [limit, offset],
+       ORDER BY p.created_at DESC, p.id DESC LIMIT ${limit} OFFSET ${offset}`,
     );
 
     res.json({ data: await addPhotos(posts), page, limit });
