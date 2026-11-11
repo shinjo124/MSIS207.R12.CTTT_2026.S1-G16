@@ -43,30 +43,33 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
     setComposerMessage('');
     setError('');
     if (!body) return setComposerMessage('Write a few words before publishing.');
-    if (image instanceof File && image.size && (!tripId || !altText)) {
-      return setComposerMessage('Add the trip ID and descriptive alt text for this photo.');
+    if (image instanceof File && image.size && !altText) {
+      return setComposerMessage('Add a descriptive alt text for this photo.');
     }
 
     setComposerBusy(true);
     try {
-      const photos = [];
       if (image instanceof File && image.size) {
         const upload = new FormData();
-        upload.set('tripId', tripId);
+        upload.set('body', body);
+        upload.set('visibility', 'public');
+        upload.set('altText', altText);
+        if (tripId) upload.set('tripId', tripId);
+        if (placeId) upload.set('placeId', placeId);
         upload.set('image', image);
-        const uploaded = await apiRequest('/trip-photos', { method: 'POST', body: upload, getToken });
-        photos.push({ url: uploaded.data.imageUrl, altText });
+        await apiRequest('/posts', { method: 'POST', body: upload, getToken });
+      } else {
+        await apiRequest('/posts', {
+          method: 'POST', getToken,
+          body: {
+            body,
+            visibility: 'public',
+            tripId: tripId ? Number(tripId) : null,
+            placeId: placeId ? Number(placeId) : null,
+            photos: [],
+          },
+        });
       }
-      await apiRequest('/posts', {
-        method: 'POST', getToken,
-        body: {
-          body,
-          visibility: 'public',
-          tripId: tripId ? Number(tripId) : null,
-          placeId: placeId ? Number(placeId) : null,
-          photos,
-        },
-      });
       formElement.reset();
       setComposerMessage('Your story is published.');
       await loadPosts();
@@ -136,7 +139,7 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
       {canWrite && <form className="story-composer" onSubmit={createPost}>
         <label>Write a travel story<textarea name="body" maxLength="2000" rows="3" required placeholder="A place, a moment, a recommendation…" /></label>
         <div className="composer-fields">
-          <label>Trip ID <input name="tripId" type="number" min="1" placeholder="Optional; needed for a photo" /></label>
+          <label>Trip ID <input name="tripId" type="number" min="1" placeholder="Optional" /></label>
           <label>Place ID <input name="placeId" type="number" min="1" placeholder="Optional" /></label>
           <label>Photo <input name="image" type="file" accept="image/jpeg,image/png,image/webp" /></label>
           <label>Photo description <input name="altText" maxLength="255" placeholder="Describe the photo for screen readers" /></label>

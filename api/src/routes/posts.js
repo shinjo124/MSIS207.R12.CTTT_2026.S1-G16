@@ -1,10 +1,23 @@
+import { fileTypeFromBuffer } from 'file-type';
 import { Router } from 'express';
+import { rateLimit } from 'express-rate-limit';
+import multer from 'multer';
 import { pool } from '../db/pool.js';
 import { requireAuth } from '../middleware/require-auth.js';
+import { deleteCloudinaryImage, isCloudinaryConfigured, uploadCloudinaryImage } from '../services/cloudinary.js';
 import { findLocalUserId } from '../services/profiles.js';
 
 const router = Router();
 const isPositiveId = (value) => Number.isSafeInteger(Number(value)) && Number(value) > 0;
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024, files: 1 } });
+const uploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: { code: 'UPLOAD_LIMITED', message: 'Too many photo uploads. Try again later.' } },
+});
+const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 async function requireProfile(req, res) {
   const userId = await findLocalUserId(req.clerkUserId);
@@ -87,15 +100,19 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-router.post('/', requireAuth, async (req, res, next) => {
+router.post('/', requireAuth, (req, res, next) => (
+  req.is('multipart/form-data') ? uploadLimiter(req, res, next) : next()
+), upload.single('image'), async (req, res, next) => {
   const body = typeof req.body.body === 'string' ? req.body.body.trim() : '';
   const visibility = req.body.visibility || 'public';
   const tripId = req.body.tripId == null ? null : Number(req.body.tripId);
   const placeId = req.body.placeId == null ? null : Number(req.body.placeId);
-  const photos = req.body.photos ?? [];
+  const photos = Array.isArray(req.body.photos) ? [...req.body.photos] : req.body.photos ?? [];
+  const altText = typeof req.body.altText === 'string' ? req.body.altText.trim() : '';
 
   if (!body || body.length > 2000 || !['public', 'private'].includes(visibility)
       || !Array.isArray(photos) || photos.length > 5 || !photos.every(validatePhoto)
+      || (req.file && (!altText || altText.length > 255 || photos.length >= 5))
       || (tripId !== null && !isPositiveId(tripId))
       || (placeId !== null && !isPositiveId(placeId))) {
     return res.status(400).json({
@@ -103,6 +120,18 @@ router.post('/', requireAuth, async (req, res, next) => {
     });
   }
 
+  if (req.file) {
+    const fileType = await fileTypeFromBuffer(req.file.buffer);
+    if (!fileType || !ALLOWED_TYPES.has(fileType.mime)) {
+      return res.status(415).json({ error: { code: 'UNSUPPORTED_IMAGE', message: 'Use a JPEG, PNG, or WebP image.' } });
+    }
+    if (!isCloudinaryConfigured()) {
+      return res.status(503).json({ error: { code: 'PHOTO_STORAGE_NOT_CONFIGURED', message: 'Photo storage is not configured.' } });
+    }
+  }
+
+  let uploadedImage;
+  let photoCommitted = false;
   try {
     const userId = await requireProfile(req, res);
     if (!userId) return;
@@ -124,6 +153,11 @@ router.post('/', requireAuth, async (req, res, next) => {
       }
     }
 
+    if (req.file) {
+      uploadedImage = await uploadCloudinaryImage(req.file.buffer, 'tripo/post-photos');
+      photos.push({ url: uploadedImage.secure_url, altText });
+    }
+
     const connection = await pool.getConnection();
     try {
       await connection.beginTransaction();
@@ -138,6 +172,7 @@ router.post('/', requireAuth, async (req, res, next) => {
         );
       }
       await connection.commit();
+      photoCommitted = true;
       res.status(201).json({ data: { id: result.insertId, body, visibility, photos } });
     } catch (error) {
       await connection.rollback();
@@ -146,6 +181,9 @@ router.post('/', requireAuth, async (req, res, next) => {
       connection.release();
     }
   } catch (error) {
+    if (uploadedImage && !photoCommitted) {
+      await deleteCloudinaryImage(uploadedImage.public_id).catch(() => {});
+    }
     next(error);
   }
 });

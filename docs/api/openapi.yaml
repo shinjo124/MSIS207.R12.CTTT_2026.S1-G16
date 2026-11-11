@@ -253,12 +253,26 @@ paths:
                     properties:
                       url: { type: string, format: uri }
                       altText: { type: string, minLength: 1, maxLength: 255 }
+          multipart/form-data:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, minLength: 1, maxLength: 2000 }
+                visibility: { type: string, enum: [public, private], default: public }
+                tripId: { type: integer, minimum: 1 }
+                placeId: { type: integer, minimum: 1 }
+                image: { type: string, format: binary, description: Optional JPEG, PNG, or WebP image, maximum 5 MB }
+                altText: { type: string, minLength: 1, maxLength: 255, description: Required when image is provided }
       responses:
         '201': { description: Post created }
         '400': { description: Post input is invalid }
         '401': { description: Missing or invalid session token }
         '404': { description: Optional trip or place was not found }
+        '413': { description: Image is larger than 5 MB }
+        '415': { description: Image type is not JPEG, PNG, or WebP }
         '429': { description: Request limit reached }
+        '503': { description: Cloudinary photo storage is not configured }
   /api/posts/mine:
     get:
       summary: List the signed-in user's own public and private stories

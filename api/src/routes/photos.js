@@ -1,11 +1,10 @@
-import { v2 as cloudinary } from 'cloudinary';
 import { fileTypeFromBuffer } from 'file-type';
 import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import multer from 'multer';
-import { Readable } from 'node:stream';
 import { pool } from '../db/pool.js';
 import { requireAuth } from '../middleware/require-auth.js';
+import { deleteCloudinaryImage, isCloudinaryConfigured, uploadCloudinaryImage } from '../services/cloudinary.js';
 import { findLocalUserId } from '../services/profiles.js';
 
 const router = Router();
@@ -18,18 +17,6 @@ const uploadLimiter = rateLimit({
   message: { error: { code: 'UPLOAD_LIMITED', message: 'Too many photo uploads. Try again later.' } },
 });
 const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
-
-function uploadImage(buffer) {
-  return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream({
-      resource_type: 'image',
-      folder: 'tripo/trip-photos',
-      allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
-      transformation: [{ width: 2400, height: 2400, crop: 'limit' }],
-    }, (error, result) => error ? reject(error) : resolve(result));
-    Readable.from([buffer]).pipe(stream);
-  });
-}
 
 router.post('/', requireAuth, uploadLimiter, upload.single('image'), async (req, res, next) => {
   const tripId = Number(req.body.tripId);
@@ -46,7 +33,7 @@ router.post('/', requireAuth, uploadLimiter, upload.single('image'), async (req,
   if (!fileType || !ALLOWED_TYPES.has(fileType.mime)) {
     return res.status(415).json({ error: { code: 'UNSUPPORTED_IMAGE', message: 'Use a JPEG, PNG, or WebP image.' } });
   }
-  if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+  if (!isCloudinaryConfigured()) {
     return res.status(503).json({ error: { code: 'PHOTO_STORAGE_NOT_CONFIGURED', message: 'Photo storage is not configured.' } });
   }
 
@@ -69,13 +56,7 @@ router.post('/', requireAuth, uploadLimiter, upload.single('image'), async (req,
       return res.status(409).json({ error: { code: 'TRIP_PHOTO_LIMIT', message: 'This trip has reached its 25-photo limit.' } });
     }
 
-    cloudinary.config({
-      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-      api_key: process.env.CLOUDINARY_API_KEY,
-      api_secret: process.env.CLOUDINARY_API_SECRET,
-      secure: true,
-    });
-    const uploaded = await uploadImage(req.file.buffer);
+    const uploaded = await uploadCloudinaryImage(req.file.buffer, 'tripo/trip-photos');
     try {
       const [result] = await pool.execute(
         `INSERT INTO trip_photos
@@ -92,7 +73,7 @@ router.post('/', requireAuth, uploadLimiter, upload.single('image'), async (req,
         },
       });
     } catch (error) {
-      await cloudinary.uploader.destroy(uploaded.public_id, { resource_type: 'image' }).catch(() => {});
+      await deleteCloudinaryImage(uploaded.public_id).catch(() => {});
       throw error;
     }
   } catch (error) {
