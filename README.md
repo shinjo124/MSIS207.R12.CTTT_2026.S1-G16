@@ -11,10 +11,10 @@ Tripo helps a group plan a multi-day trip, organize a day-by-day itinerary and b
 ## Local setup
 
 1. Install Node.js 24 LTS and start MySQL (Laragon is the guide's local setup).
-2. Create a database named `tripo_dev` using `utf8mb4`:
+2. Create a database named `tripo` using `utf8mb4`:
 
    ```sql
-   CREATE DATABASE tripo_dev CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   CREATE DATABASE tripo CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
    ```
 3. Copy `api/.env.example` to `api/.env` and set the local MySQL values.
 4. Apply every SQL file in `api/database/migrations/` in numeric order, then run every file in `api/database/seeds/` in numeric order. The seed data is fictional and repeatable.
