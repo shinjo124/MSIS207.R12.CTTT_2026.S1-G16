@@ -45,6 +45,7 @@ paths:
                       displayName: { type: string }
         '401': { description: Missing or invalid session token }
         '422': { description: Clerk account has no primary email address }
+        '409': { description: The Clerk account's email is already linked to another local profile (EMAIL_IN_USE) }
         '503': { description: Clerk authentication is not configured }
   /api/destinations:
     get:

@@ -69,7 +69,7 @@ app.use((error, _req, res, _next) => {
     return res.status(400).json({ error: { code: 'INVALID_IMAGE_UPLOAD', message: 'Upload one image in the image field.' } });
   }
   console.error(error.message);
-  res.status(500).json({ error: 'Internal server error' });
+  res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Something went wrong. Please try again.' } });
 });
 
 export default app;

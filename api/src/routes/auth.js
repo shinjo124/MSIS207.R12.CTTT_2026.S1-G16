@@ -31,6 +31,12 @@ router.get('/me', requireAuth, async (req, res, next) => {
 
     res.json({ data: rows[0] });
   } catch (error) {
+    // Email is UNIQUE: a re-created Clerk account with an old email would otherwise be a 500.
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({
+        error: { code: 'EMAIL_IN_USE', message: 'This email is already linked to another Tripo account.' },
+      });
+    }
     next(error);
   }
 });
