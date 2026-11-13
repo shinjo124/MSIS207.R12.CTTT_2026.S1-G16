@@ -44,6 +44,13 @@ Keep this log short. Record decisions that affect architecture, scope, or team i
 - **Decision:** Use ordinary REST requests for the MVP; do not add WebSockets, chat, or live collaboration.
 - **Reason:** Current requirements do not need bidirectional live updates, and removing realtime infrastructure keeps deployment and debugging smaller.
 
+## D-007 — Derive itinerary days from trip dates instead of a `trip_days` table
+
+- **Status:** Decided
+- **Decision:** Do not store itinerary days. The API builds one day per calendar date from `start_date` to `end_date` (inclusive) and each activity stores its own `activity_date`, which must fall inside that range.
+- **Reason:** Spec §5 allows "an equivalent date-based representation". Without a `trip_days` table, changing trip dates needs no day re-sync, and a trip of N calendar days always shows exactly N days.
+- **Consequences:** Editing trip dates is rejected with `409 ACTIVITIES_OUTSIDE_DATES` if it would leave activities outside the new range, so no activity is ever dropped silently. Trips are limited to 60 days to keep responses small.
+
 ## References
 
 - [Vercel Hobby plan](https://vercel.com/docs/plans/hobby)

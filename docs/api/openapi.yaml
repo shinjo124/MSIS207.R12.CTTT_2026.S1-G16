@@ -49,12 +49,16 @@ paths:
         '503': { description: Clerk authentication is not configured }
   /api/destinations:
     get:
-      summary: List curated destinations
+      summary: List curated destinations (featured only), or every destination with scope=all
       parameters:
         - in: query
           name: category
           schema: { type: string }
           description: Optional exact category filter
+        - in: query
+          name: scope
+          schema: { type: string, enum: [all] }
+          description: all = every province and popular spot, used by the trip form's type-ahead search
       responses:
         '200':
           description: Destination list
@@ -72,6 +76,9 @@ paths:
                       properties:
                         id: { type: integer, format: int64 }
                         name: { type: string }
+                        localName: { type: [string, 'null'], description: 'Vietnamese name with diacritics, e.g. Đà Lạt' }
+                        aliases: { type: [string, 'null'], description: 'Comma-separated other names, incl. merged former provinces' }
+                        featured: { type: boolean }
                         country: { type: string }
                         region: { type: string }
                         category: { type: string }
@@ -110,6 +117,179 @@ paths:
                         mapQuery: { type: string }
         '400': { description: Destination ID is invalid }
         '404': { description: Destination was not found }
+  /api/trips:
+    get:
+      summary: List the signed-in user's trips
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Trips owned by the user, newest start date first
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/TripSummary' } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '409': { description: Local profile not created yet (PROFILE_NOT_READY) }
+    post:
+      summary: Create a trip; its itinerary has one day per calendar date (inclusive)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TripInput' }
+            example:
+              title: A long weekend in Da Lat
+              destinationIds: [1]
+              startDate: '2026-11-13'
+              endDate: '2026-11-16'
+              groupSize: 3
+              currencyCode: VND
+              budget: '5000000'
+      responses:
+        '201':
+          description: Created trip with 4 itinerary days for 13–16 Nov
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/TripDetail' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+  /api/trips/{tripId}:
+    parameters:
+      - in: path
+        name: tripId
+        required: true
+        schema: { type: integer, minimum: 1 }
+    get:
+      summary: Read one owned trip with destinations, days and activities
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Trip detail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/TripDetail' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { description: Trip does not exist or is not owned by the signed-in user }
+    put:
+      summary: Replace all editable trip fields (same body as POST)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TripInput' }
+      responses:
+        '200':
+          description: Updated trip detail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/TripDetail' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { description: Trip does not exist or is not owned by the signed-in user }
+        '409': { description: New dates would leave existing activities outside the trip (ACTIVITIES_OUTSIDE_DATES) }
+    delete:
+      summary: Delete an owned trip and all its activities
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Trip deleted }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { description: Trip does not exist or is not owned by the signed-in user }
+  /api/trips/{tripId}/activities:
+    post:
+      summary: Add an activity to one day of an owned trip
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: tripId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ActivityInput' }
+            example:
+              date: '2026-11-13'
+              time: '09:00'
+              category: sightseeing
+              title: Xuan Huong Lake
+              city: Da Lat
+              address: Tran Quoc Toan, Ward 1
+              plannedCost: '0'
+              actualSpend: null
+              note: Morning walk
+      responses:
+        '201':
+          description: Created activity
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Activity' }
+        '400': { description: Invalid field or date outside the trip (DATE_OUTSIDE_TRIP) }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { description: Trip does not exist or is not owned by the signed-in user }
+  /api/activities/{activityId}:
+    parameters:
+      - in: path
+        name: activityId
+        required: true
+        schema: { type: integer, minimum: 1 }
+    patch:
+      summary: Update some fields of an activity (e.g. visited check-in or actual spend)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/ActivityInput'
+              required: []
+              properties:
+                visited: { type: boolean }
+            example: { visited: true, actualSpend: '120000' }
+      responses:
+        '200':
+          description: Updated activity
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Activity' }
+        '400': { description: Invalid field, no fields sent, or date outside the trip }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { description: Activity does not exist or its trip is not owned by the signed-in user }
+    delete:
+      summary: Delete an activity
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Activity deleted }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { description: Activity does not exist or its trip is not owned by the signed-in user }
   /api/trips/{tripId}/share:
     parameters:
       - in: path
@@ -426,3 +606,98 @@ components:
     bearerAuth:
       type: http
       scheme: bearer
+  responses:
+    Unauthenticated:
+      description: Missing or invalid session token
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ValidationError:
+      description: Invalid input, e.g. END_BEFORE_START, INVALID_BUDGET, INVALID_DESTINATIONS
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+    Money:
+      type: string
+      description: Decimal amount (DECIMAL(12,2)) as a string, never negative
+      pattern: '^\d{1,10}(\.\d{1,2})?$'
+      example: '5000000.00'
+    TripInput:
+      type: object
+      required: [title, destinationIds, startDate, endDate, groupSize, currencyCode, budget]
+      properties:
+        title: { type: string, maxLength: 160 }
+        destinationIds: { type: array, minItems: 1, maxItems: 10, items: { type: integer }, description: In visiting order }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date, description: Inclusive; must not be before startDate; at most 60 days }
+        groupSize: { type: integer, minimum: 1, maximum: 100 }
+        currencyCode: { type: string, pattern: '^[A-Z]{3}$' }
+        budget: { $ref: '#/components/schemas/Money' }
+    TripSummary:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        dayCount: { type: integer, description: Calendar difference + 1 }
+        groupSize: { type: integer }
+        budget: { $ref: '#/components/schemas/Money' }
+        currencyCode: { type: string }
+        shareEnabled: { type: boolean }
+        destinations:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              name: { type: string }
+              country: { type: string }
+              mapQuery: { type: string }
+    TripDetail:
+      allOf:
+        - $ref: '#/components/schemas/TripSummary'
+        - type: object
+          properties:
+            days:
+              type: array
+              items:
+                type: object
+                properties:
+                  dayNumber: { type: integer }
+                  date: { type: string, format: date }
+                  activities: { type: array, items: { $ref: '#/components/schemas/Activity' } }
+    ActivityInput:
+      type: object
+      required: [date, category, title]
+      properties:
+        date: { type: string, format: date, description: Must be within the trip dates }
+        time: { type: [string, 'null'], pattern: '^\d{2}:\d{2}$' }
+        category: { type: string, enum: [sightseeing, food_drink, accommodation, transport, shopping, other] }
+        title: { type: string, maxLength: 160, description: Place or activity name }
+        city: { type: [string, 'null'], maxLength: 120 }
+        address: { type: [string, 'null'], maxLength: 255 }
+        plannedCost: { $ref: '#/components/schemas/Money' }
+        actualSpend:
+          description: null = not recorded (not zero)
+          oneOf:
+            - $ref: '#/components/schemas/Money'
+            - type: 'null'
+        note: { type: [string, 'null'], maxLength: 1000 }
+    Activity:
+      allOf:
+        - $ref: '#/components/schemas/ActivityInput'
+        - type: object
+          properties:
+            id: { type: integer }
+            tripId: { type: integer }
+            visited: { type: boolean }
