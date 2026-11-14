@@ -29,7 +29,14 @@ function Topbar({ getToken }) {
 export default function App(props) {
   const path = window.location.pathname.replace(/\/+$/, '') || '/';
   const shareToken = path.match(/^\/share\/([a-f0-9]{64})$/)?.[1];
-  if (shareToken) return <main className="page-shell"><SharedTrip token={shareToken} /></main>;
+  if (shareToken) return <main className="page-shell">
+    <header className="topbar">
+      <a className="brand" href="/" aria-label="Tripo home"><span className="brand-mark">T</span> tripo</a>
+      <span className="top-note">A trip to look forward to.</span>
+      <a className="nav-link" href="/">Plan your own trip ↗</a>
+    </header>
+    <SharedTrip token={shareToken} />
+  </main>;
 
   if (path === '/trips') {
     return <main className="page-shell"><Topbar getToken={props.getToken} /><TripsPage {...props} /></main>;

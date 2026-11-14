@@ -19,8 +19,13 @@ export default function SharedTrip({ token }) {
     return () => controller.abort();
   }, [token]);
 
-  if (status === 'loading') return <p role="status">Loading shared trip…</p>;
-  if (status !== 'ready') return <p role="alert">This shared trip is unavailable.</p>;
+  if (status === 'loading') return <p className="shared-state" role="status">Loading shared trip…</p>;
+  if (status !== 'ready') return <section className="shared-state" aria-labelledby="share-unavailable-title">
+    <p className="eyebrow">SHARED ITINERARY</p>
+    <h1 id="share-unavailable-title">This trip link is unavailable.</h1>
+    <p>It may have been revoked or replaced by its owner.</p>
+    <a className="primary-button" href="/">Explore Tripo</a>
+  </section>;
 
   const days = Array.isArray(trip.days) ? trip.days : null;
   const dayCount = days?.length ?? trip.dayCount;
