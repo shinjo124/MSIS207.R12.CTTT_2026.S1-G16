@@ -66,7 +66,7 @@ export default function TripsPage({ getToken, isSignedIn, profileStatus, profile
                 <span className="trip-card-days">{trip.dayCount}<small>{trip.dayCount === 1 ? 'day' : 'days'}</small></span>
                 <span className="trip-card-body">
                   <strong>{trip.title}</strong>
-                  <span>{formatDate(trip.startDate)} – {formatDate(trip.endDate)} · {trip.groupSize} travelers</span>
+                  <span>{formatDate(trip.startDate)} – {formatDate(trip.endDate)} · {trip.groupSize} {trip.groupSize === 1 ? 'traveler' : 'travelers'}</span>
                   <span>{trip.destinations.map((destination) => destination.name).join(' → ') || 'No destinations'}</span>
                 </span>
                 <span className="trip-card-budget">{formatMoney(trip.budget, trip.currencyCode)}<small>budget</small></span>

@@ -82,7 +82,7 @@ a { color: inherit; text-underline-offset: 3px; }
 .stories { padding: 28px 0 60px; border-top: 1px solid var(--line); }
 .story-composer, .share-control { margin: 0 0 22px; padding: 18px; border: 1px solid var(--line); border-radius: 4px; background: #fbfcf9; }
 .story-composer > label, .composer-fields label { display: grid; gap: 7px; color: #59675e; font-size: 11px; }
-.story-composer textarea, .story-composer input, .share-link-row input, .story-comments input { width: 100%; min-width: 0; padding: 10px; border: 1px solid #d3ddd3; border-radius: 3px; background: var(--white); color: var(--ink); font-size: 12px; }
+.story-composer textarea, .story-composer input, .story-composer select, .share-link-row input, .story-comments input { width: 100%; min-width: 0; padding: 10px; border: 1px solid #d3ddd3; border-radius: 3px; background: var(--white); color: var(--ink); font-size: 12px; }
 .composer-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 14px 0; }
 .story-composer button, .share-control button, .story-actions button, .story-comments button { padding: 8px 12px; border: 0; border-radius: 3px; background: var(--green); color: var(--white); cursor: pointer; font-size: 11px; font-weight: 600; }
 .story-composer button:hover:not(:disabled), .share-control button:hover:not(:disabled), .story-actions button:hover:not(:disabled), .story-comments button:hover:not(:disabled) { background: var(--green-dark); }

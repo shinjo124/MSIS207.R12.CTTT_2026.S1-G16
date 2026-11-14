@@ -12,7 +12,56 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
   const [commentDrafts, setCommentDrafts] = useState({});
   const [composerBusy, setComposerBusy] = useState(false);
   const [composerMessage, setComposerMessage] = useState('');
+  const [linkedTrips, setLinkedTrips] = useState([]);
+  const [destinations, setDestinations] = useState([]);
+  const [places, setPlaces] = useState([]);
+  const [destinationId, setDestinationId] = useState('');
+  const [placeId, setPlaceId] = useState('');
+  const [linksLoading, setLinksLoading] = useState(false);
+  const [linksUnavailable, setLinksUnavailable] = useState(false);
+  const [placesLoading, setPlacesLoading] = useState(false);
+  const [placesUnavailable, setPlacesUnavailable] = useState(false);
   const canWrite = isSignedIn && profileStatus === 'ready';
+
+  useEffect(() => {
+    if (!canWrite) return undefined;
+    const controller = new AbortController();
+    setLinksLoading(true);
+    Promise.allSettled([
+      apiRequest('/trips', { getToken, signal: controller.signal }),
+      apiRequest('/destinations?scope=all', { signal: controller.signal }),
+    ]).then(([tripsResult, destinationsResult]) => {
+      if (controller.signal.aborted) return;
+      const unavailable = tripsResult.status === 'rejected' || destinationsResult.status === 'rejected';
+      setLinkedTrips(unavailable ? [] : tripsResult.value.data || []);
+      setDestinations(unavailable ? [] : destinationsResult.value.data || []);
+      setLinksUnavailable(unavailable);
+      setLinksLoading(false);
+    });
+    return () => controller.abort();
+  }, [canWrite, getToken]);
+
+  useEffect(() => {
+    if (!destinationId) {
+      setPlaces([]);
+      return undefined;
+    }
+    const controller = new AbortController();
+    setPlacesLoading(true);
+    setPlacesUnavailable(false);
+    apiRequest(`/destinations/${encodeURIComponent(destinationId)}/places`, { signal: controller.signal })
+      .then((result) => setPlaces(result.data || []))
+      .catch((requestError) => {
+        if (requestError.name !== 'AbortError') {
+          setPlaces([]);
+          setPlacesUnavailable(true);
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setPlacesLoading(false);
+      });
+    return () => controller.abort();
+  }, [destinationId]);
 
   const loadPosts = useCallback(async (signal) => {
     try {
@@ -71,6 +120,8 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
         });
       }
       formElement.reset();
+      setDestinationId('');
+      setPlaceId('');
       setComposerMessage('Your story is published.');
       await loadPosts();
     } catch (requestError) {
@@ -139,11 +190,28 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
       {canWrite && <form className="story-composer" onSubmit={createPost}>
         <label>Write a travel story<textarea name="body" maxLength="2000" rows="3" required placeholder="A place, a moment, a recommendation…" /></label>
         <div className="composer-fields">
-          <label>Trip ID <input name="tripId" type="number" min="1" placeholder="Optional" /></label>
-          <label>Place ID <input name="placeId" type="number" min="1" placeholder="Optional" /></label>
+          <label>Trip (optional)
+            <select name="tripId" defaultValue="" disabled={linksLoading || linksUnavailable}>
+              <option value="">{linksLoading ? 'Loading trips…' : linkedTrips.length ? 'Do not link a trip' : 'No trips to link'}</option>
+              {linkedTrips.map((trip) => <option key={trip.id} value={trip.id}>{trip.title}</option>)}
+            </select>
+          </label>
+          <label>Destination (optional)
+            <select value={destinationId} disabled={linksLoading || linksUnavailable} onChange={(event) => { setDestinationId(event.target.value); setPlaceId(''); }}>
+              <option value="">{linksLoading ? 'Loading destinations…' : destinations.length ? 'Do not link a place' : 'No destinations available'}</option>
+              {destinations.map((destination) => <option key={destination.id} value={destination.id}>{destination.localName || destination.name}</option>)}
+            </select>
+          </label>
+          {destinationId && <label>Place (optional)
+            <select name="placeId" value={placeId} disabled={placesLoading || placesUnavailable} onChange={(event) => setPlaceId(event.target.value)}>
+              <option value="">{placesLoading ? 'Loading places…' : placesUnavailable ? 'Places unavailable right now' : places.length ? 'Do not link a place' : 'No places for this destination'}</option>
+              {places.map((place) => <option key={place.id} value={place.id}>{place.name}</option>)}
+            </select>
+          </label>}
           <label>Photo <input name="image" type="file" accept="image/jpeg,image/png,image/webp" /></label>
           <label>Photo description <input name="altText" maxLength="255" placeholder="Describe the photo for screen readers" /></label>
         </div>
+        {linksUnavailable && <p className="story-signin-note" role="status">Trip or place links are unavailable right now. You can still publish without linking them.</p>}
         <button type="submit" disabled={composerBusy}>{composerBusy ? 'Publishing…' : 'Publish story'}</button>
         {composerMessage && <p role="status">{composerMessage}</p>}
       </form>}
