@@ -12,6 +12,8 @@ import authRouter from './routes/auth.js';
 import shareRouter from './routes/share.js';
 import postsRouter from './routes/posts.js';
 import photosRouter from './routes/photos.js';
+import tripsRouter from './routes/trips.js';
+import activitiesRouter from './routes/activities.js';
 
 const app = express();
 const openApiPath = new URL('../../docs/api/openapi.yaml', import.meta.url);
@@ -57,6 +59,8 @@ app.get('/api/health', async (_req, res) => {
 
 app.use('/api/destinations', destinationsRouter);
 app.use('/api/auth', authRouter);
+app.use('/api/trips', tripsRouter);
+app.use('/api', activitiesRouter);
 app.use('/api', shareRouter);
 app.use('/api/posts', postsRouter);
 app.use('/api/trip-photos', photosRouter);
