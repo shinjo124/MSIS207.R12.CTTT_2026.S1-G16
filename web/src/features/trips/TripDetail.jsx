@@ -163,6 +163,7 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
         {status === 'loading' && <p className="empty-state" role="status">Loading trip…</p>}
         {status === 'error' && <div className="panel empty-panel">
           <p className="error-state" role="alert">{error}</p>
+          <button className="text-button" type="button" onClick={() => { setError(''); setStatus('loading'); loadTrip(); }}>Try again</button>
           <a className="text-button" href="/trips">Back to my trips</a>
         </div>}
         {status === 'ready' && trip && <>
@@ -178,7 +179,7 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
                   <p className="trip-meta">
                     {formatDate(trip.startDate)} – {formatDate(trip.endDate)}
                     <span> · </span>{trip.dayCount} {trip.dayCount === 1 ? 'day' : 'days'}
-                    <span> · </span>{trip.groupSize} travelers
+                    <span> · </span>{trip.groupSize} {trip.groupSize === 1 ? 'traveler' : 'travelers'}
                   </p>
                 </div>
                 <div className="trip-header-actions">
