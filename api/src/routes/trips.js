@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { pool } from '../db/pool.js';
 import { requireAuth } from '../middleware/require-auth.js';
 import { requireProfile } from '../middleware/require-profile.js';
+import { summarizeBudget } from '../services/budget-summary.js';
 import { countDays, listDates, parseId, sendError, validateTripInput } from '../services/trip-rules.js';
 
 const router = Router();
@@ -93,7 +94,7 @@ async function loadTripDetail(tripId, userId) {
     date,
     activities: activitiesByDate.get(date) || [],
   }));
-  return { ...trip, destinations, days };
+  return { ...trip, destinations, days, budgetSummary: summarizeBudget(trip.budget, activityRows) };
 }
 
 router.get('/', signedIn, async (req, res, next) => {

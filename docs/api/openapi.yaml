@@ -368,6 +368,14 @@ paths:
                       budget: { type: string, example: '1000.00' }
                       currencyCode: { type: string, minLength: 3, maxLength: 3 }
                       destinations: { type: array, items: { type: object } }
+                      days:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            dayNumber: { type: integer }
+                            date: { type: string, format: date }
+                            activities: { type: array, items: { $ref: '#/components/schemas/SharedActivity' } }
         '404': { description: Link is invalid, revoked, or unavailable }
         '429': { description: Request limit reached }
   /api/posts:
@@ -631,6 +639,11 @@ components:
       description: Decimal amount (DECIMAL(12,2)) as a string, never negative
       pattern: '^\d{1,10}(\.\d{1,2})?$'
       example: '5000000.00'
+    MoneySummary:
+      type: string
+      description: Decimal budget summary with two fractional digits; remaining may be negative.
+      pattern: '^-?[0-9]+([.][0-9]{2})$'
+      example: '-250.00'
     TripInput:
       type: object
       required: [title, destinationIds, startDate, endDate, groupSize, currencyCode, budget]
@@ -668,6 +681,24 @@ components:
         - $ref: '#/components/schemas/TripSummary'
         - type: object
           properties:
+            budgetSummary:
+              type: object
+              properties:
+                budget: { $ref: '#/components/schemas/Money' }
+                totalActualSpend: { $ref: '#/components/schemas/MoneySummary' }
+                remainingBudget:
+                  allOf: [{ $ref: '#/components/schemas/MoneySummary' }]
+                  description: Budget minus recorded spend; negative when over budget.
+                overBudget:
+                  allOf: [{ $ref: '#/components/schemas/MoneySummary' }]
+                  description: Non-negative amount by which recorded spend exceeds budget.
+                spendByCategory:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      category: { type: string, enum: [sightseeing, food_drink, accommodation, transport, shopping, other] }
+                      amount: { $ref: '#/components/schemas/MoneySummary' }
             days:
               type: array
               items:
@@ -701,3 +732,13 @@ components:
             id: { type: integer }
             tripId: { type: integer }
             visited: { type: boolean }
+    SharedActivity:
+      type: object
+      properties:
+        id: { type: integer }
+        date: { type: string, format: date }
+        time: { type: [string, 'null'], pattern: '^\d{2}:\d{2}$' }
+        category: { type: string, enum: [sightseeing, food_drink, accommodation, transport, shopping, other] }
+        title: { type: string }
+        city: { type: [string, 'null'] }
+        address: { type: [string, 'null'] }

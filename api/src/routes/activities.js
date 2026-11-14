@@ -75,8 +75,8 @@ const DATE_OUTSIDE_TRIP = {
   status: 400, code: 'DATE_OUTSIDE_TRIP', message: 'The activity date must be within the trip dates.',
 };
 
-async function loadActivity(id) {
-  const [rows] = await pool.execute(`SELECT ${ACTIVITY_COLUMNS} FROM activities a WHERE a.id = ?`, [id]);
+async function loadActivity(id, db = pool) {
+  const [rows] = await db.execute(`SELECT ${ACTIVITY_COLUMNS} FROM activities a WHERE a.id = ?`, [id]);
   return shapeActivity(rows[0]);
 }
 
@@ -86,23 +86,35 @@ router.post('/trips/:tripId/activities', signedIn, async (req, res, next) => {
   const { value, error } = validateActivity(req.body, false);
   if (error) return sendError(res, error);
 
+  const connection = await pool.getConnection();
   try {
-    const [trips] = await pool.execute(
+    await connection.beginTransaction();
+    const [trips] = await connection.execute(
       `SELECT DATE_FORMAT(start_date, '%Y-%m-%d') AS startDate, DATE_FORMAT(end_date, '%Y-%m-%d') AS endDate
-       FROM trips WHERE id = ? AND owner_user_id = ?`,
+       FROM trips WHERE id = ? AND owner_user_id = ? FOR UPDATE`,
       [tripId, req.userId],
     );
-    if (!trips.length) return sendError(res, TRIP_NOT_FOUND);
-    if (isOutsideTrip(value.activity_date, trips[0])) return sendError(res, DATE_OUTSIDE_TRIP);
+    if (!trips.length) {
+      await connection.rollback();
+      return sendError(res, TRIP_NOT_FOUND);
+    }
+    if (isOutsideTrip(value.activity_date, trips[0])) {
+      await connection.rollback();
+      return sendError(res, DATE_OUTSIDE_TRIP);
+    }
 
     const columns = ['trip_id', ...Object.keys(value)];
-    const [result] = await pool.execute(
+    const [result] = await connection.execute(
       `INSERT INTO activities (${columns.join(', ')}) VALUES (${columns.map(() => '?').join(', ')})`,
       [tripId, ...Object.values(value)],
     );
-    res.status(201).json({ data: await loadActivity(result.insertId) });
+    await connection.commit();
+    res.status(201).json({ data: await loadActivity(result.insertId, connection) });
   } catch (error) {
+    await connection.rollback().catch(() => {});
     next(error);
+  } finally {
+    connection.release();
   }
 });
 
@@ -112,23 +124,35 @@ router.patch('/activities/:activityId', signedIn, async (req, res, next) => {
   const { value, error } = validateActivity(req.body, true);
   if (error) return sendError(res, error);
 
+  const connection = await pool.getConnection();
   try {
+    await connection.beginTransaction();
     // Joins the trip so only its owner can find (and therefore change) the activity.
-    const [rows] = await pool.execute(
+    const [rows] = await connection.execute(
       `SELECT DATE_FORMAT(t.start_date, '%Y-%m-%d') AS startDate, DATE_FORMAT(t.end_date, '%Y-%m-%d') AS endDate
        FROM activities a JOIN trips t ON t.id = a.trip_id
-       WHERE a.id = ? AND t.owner_user_id = ?`,
+       WHERE a.id = ? AND t.owner_user_id = ? FOR UPDATE`,
       [activityId, req.userId],
     );
-    if (!rows.length) return sendError(res, ACTIVITY_NOT_FOUND);
-    if (value.activity_date && isOutsideTrip(value.activity_date, rows[0])) return sendError(res, DATE_OUTSIDE_TRIP);
+    if (!rows.length) {
+      await connection.rollback();
+      return sendError(res, ACTIVITY_NOT_FOUND);
+    }
+    if (value.activity_date && isOutsideTrip(value.activity_date, rows[0])) {
+      await connection.rollback();
+      return sendError(res, DATE_OUTSIDE_TRIP);
+    }
 
     // Column names come from validateActivity's fixed list, never from the request.
     const assignments = Object.keys(value).map((column) => `${column} = ?`).join(', ');
-    await pool.execute(`UPDATE activities SET ${assignments} WHERE id = ?`, [...Object.values(value), activityId]);
-    res.json({ data: await loadActivity(activityId) });
+    await connection.execute(`UPDATE activities SET ${assignments} WHERE id = ?`, [...Object.values(value), activityId]);
+    await connection.commit();
+    res.json({ data: await loadActivity(activityId, connection) });
   } catch (error) {
+    await connection.rollback().catch(() => {});
     next(error);
+  } finally {
+    connection.release();
   }
 });
 

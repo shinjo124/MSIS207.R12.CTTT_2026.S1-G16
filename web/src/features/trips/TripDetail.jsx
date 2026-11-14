@@ -70,6 +70,28 @@ function ActivityItem({ activity, trip, editing, onEdit, onCancel, onSave, onDel
   );
 }
 
+function BudgetSummary({ summary, currencyCode }) {
+  return (
+    <section className="budget-summary" aria-labelledby="budget-summary-title">
+      <h2 id="budget-summary-title">Budget summary</h2>
+      <dl className="budget-totals">
+        <div><dt>Budget</dt><dd>{formatMoney(summary.budget, currencyCode)}</dd></div>
+        <div><dt>Actual spent</dt><dd>{formatMoney(summary.totalActualSpend, currencyCode)}</dd></div>
+        <div><dt>Remaining</dt><dd>{formatMoney(summary.remainingBudget, currencyCode)}</dd></div>
+        <div><dt>Over budget</dt><dd>{formatMoney(summary.overBudget, currencyCode)}</dd></div>
+      </dl>
+      <h3>Actual spend by category</h3>
+      {summary.spendByCategory.length
+        ? <ul className="budget-category-list">
+            {summary.spendByCategory.map(({ category, amount }) => (
+              <li key={category}><span>{categoryLabel(category)}</span><strong>{formatMoney(amount, currencyCode)}</strong></li>
+            ))}
+          </ul>
+        : <p className="day-empty">No actual spend recorded yet.</p>}
+    </section>
+  );
+}
+
 export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus, profileError }) {
   const [trip, setTrip] = useState(null);
   const [status, setStatus] = useState('loading');
@@ -157,7 +179,6 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
                     {formatDate(trip.startDate)} – {formatDate(trip.endDate)}
                     <span> · </span>{trip.dayCount} {trip.dayCount === 1 ? 'day' : 'days'}
                     <span> · </span>{trip.groupSize} travelers
-                    <span> · </span>Budget {formatMoney(trip.budget, trip.currencyCode)}
                   </p>
                 </div>
                 <div className="trip-header-actions">
@@ -173,6 +194,8 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
               </header>}
 
           <ShareControl tripId={trip.id} getToken={getToken} />
+
+          {trip.budgetSummary && <BudgetSummary summary={trip.budgetSummary} currencyCode={trip.currencyCode} />}
 
           <ol className="day-list">
             {trip.days.map((day) => (

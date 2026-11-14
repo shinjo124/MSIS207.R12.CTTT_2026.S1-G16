@@ -1,8 +1,58 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { apiRequest } from '../../lib/api.js';
+import { categoryLabel } from './trip-format.js';
 import { displayName, searchDestinations } from './destination-search.js';
+import { filterPlacesByCategory } from './place-filters.js';
 
 const MAX_DESTINATIONS = 10;
+
+function PlaceSuggestions({ destination }) {
+  const [places, setPlaces] = useState([]);
+  const [status, setStatus] = useState('loading');
+  const [category, setCategory] = useState('');
+
+  useEffect(() => {
+    const controller = new AbortController();
+    apiRequest(`/destinations/${destination.id}/places`, { signal: controller.signal })
+      .then((result) => {
+        setPlaces(result.data || []);
+        setStatus(result.data?.length ? 'ready' : 'empty');
+      })
+      .catch((error) => {
+        if (error.name !== 'AbortError') setStatus('error');
+      });
+    return () => controller.abort();
+  }, [destination.id]);
+
+  const categories = [...new Set(places.map((place) => place.category))].sort();
+  const visiblePlaces = filterPlacesByCategory(places, category);
+
+  return (
+    <section className="place-suggestions" aria-label={`Places in ${destination.name}`}>
+      <h3>Places to explore in {destination.name}</h3>
+      {status === 'loading' && <p className="form-hint" role="status">Loading places…</p>}
+      {status === 'error' && <p className="form-hint error-state" role="alert">Could not load places for {destination.name}.</p>}
+      {status === 'empty' && <p className="form-hint">No seeded places for this destination yet.</p>}
+      {status === 'ready' && <>
+        <label className="place-filter">Filter by type
+          <select value={category} onChange={(event) => setCategory(event.target.value)}>
+            <option value="">All types</option>
+            {categories.map((item) => <option key={item} value={item}>{categoryLabel(item)}</option>)}
+          </select>
+        </label>
+        <ul className="place-suggestion-list">
+          {visiblePlaces.map((place) => (
+            <li key={place.id}>
+              <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.mapQuery || place.name)}`} target="_blank" rel="noreferrer">{place.name}</a>
+              <span>{categoryLabel(place.category)}</span>
+              {place.address && <small>{place.address}</small>}
+            </li>
+          ))}
+        </ul>
+      </>}
+    </section>
+  );
+}
 
 // Type-ahead picker. All destinations (~50 rows) load once and are filtered in the browser,
 // so typing does not send a request per keystroke (the API is rate limited).
@@ -77,6 +127,10 @@ export default function DestinationPicker({ selected, onChange }) {
           </li>
         ))}
       </ol>}
+
+      {selected.length > 0 && <div className="place-suggestions-list">
+        {selected.map((destination) => <PlaceSuggestions key={destination.id} destination={destination} />)}
+      </div>}
 
       <div className="combobox">
         <input

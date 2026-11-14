@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { Router } from 'express';
 import { pool } from '../db/pool.js';
 import { requireAuth } from '../middleware/require-auth.js';
+import { buildSharedTripView } from '../services/share-view.js';
 
 const router = Router();
 
@@ -121,7 +122,17 @@ router.get('/share/:token', async (req, res, next) => {
        WHERE td.trip_id = ? ORDER BY td.destination_order`,
       [trip.id],
     );
-    res.set('Cache-Control', 'no-store').json({ data: { ...trip, destinations } });
+    const [activityRows] = await pool.execute(
+      `SELECT id, DATE_FORMAT(activity_date, '%Y-%m-%d') AS date,
+              TIME_FORMAT(start_time, '%H:%i') AS time,
+              category, title, city, address
+       FROM activities WHERE trip_id = ?
+       ORDER BY activity_date, start_time IS NULL, start_time, id`,
+      [trip.id],
+    );
+    res.set('Cache-Control', 'no-store').json({
+      data: buildSharedTripView(trip, destinations, activityRows),
+    });
   } catch (error) {
     next(error);
   }
