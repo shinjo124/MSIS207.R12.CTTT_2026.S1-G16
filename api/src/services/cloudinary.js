@@ -1,4 +1,5 @@
 import { v2 as cloudinary } from 'cloudinary';
+import { pool } from '../db/pool.js';
 import { Readable } from 'node:stream';
 
 export function isCloudinaryConfigured() {
@@ -7,14 +8,17 @@ export function isCloudinaryConfigured() {
     && process.env.CLOUDINARY_API_SECRET);
 }
 
-export function uploadCloudinaryImage(buffer, folder) {
+function configure() {
   cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET,
     secure: true,
   });
+}
 
+export function uploadCloudinaryImage(buffer, folder) {
+  configure();
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream({
       resource_type: 'image',
@@ -30,6 +34,13 @@ export function uploadCloudinaryImage(buffer, folder) {
   });
 }
 
-export function deleteCloudinaryImage(publicId) {
-  return cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
+export async function deleteCloudinaryImage(publicId) {
+  configure();
+  const { result } = await cloudinary.uploader.destroy(publicId, { resource_type: 'image', invalidate: true });
+  if (result !== 'ok' && result !== 'not found') throw new Error('Photo deletion failed');
+}
+
+export async function clearQueuedPhoto(publicId) {
+  await deleteCloudinaryImage(publicId);
+  await pool.execute('DELETE FROM pending_photo_deletes WHERE cloudinary_public_id = ?', [publicId]);
 }

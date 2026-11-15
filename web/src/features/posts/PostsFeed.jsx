@@ -1,11 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiRequest } from '../../lib/api.js';
 
+function mergeById(current, incoming) {
+  return [...new Map([...current, ...incoming].map((item) => [item.id, item])).values()];
+}
+
 export default function PostsFeed({ getToken, isSignedIn = false, profileStatus = 'signed-out', profileError = '' }) {
   const [posts, setPosts] = useState([]);
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState('');
-  const [likedIds, setLikedIds] = useState(() => new Set());
+  const [likeBusy, setLikeBusy] = useState(null);
+  const [nextPage, setNextPage] = useState(null);
+  const [postsLoading, setPostsLoading] = useState(false);
+  const [commentOffsets, setCommentOffsets] = useState({});
   const [openComments, setOpenComments] = useState(() => new Set());
   const [commentsByPost, setCommentsByPost] = useState({});
   const [commentsLoading, setCommentsLoading] = useState(() => new Set());
@@ -63,15 +70,23 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
     return () => controller.abort();
   }, [destinationId]);
 
-  const loadPosts = useCallback(async (signal) => {
+  const loadPosts = useCallback(async (signal, page = 1) => {
+    setPostsLoading(true);
     try {
-      const result = await apiRequest('/posts', { signal });
-      setPosts(result.data || []);
-      setStatus(result.data?.length ? 'ready' : 'empty');
+      const result = await apiRequest(`/posts?page=${page}`, { signal, getToken: canWrite ? getToken : undefined });
+      if (signal?.aborted) return;
+      setPosts((current) => page === 1 ? result.data : mergeById(current, result.data));
+      setNextPage(result.hasMore ? page + 1 : null);
+      setStatus(page > 1 || result.data.length ? 'ready' : 'empty');
     } catch (requestError) {
-      if (requestError.name !== 'AbortError') setStatus('error');
+      if (!signal?.aborted) {
+        if (page === 1) setStatus('error');
+        else setError(requestError.message);
+      }
+    } finally {
+      if (!signal?.aborted) setPostsLoading(false);
     }
-  }, []);
+  }, [getToken, canWrite]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -92,6 +107,7 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
     setComposerMessage('');
     setError('');
     if (!body) return setComposerMessage('Write a few words before publishing.');
+    if (image?.size > 4 * 1024 * 1024) return setComposerMessage('Choose an image of 4 MB or smaller.');
     if (image instanceof File && image.size && !altText) {
       return setComposerMessage('Add a descriptive alt text for this photo.');
     }
@@ -131,15 +147,19 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
     }
   }
 
-  async function likePost(postId) {
-    if (!canWrite || likedIds.has(postId)) return;
+  async function likePost(post) {
+    if (!canWrite || likeBusy !== null) return;
+    setLikeBusy(post.id);
     setError('');
     try {
-      await apiRequest(`/posts/${postId}/likes`, { method: 'POST', getToken });
-      setLikedIds((current) => new Set(current).add(postId));
-      await loadPosts();
+      const { data } = await apiRequest(`/posts/${post.id}/likes?summary=1`, { method: post.liked ? 'DELETE' : 'POST', getToken });
+      setPosts((current) => current.map((item) => item.id === post.id
+        ? { ...item, ...data }
+        : item));
     } catch (requestError) {
       setError(requestError.message);
+    } finally {
+      setLikeBusy(null);
     }
   }
 
@@ -150,11 +170,15 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
       if (opening) next.add(postId); else next.delete(postId);
       return next;
     });
-    if (!opening || commentsByPost[postId]) return;
+    if (opening && commentOffsets[postId] === undefined && !commentsLoading.has(postId)) await loadComments(postId);
+  }
+
+  async function loadComments(postId, offset = 0) {
     setCommentsLoading((current) => new Set(current).add(postId));
     try {
-      const result = await apiRequest(`/posts/${postId}/comments`);
-      setCommentsByPost((current) => ({ ...current, [postId]: result.data || [] }));
+      const result = await apiRequest(`/posts/${postId}/comments?limit=20&offset=${offset}`);
+      setCommentOffsets((current) => ({ ...current, [postId]: result.nextOffset }));
+      setCommentsByPost((current) => ({ ...current, [postId]: mergeById(current[postId] || [], result.data).sort((a, b) => a.id - b.id) }));
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -171,11 +195,10 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
     const body = String(new FormData(event.currentTarget).get('body') || '').trim();
     if (!body || !canWrite) return;
     try {
-      await apiRequest(`/posts/${postId}/comments`, { method: 'POST', getToken, body: { body } });
+      const result = await apiRequest(`/posts/${postId}/comments`, { method: 'POST', getToken, body: { body } });
       setCommentDrafts((current) => ({ ...current, [postId]: '' }));
-      const result = await apiRequest(`/posts/${postId}/comments`);
-      setCommentsByPost((current) => ({ ...current, [postId]: result.data || [] }));
-      await loadPosts();
+      setCommentsByPost((current) => ({ ...current, [postId]: mergeById(current[postId] || [], [result.data]) }));
+      setPosts((current) => current.map((item) => item.id === postId ? { ...item, commentsCount: Number(item.commentsCount) + 1 } : item));
     } catch (requestError) {
       setError(requestError.message);
     }
@@ -208,11 +231,11 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
               {places.map((place) => <option key={place.id} value={place.id}>{place.name}</option>)}
             </select>
           </label>}
-          <label>Photo <input name="image" type="file" accept="image/jpeg,image/png,image/webp" /></label>
+          <label>Photo (up to 4 MB) <input name="image" type="file" accept="image/jpeg,image/png,image/webp" /></label>
           <label>Photo description <input name="altText" maxLength="255" placeholder="Describe the photo for screen readers" /></label>
         </div>
         {linksUnavailable && <p className="story-signin-note" role="status">Trip or place links are unavailable right now. You can still publish without linking them.</p>}
-        <button type="submit" disabled={composerBusy}>{composerBusy ? 'Publishing…' : 'Publish story'}</button>
+        <button type="submit" disabled={composerBusy || postsLoading}>{composerBusy ? 'Publishing…' : 'Publish story'}</button>
         {composerMessage && <p role="status">{composerMessage}</p>}
       </form>}
       {status === 'loading' && <p className="empty-state" role="status">Loading stories…</p>}
@@ -230,8 +253,8 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
             <p className="story-body">{post.body}</p>
             <div className="story-actions">
               <span className="story-stats">{post.likesCount} likes <span>·</span> {post.commentsCount} comments</span>
-              {canWrite && <button type="button" onClick={() => likePost(post.id)} disabled={likedIds.has(post.id)}>
-                {likedIds.has(post.id) ? 'Liked' : 'Like'}
+              {canWrite && <button type="button" onClick={() => likePost(post)} disabled={likeBusy !== null || postsLoading} aria-pressed={Boolean(post.liked)}>
+                {post.liked ? 'Unlike' : 'Like'}
               </button>}
               <button type="button" onClick={() => toggleComments(post.id)}>
                 {openComments.has(post.id) ? 'Hide comments' : 'Comments'}
@@ -243,6 +266,8 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
                 <p className="story-comment" key={comment.id}><strong>{comment.author}</strong> {comment.body}</p>
               ))}
               {!commentsLoading.has(post.id) && commentsByPost[post.id]?.length === 0 && <p>No comments yet.</p>}
+              {commentOffsets[post.id] != null && <button type="button" disabled={commentsLoading.has(post.id)}
+                onClick={() => loadComments(post.id, commentOffsets[post.id])}>Load more comments</button>}
               {canWrite && <form onSubmit={(event) => addComment(event, post.id)}>
                 <label className="visually-hidden" htmlFor={`comment-${post.id}`}>Write a comment</label>
                 <input id={`comment-${post.id}`} name="body" maxLength="1000" required placeholder="Write a comment…"
@@ -254,6 +279,7 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
           </article>
         ))}
       </div>}
+      {nextPage && <button type="button" disabled={postsLoading || composerBusy} onClick={() => loadPosts(undefined, nextPage)}>Load more stories</button>}
     </section>
   );
 }

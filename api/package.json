@@ -9,7 +9,8 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
-    "test": "node --test"
+    "test": "node --experimental-sqlite --experimental-test-module-mocks --test",
+    "photos:retry": "node scripts/retry-photo-deletes.js"
   },
   "dependencies": {
     "@clerk/express": "^2.1.88",

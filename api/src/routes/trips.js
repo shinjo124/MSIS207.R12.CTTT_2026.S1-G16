@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { clearQueuedPhoto } from '../services/cloudinary.js';
 import { pool } from '../db/pool.js';
 import { requireAuth } from '../middleware/require-auth.js';
 import { requireProfile } from '../middleware/require-profile.js';
@@ -73,12 +74,12 @@ async function loadDestinations(db, tripIds) {
   return byTrip;
 }
 
-async function loadTripDetail(tripId, userId) {
-  const trip = await findOwnedTrip(pool, tripId, userId);
+async function loadTripDetail(tripId, userId, db = pool) {
+  const trip = await findOwnedTrip(db, tripId, userId);
   if (!trip) return null;
 
-  const destinations = (await loadDestinations(pool, [trip.id])).get(trip.id) || [];
-  const [activityRows] = await pool.execute(
+  const destinations = (await loadDestinations(db, [trip.id])).get(trip.id) || [];
+  const [activityRows] = await db.execute(
     `SELECT ${ACTIVITY_COLUMNS} FROM activities a
      WHERE a.trip_id = ? ORDER BY a.activity_date, a.start_time IS NULL, a.start_time, a.id`,
     [trip.id],
@@ -130,9 +131,9 @@ router.post('/', signedIn, async (req, res, next) => {
       [req.userId, value.title, value.startDate, value.endDate, value.groupSize, value.budget, value.currencyCode],
     );
     await replaceDestinations(connection, result.insertId, value.destinationIds);
+    const data = await loadTripDetail(result.insertId, req.userId, connection);
     await connection.commit();
-
-    res.status(201).json({ data: await loadTripDetail(result.insertId, req.userId) });
+    res.status(201).json({ data });
   } catch (error) {
     await connection.rollback().catch(() => {});
     next(error);
@@ -195,9 +196,9 @@ router.put('/:tripId', signedIn, async (req, res, next) => {
       [value.title, value.startDate, value.endDate, value.groupSize, value.budget, value.currencyCode, tripId, req.userId],
     );
     await replaceDestinations(connection, tripId, value.destinationIds);
+    const data = await loadTripDetail(tripId, req.userId, connection);
     await connection.commit();
-
-    res.json({ data: await loadTripDetail(tripId, req.userId) });
+    res.json({ data });
   } catch (error) {
     await connection.rollback().catch(() => {});
     next(error);
@@ -209,13 +210,31 @@ router.put('/:tripId', signedIn, async (req, res, next) => {
 router.delete('/:tripId', signedIn, async (req, res, next) => {
   const tripId = parseId(req.params.tripId);
   if (!tripId) return sendError(res, { status: 400, code: 'INVALID_TRIP_ID', message: 'Trip ID must be a positive integer.' });
+  const connection = await pool.getConnection();
+  let photos;
   try {
-    const [result] = await pool.execute('DELETE FROM trips WHERE id = ? AND owner_user_id = ?', [tripId, req.userId]);
-    if (!result.affectedRows) return sendError(res, TRIP_NOT_FOUND);
-    res.status(204).end();
+    await connection.beginTransaction();
+    if (!await findOwnedTrip(connection, tripId, req.userId, true)) {
+      await connection.rollback();
+      return sendError(res, TRIP_NOT_FOUND);
+    }
+    [photos] = await connection.execute('SELECT cloudinary_public_id FROM trip_photos WHERE trip_id = ? FOR UPDATE', [tripId]);
+    if (photos.length) {
+      const placeholders = photos.map(() => '(?)').join(', ');
+      await connection.execute(`INSERT INTO pending_photo_deletes (cloudinary_public_id) VALUES ${placeholders}`,
+        photos.map((photo) => photo.cloudinary_public_id));
+    }
+    await connection.execute('DELETE FROM trips WHERE id = ? AND owner_user_id = ?', [tripId, req.userId]);
+    await connection.commit();
   } catch (error) {
-    next(error);
+    await connection.rollback().catch(() => {});
+    return next(error);
+  } finally {
+    connection.release();
   }
+  await Promise.all(photos.map(({ cloudinary_public_id: id }) => clearQueuedPhoto(id)
+    .catch(() => console.error('Trip deleted; photo cleanup pending:', id))));
+  res.status(204).end();
 });
 
 export default router;

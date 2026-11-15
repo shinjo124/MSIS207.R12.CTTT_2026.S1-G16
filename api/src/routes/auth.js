@@ -1,6 +1,6 @@
 import { clerkClient } from '@clerk/express';
 import { Router } from 'express';
-import { pool } from '../db/pool.js';
+import { syncProfile } from '../services/profiles.js';
 import { requireAuth } from '../middleware/require-auth.js';
 
 const router = Router();
@@ -18,18 +18,7 @@ router.get('/me', requireAuth, async (req, res, next) => {
     const displayName = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ')
       || email.split('@')[0];
 
-    await pool.execute(
-      `INSERT INTO users (clerk_user_id, email, display_name)
-       VALUES (?, ?, ?)
-       ON DUPLICATE KEY UPDATE email = VALUES(email), display_name = VALUES(display_name)`,
-      [req.clerkUserId, email, displayName],
-    );
-    const [rows] = await pool.execute(
-      'SELECT id, email, display_name AS displayName FROM users WHERE clerk_user_id = ?',
-      [req.clerkUserId],
-    );
-
-    res.json({ data: rows[0] });
+    res.json({ data: await syncProfile(req.clerkUserId, email, displayName) });
   } catch (error) {
     // Email is UNIQUE: a re-created Clerk account with an old email would otherwise be a 500.
     if (error.code === 'ER_DUP_ENTRY') {

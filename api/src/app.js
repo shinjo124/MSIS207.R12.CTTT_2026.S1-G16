@@ -67,7 +67,7 @@ app.use('/api/trip-photos', photosRouter);
 
 app.use((error, _req, res, _next) => {
   if (error.code === 'LIMIT_FILE_SIZE') {
-    return res.status(413).json({ error: { code: 'IMAGE_TOO_LARGE', message: 'Images must be 5 MB or smaller.' } });
+    return res.status(413).json({ error: { code: 'IMAGE_TOO_LARGE', message: 'Images must be 4 MB or smaller.' } });
   }
   if (error.code?.startsWith('LIMIT_')) {
     return res.status(400).json({ error: { code: 'INVALID_IMAGE_UPLOAD', message: 'Upload one image in the image field.' } });

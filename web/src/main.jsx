@@ -8,7 +8,7 @@ import './styles.css';
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 function AuthenticatedApp() {
-  const { getToken, isLoaded, isSignedIn } = useAuth();
+  const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const [profileStatus, setProfileStatus] = useState('signed-out');
   const [profileError, setProfileError] = useState('');
 
@@ -32,9 +32,9 @@ function AuthenticatedApp() {
       });
 
     return () => controller.abort();
-  }, [getToken, isLoaded, isSignedIn]);
+  }, [getToken, isLoaded, isSignedIn, userId]);
 
-  return <App getToken={getToken} isSignedIn={isLoaded && Boolean(isSignedIn)} profileStatus={isLoaded ? profileStatus : 'loading'} profileError={profileError} />;
+  return <App key={userId || 'guest'} getToken={getToken} isSignedIn={isLoaded && Boolean(isSignedIn)} profileStatus={isLoaded ? profileStatus : 'loading'} profileError={profileError} />;
 }
 
 function AuthPage({ signUp }) {

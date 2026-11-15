@@ -1,7 +1,8 @@
 import { fileTypeFromBuffer } from 'file-type';
+import { getAuth } from '@clerk/express';
 import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
-import multer from 'multer';
+import { uploadImage } from '../middleware/image-upload.js';
 import { pool } from '../db/pool.js';
 import { requireAuth } from '../middleware/require-auth.js';
 import { deleteCloudinaryImage, isCloudinaryConfigured, uploadCloudinaryImage } from '../services/cloudinary.js';
@@ -9,7 +10,6 @@ import { findLocalUserId } from '../services/profiles.js';
 
 const router = Router();
 const isPositiveId = (value) => Number.isSafeInteger(Number(value)) && Number(value) > 0;
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024, files: 1 } });
 const uploadLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
@@ -82,19 +82,24 @@ router.get('/', async (req, res, next) => {
   const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 12, 1), 20);
   const page = Math.min(Math.max(Number.parseInt(req.query.page, 10) || 1, 1), 10000);
   const offset = (page - 1) * limit;
+  const viewer = process.env.CLERK_SECRET_KEY ? getAuth(req).userId : null;
 
   try {
     const [posts] = await pool.execute(
       `SELECT p.id, p.body, p.created_at AS createdAt, p.trip_id AS tripId,
               p.place_id AS placeId, u.display_name AS author,
+              EXISTS(SELECT 1 FROM post_likes l JOIN users v ON v.id = l.user_id
+                     WHERE l.post_id = p.id AND v.clerk_user_id = ?) AS liked,
               (SELECT COUNT(*) FROM post_likes l WHERE l.post_id = p.id) AS likesCount,
               (SELECT COUNT(*) FROM post_comments c WHERE c.post_id = p.id) AS commentsCount
        FROM posts p JOIN users u ON u.id = p.author_user_id
        WHERE p.visibility = 'public'
-       ORDER BY p.created_at DESC, p.id DESC LIMIT ${limit} OFFSET ${offset}`,
+       ORDER BY p.created_at DESC, p.id DESC LIMIT ${limit + 1} OFFSET ${offset}`,
+      [viewer ?? null],
     );
 
-    res.json({ data: await addPhotos(posts), page, limit });
+    const data = posts.slice(0, limit).map((post) => ({ ...post, liked: Boolean(post.liked) }));
+    res.set('Cache-Control', 'private, no-store').json({ data: await addPhotos(data), page, limit, hasMore: posts.length > limit && page < 10000 });
   } catch (error) {
     next(error);
   }
@@ -102,7 +107,7 @@ router.get('/', async (req, res, next) => {
 
 router.post('/', requireAuth, (req, res, next) => (
   req.is('multipart/form-data') ? uploadLimiter(req, res, next) : next()
-), upload.single('image'), async (req, res, next) => {
+), uploadImage, async (req, res, next) => {
   const body = typeof req.body.body === 'string' ? req.body.body.trim() : '';
   const visibility = req.body.visibility || 'public';
   const tripId = req.body.tripId == null ? null : Number(req.body.tripId);
@@ -188,6 +193,18 @@ router.post('/', requireAuth, (req, res, next) => (
   }
 });
 
+async function sendLikeResult(req, res, userId) {
+  if (req.query.summary !== '1') return res.status(204).end();
+  const [[row]] = await pool.execute(
+    `SELECT COUNT(l.user_id) AS likesCount, COUNT(CASE WHEN l.user_id = ? THEN 1 END) AS liked
+     FROM posts p LEFT JOIN post_likes l ON l.post_id = p.id
+     WHERE p.id = ? AND p.visibility = 'public' GROUP BY p.id`,
+    [userId, req.params.id],
+  );
+  if (!row) return res.status(404).json({ error: { code: 'POST_NOT_FOUND', message: 'Post was not found.' } });
+  res.set('Cache-Control', 'private, no-store').json({ data: { likesCount: Number(row.likesCount), liked: Boolean(Number(row.liked)) } });
+}
+
 router.post('/:id/likes', requireAuth, async (req, res, next) => {
   if (!isPositiveId(req.params.id)) {
     return res.status(400).json({ error: { code: 'INVALID_POST_ID', message: 'Post ID must be a positive integer.' } });
@@ -198,7 +215,7 @@ router.post('/:id/likes', requireAuth, async (req, res, next) => {
     const [posts] = await pool.execute("SELECT id FROM posts WHERE id = ? AND visibility = 'public'", [req.params.id]);
     if (!posts.length) return res.status(404).json({ error: { code: 'POST_NOT_FOUND', message: 'Post was not found.' } });
     await pool.execute('INSERT IGNORE INTO post_likes (post_id, user_id) VALUES (?, ?)', [req.params.id, userId]);
-    res.status(204).end();
+    await sendLikeResult(req, res, userId);
   } catch (error) {
     next(error);
   }
@@ -212,7 +229,7 @@ router.delete('/:id/likes', requireAuth, async (req, res, next) => {
     const userId = await requireProfile(req, res);
     if (!userId) return;
     await pool.execute('DELETE FROM post_likes WHERE post_id = ? AND user_id = ?', [req.params.id, userId]);
-    res.status(204).end();
+    await sendLikeResult(req, res, userId);
   } catch (error) {
     next(error);
   }
@@ -225,13 +242,16 @@ router.get('/:id/comments', async (req, res, next) => {
   try {
     const [posts] = await pool.execute("SELECT id FROM posts WHERE id = ? AND visibility = 'public'", [req.params.id]);
     if (!posts.length) return res.status(404).json({ error: { code: 'POST_NOT_FOUND', message: 'Post was not found.' } });
+    const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 100, 1), 100);
+    const offset = Number(req.query.offset ?? 0);
+    if (!Number.isSafeInteger(offset) || offset < 0) return res.status(400).json({ error: { code: 'INVALID_OFFSET', message: 'Invalid comment offset.' } });
     const [comments] = await pool.execute(
       `SELECT c.id, c.body, c.created_at AS createdAt, u.display_name AS author
        FROM post_comments c JOIN users u ON u.id = c.author_user_id
-       WHERE c.post_id = ? ORDER BY c.created_at, c.id LIMIT 100`,
+       WHERE c.post_id = ? ORDER BY c.created_at, c.id LIMIT ${limit + 1} OFFSET ${offset}`,
       [req.params.id],
     );
-    res.json({ data: comments });
+    res.json({ data: comments.slice(0, limit), nextOffset: comments.length > limit ? offset + limit : null });
   } catch (error) {
     next(error);
   }
@@ -247,11 +267,12 @@ router.post('/:id/comments', requireAuth, async (req, res, next) => {
     if (!userId) return;
     const [posts] = await pool.execute("SELECT id FROM posts WHERE id = ? AND visibility = 'public'", [req.params.id]);
     if (!posts.length) return res.status(404).json({ error: { code: 'POST_NOT_FOUND', message: 'Post was not found.' } });
+    const [[author]] = await pool.execute('SELECT display_name AS author FROM users WHERE id = ?', [userId]);
     const [result] = await pool.execute(
       'INSERT INTO post_comments (post_id, author_user_id, body) VALUES (?, ?, ?)',
       [req.params.id, userId, body],
     );
-    res.status(201).json({ data: { id: result.insertId, body } });
+    res.status(201).json({ data: { id: result.insertId, body, author: author.author } });
   } catch (error) {
     next(error);
   }
