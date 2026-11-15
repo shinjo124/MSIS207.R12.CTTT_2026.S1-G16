@@ -62,6 +62,9 @@ export default function ActivityForm({ activity = null, date, days, currencyCode
           {CATEGORIES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
         </select>
       </label>
+      <details className="activity-more field-wide" open={activity ? true : undefined}>
+        <summary>Time, location, costs and notes</summary>
+        <div className="activity-more-fields">
       <label className="field">Time
         <input type="time" value={values.time} onChange={update('time')} />
       </label>
@@ -85,6 +88,8 @@ export default function ActivityForm({ activity = null, date, days, currencyCode
       <label className="field field-wide">Note
         <textarea value={values.note} onChange={update('note')} maxLength={1000} rows={2} placeholder="Book ahead, bring a jacket…" />
       </label>
+        </div>
+      </details>
       {error && <p className="form-error field-wide" role="alert">{error}</p>}
       <div className="form-actions field-wide">
         <button className="primary-button" type="submit" disabled={saving}>{saving ? 'Saving…' : activity ? 'Save activity' : 'Add activity'}</button>

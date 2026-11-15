@@ -189,3 +189,31 @@
 .itinerary-board .activity { padding: 10px; margin: 2px 0; border: 1px solid #cddbd5; border-radius: 9px; background: #eef6f1; }
 .itinerary-board .activity.editing { background: white; }
 @media (max-width: 640px) { .budget-overview div { padding: 12px 9px; } .budget-overview strong { font-size: 13px; } .itinerary-board { grid-auto-columns: minmax(280px, 100%); } }
+
+/* Day board */
+.itinerary-board { display: grid; grid-auto-flow: column; grid-auto-columns: 300px; grid-template-columns: none; gap: 12px; overflow-x: auto; align-items: start; padding: 12px; border-radius: 18px; background: #e5eeea; }
+.itinerary-board .day-card { min-width: 0; padding: 12px; border: 0; border-radius: 14px; background: #f5f8f5; box-shadow: none; }
+.itinerary-board .day-heading { display: flex; align-items: center; padding: 4px 2px 10px; background: transparent; }
+.itinerary-board .day-heading h2 { font-size: 18px; }
+.itinerary-board .day-heading h2 span { display: block; margin: 0 0 5px; padding: 0; background: transparent; }
+.itinerary-board .day-heading .text-button { flex-shrink: 0; font-size: 11px; }
+.board-cards { display: grid; gap: 8px; min-height: 55px; }
+.itinerary-board .board-activity { display: block; padding: 0; margin: 0; border: 1px solid #d6e3dc; background: white; cursor: grab; box-shadow: 0 2px 6px rgb(14 49 52 / 5%); }
+.board-activity:active { cursor: grabbing; }
+.board-activity summary { display: grid; gap: 7px; padding: 14px; list-style: none; cursor: pointer; }
+.board-activity summary::-webkit-details-marker { display: none; }
+.board-activity summary .category-badge { justify-self: start; }
+.board-activity summary strong { color: var(--teal-dark); font-size: 15px; overflow-wrap: anywhere; }
+.board-card-meta, .board-card-details { color: var(--muted); font-size: 12px; }
+.board-card-details { padding: 0 14px 14px; }
+.board-card-details p { margin: 0 0 8px; }
+.board-empty { padding: 14px 3px; color: var(--muted); font-size: 12px; }
+@media (max-width: 640px) { .itinerary-board { grid-auto-columns: min(280px, 82vw); } }
+
+.activity-more { border-top: 1px solid var(--line); padding-top: 12px; }
+.activity-more summary { color: var(--teal); cursor: pointer; font-size: 12px; font-weight: 700; padding: 8px 0; }
+.activity-more-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 20px; padding-top: 10px; }
+@media (max-width: 640px) { .activity-more-fields { grid-template-columns: 1fr; } }
+
+.itinerary-board .day-card.is-drop-target { outline: 3px solid var(--teal); outline-offset: -3px; background: #e3f3ec; }
+.board-activity summary:focus-visible, .workspace-controls button:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
