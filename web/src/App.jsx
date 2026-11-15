@@ -27,7 +27,7 @@ function Topbar({ getToken }) {
 
 // Each route is chosen once per page load (links do full navigations), so the hook order stays stable.
 export default function App(props) {
-  const path = window.location.pathname.replace(/\/+$/, '') || '/';
+  const path = (props.path || window.location.pathname).replace(/\/+$/, '') || '/';
   const shareToken = path.match(/^\/share\/([a-f0-9]{64})$/)?.[1];
   if (shareToken) return <main className="page-shell">
     <header className="topbar">

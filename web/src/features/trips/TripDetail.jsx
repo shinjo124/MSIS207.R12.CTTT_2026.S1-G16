@@ -140,7 +140,8 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
     setDeleteError('');
     try {
       await apiRequest(`/trips/${tripId}`, { method: 'DELETE', getToken });
-      window.location.assign('/trips');
+      window.history.pushState(null, '', '/trips');
+      window.dispatchEvent(new PopStateEvent('popstate'));
     } catch (removeError) {
       setDeleteError(removeError.message);
     }
@@ -193,6 +194,19 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
     await loadTrip();
   }
 
+  function renderActivity(activity) {
+    return <ActivityItem key={activity.id} activity={activity} trip={trip}
+      editing={editingActivity === activity.id}
+      onMove={(date) => moveActivity(activity, date)}
+      onDragEnd={() => setDragged(null)}
+      onDragStart={(event) => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', String(activity.id)); setDragged(activity); }}
+      onEdit={() => { setEditingActivity(activity.id); setAddingOn(null); }}
+      onCancel={() => setEditingActivity(null)}
+      onSave={(values) => updateActivity(activity.id, values)}
+      onDelete={() => removeActivity(activity.id)}
+      onToggleVisited={(visited) => updateActivity(activity.id, { visited })} />;
+  }
+
   return (
     <section className="trip-detail">
       <a className="back-link" href="/trips">← My trips</a>
@@ -231,6 +245,11 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
                 </div>
               </header>}
 
+          {trip.budgetSummary && <div className="budget-overview" aria-label="Trip budget overview">
+            <div><span>Total budget</span><strong>{formatMoney(trip.budgetSummary.budget, trip.currencyCode)}</strong></div>
+            <div><span>Spent</span><strong>{formatMoney(trip.budgetSummary.totalActualSpend, trip.currencyCode)}</strong></div>
+            <div><span>Remaining</span><strong>{formatMoney(trip.budgetSummary.remainingBudget, trip.currencyCode)}</strong></div>
+          </div>}
           <div className="workspace-controls" aria-label="Trip sections">
             <button type="button" aria-pressed={view === 'itinerary'} onClick={() => setView('itinerary')}>Itinerary</button>
             <button type="button" aria-pressed={view === 'budget'} onClick={() => setView('budget')}>Budget</button>
@@ -259,25 +278,16 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
                   <h2><span>Day {day.dayNumber}</span> {formatDayHeading(day.date)}</h2>
                   {addingOn !== day.date && <button className="text-button" type="button" onClick={() => { setAddingOn(day.date); setEditingActivity(null); }}>+ Add activity</button>}
                 </div>
-                {day.activities.length === 0 && addingOn !== day.date && <p className="day-empty">Nothing planned yet.</p>}
-                <ul className="activity-list">
-                  {day.activities.map((activity) => (
-                    <ActivityItem
-                      key={activity.id}
-                      activity={activity}
-                      trip={trip}
-                      editing={editingActivity === activity.id}
-                      onMove={(date) => moveActivity(activity, date)}
-                      onDragEnd={() => setDragged(null)}
-                      onDragStart={(event) => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', String(activity.id)); setDragged(activity); }}
-                      onEdit={() => { setEditingActivity(activity.id); setAddingOn(null); }}
-                      onCancel={() => setEditingActivity(null)}
-                      onSave={(values) => updateActivity(activity.id, values)}
-                      onDelete={() => removeActivity(activity.id)}
-                      onToggleVisited={(visited) => updateActivity(activity.id, { visited })}
-                    />
-                  ))}
-                </ul>
+                <div className="calendar-unscheduled"><h3>Unscheduled</h3><ul className="activity-list">
+                  {day.activities.filter((activity) => !activity.time).map((activity) => renderActivity(activity))}
+                  {!day.activities.some((activity) => !activity.time) && <li className="calendar-empty">No unscheduled activities</li>}
+                </ul></div>
+                <div className="calendar-hours" aria-label={`Schedule for ${formatDayHeading(day.date)}`}>
+                  {Array.from({ length: 24 }, (_, hour) => <div className="calendar-hour" key={hour}>
+                    <span className="calendar-hour-label">{String(hour).padStart(2, '0')}:00</span>
+                    <ul className="activity-list">{day.activities.filter((activity) => activity.time && Number(activity.time.slice(0, 2)) === hour).map((activity) => renderActivity(activity))}</ul>
+                  </div>)}
+                </div>
                 {addingOn === day.date && <div className="activity editing">
                   <ActivityForm date={day.date} days={trip.days} currencyCode={trip.currencyCode} onSubmit={addActivity} onCancel={() => setAddingOn(null)} />
                 </div>}

@@ -35,7 +35,8 @@ export default function TripsPage({ getToken, isSignedIn, profileStatus, profile
 
   async function createTrip(values) {
     const result = await apiRequest('/trips', { method: 'POST', body: values, getToken });
-    window.location.assign(`/trips/${result.data.id}`);
+    window.history.pushState(null, '', `/trips/${result.data.id}`);
+    window.dispatchEvent(new PopStateEvent('popstate'));
   }
 
   return (
