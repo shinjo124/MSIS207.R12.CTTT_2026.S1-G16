@@ -1,14 +1,13 @@
 import { fileTypeFromBuffer } from 'file-type';
 import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
-import multer from 'multer';
+import { uploadImage } from '../middleware/image-upload.js';
 import { pool } from '../db/pool.js';
 import { requireAuth } from '../middleware/require-auth.js';
 import { deleteCloudinaryImage, isCloudinaryConfigured, uploadCloudinaryImage } from '../services/cloudinary.js';
 import { findLocalUserId } from '../services/profiles.js';
 
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024, files: 1 } });
 const uploadLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
@@ -18,7 +17,7 @@ const uploadLimiter = rateLimit({
 });
 const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
-router.post('/', requireAuth, uploadLimiter, upload.single('image'), async (req, res, next) => {
+router.post('/', requireAuth, uploadLimiter, uploadImage, async (req, res, next) => {
   const tripId = Number(req.body.tripId);
   if (!Number.isSafeInteger(tripId) || tripId < 1 || !req.file) {
     return res.status(400).json({ error: { code: 'INVALID_PHOTO', message: 'Choose an image and a valid trip.' } });
@@ -37,47 +36,57 @@ router.post('/', requireAuth, uploadLimiter, upload.single('image'), async (req,
     return res.status(503).json({ error: { code: 'PHOTO_STORAGE_NOT_CONFIGURED', message: 'Photo storage is not configured.' } });
   }
 
+  let connection;
+  let uploaded;
+  let committing = false;
   try {
     const userId = await findLocalUserId(req.clerkUserId);
-    if (!userId) {
-      return res.status(409).json({ error: { code: 'PROFILE_NOT_READY', message: 'Load your profile before uploading photos.' } });
-    }
-    const [trips] = await pool.execute(
-      `SELECT t.id FROM trips t JOIN users u ON u.id = t.owner_user_id
-       WHERE t.id = ? AND u.clerk_user_id = ?`,
-      [tripId, req.clerkUserId],
+    if (!userId) return res.status(409).json({ error: { code: 'PROFILE_NOT_READY', message: 'Load your profile before uploading photos.' } });
+    const [owned] = await pool.execute(
+      'SELECT (SELECT COUNT(*) FROM trip_photos WHERE trip_id = t.id) AS total FROM trips t WHERE t.id = ? AND owner_user_id = ?',
+      [tripId, userId],
     );
+    if (!owned.length) return res.status(404).json({ error: { code: 'TRIP_NOT_FOUND', message: 'Trip was not found.' } });
+    if (owned[0].total >= 25) return res.status(409).json({ error: { code: 'TRIP_PHOTO_LIMIT', message: 'This trip has reached its 25-photo limit.' } });
+    uploaded = await uploadCloudinaryImage(req.file.buffer, 'tripo/trip-photos');
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+    const [trips] = await connection.execute('SELECT id FROM trips WHERE id = ? AND owner_user_id = ? FOR UPDATE', [tripId, userId]);
     if (!trips.length) {
-      return res.status(404).json({ error: { code: 'TRIP_NOT_FOUND', message: 'Trip was not found.' } });
+      throw Object.assign(new Error('Trip was not found.'), { status: 404, code: 'TRIP_NOT_FOUND' });
     }
-
-    const [counts] = await pool.execute('SELECT COUNT(*) AS total FROM trip_photos WHERE trip_id = ?', [tripId]);
-    if (Number(counts[0].total) >= 25) {
-      return res.status(409).json({ error: { code: 'TRIP_PHOTO_LIMIT', message: 'This trip has reached its 25-photo limit.' } });
+    // TiDB snapshot reads can predate the wait for the parent lock. Use a current read.
+    const [photos] = await connection.execute('SELECT id FROM trip_photos WHERE trip_id = ? FOR UPDATE', [tripId]);
+    if (photos.length >= 25) {
+      throw Object.assign(new Error('This trip has reached its 25-photo limit.'), { status: 409, code: 'TRIP_PHOTO_LIMIT' });
     }
-
-    const uploaded = await uploadCloudinaryImage(req.file.buffer, 'tripo/trip-photos');
-    try {
-      const [result] = await pool.execute(
-        `INSERT INTO trip_photos
-           (trip_id, owner_user_id, image_url, cloudinary_public_id, caption, location_text)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [tripId, userId, uploaded.secure_url, uploaded.public_id, caption || null, locationText || null],
-      );
-      res.status(201).json({
-        data: {
-          id: result.insertId,
-          imageUrl: uploaded.secure_url,
-          caption: caption || null,
-          locationText: locationText || null,
-        },
-      });
-    } catch (error) {
-      await deleteCloudinaryImage(uploaded.public_id).catch(() => {});
-      throw error;
-    }
+    const [result] = await connection.execute(
+      `INSERT INTO trip_photos
+         (trip_id, owner_user_id, image_url, cloudinary_public_id, caption, location_text)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [tripId, userId, uploaded.secure_url, uploaded.public_id, caption || null, locationText || null],
+    );
+    committing = true;
+    await connection.commit();
+    res.status(201).json({
+      data: {
+        id: result.insertId,
+        imageUrl: uploaded.secure_url,
+        caption: caption || null,
+        locationText: locationText || null,
+      },
+    });
   } catch (error) {
+    await connection?.rollback().catch(() => {});
+    connection?.release();
+    connection = null;
+    if (uploaded && !committing) await deleteCloudinaryImage(uploaded.public_id).catch(() => console.error('Trip photo cleanup failed', uploaded.public_id));
+    if (error.code === 'TRIP_PHOTO_LIMIT' || error.code === 'TRIP_NOT_FOUND') {
+      return res.status(error.status).json({ error: { code: error.code, message: error.message } });
+    }
     next(error);
+  } finally {
+    connection?.release();
   }
 });
 

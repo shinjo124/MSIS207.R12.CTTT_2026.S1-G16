@@ -49,22 +49,11 @@ export default function App(props) {
 }
 
 function HomePage({ getToken, isSignedIn = false, profileStatus = 'signed-out', profileError = '' }) {
-  const [health, setHealth] = useState('Checking API…');
   const [destinations, setDestinations] = useState([]);
   const [category, setCategory] = useState('');
   const [destinationStatus, setDestinationStatus] = useState('loading');
   const [destinationError, setDestinationError] = useState('');
   const [categories, setCategories] = useState([]);
-
-  useEffect(() => {
-    fetch(`${apiBaseUrl}/api/health`)
-      .then(async (response) => {
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.database || 'API unavailable');
-        setHealth('API and database connected');
-      })
-      .catch(() => setHealth('API unavailable — check API URL and CORS settings'));
-  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -140,7 +129,7 @@ function HomePage({ getToken, isSignedIn = false, profileStatus = 'signed-out', 
 
       <PostsFeed getToken={getToken} isSignedIn={isSignedIn} profileStatus={profileStatus} profileError={profileError} />
 
-      <footer><span>tripo</span><span>Plan a little. Enjoy a lot.</span><span className="api-status"><i />{health}</span></footer>
+      <footer><span>tripo</span><span>Plan a little. Enjoy a lot.</span></footer>
     </main>
   );
 }

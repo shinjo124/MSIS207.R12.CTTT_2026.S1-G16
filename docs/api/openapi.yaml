@@ -381,6 +381,7 @@ paths:
   /api/posts:
     get:
       summary: Browse public travel stories
+      security: [{}, { bearerAuth: [] }]
       parameters:
         - in: query
           name: page
@@ -396,6 +397,7 @@ paths:
               schema:
                 type: object
                 properties:
+                  hasMore: { type: boolean }
                   data:
                     type: array
                     items:
@@ -407,6 +409,7 @@ paths:
                         tripId: { type: [integer, 'null'], format: int64 }
                         placeId: { type: [integer, 'null'], format: int64 }
                         author: { type: string }
+                        liked: { type: boolean, description: Whether the signed-in viewer likes the post }
                         likesCount: { type: integer }
                         commentsCount: { type: integer }
                         photos:
@@ -451,14 +454,14 @@ paths:
                 visibility: { type: string, enum: [public, private], default: public }
                 tripId: { type: integer, minimum: 1 }
                 placeId: { type: integer, minimum: 1 }
-                image: { type: string, format: binary, description: Optional JPEG, PNG, or WebP image, maximum 5 MB }
+                image: { type: string, format: binary, description: 'Optional JPEG, PNG, or WebP image, maximum 4 MB' }
                 altText: { type: string, minLength: 1, maxLength: 255, description: Required when image is provided }
       responses:
         '201': { description: Post created }
         '400': { description: Post input is invalid }
         '401': { description: Missing or invalid session token }
         '404': { description: Optional trip or place was not found }
-        '413': { description: Image is larger than 5 MB }
+        '413': { description: Image is larger than 4 MB }
         '415': { description: Image type is not JPEG, PNG, or WebP }
         '429': { description: Request limit reached }
         '503': { description: Cloudinary photo storage is not configured }
@@ -494,6 +497,7 @@ paths:
         '429': { description: Request limit reached }
   /api/posts/{id}/likes:
     parameters:
+      - { in: query, name: summary, schema: { type: integer, enum: [1] }, description: Return the updated count and viewer like state }
       - in: path
         name: id
         required: true
@@ -503,6 +507,7 @@ paths:
       security:
         - bearerAuth: []
       responses:
+        '200': { description: Current likesCount and liked in data when summary=1 }
         '204': { description: Post liked or already liked }
         '401': { description: Missing or invalid session token }
         '404': { description: Public post was not found }
@@ -511,6 +516,7 @@ paths:
       security:
         - bearerAuth: []
       responses:
+        '200': { description: Current likesCount and liked in data when summary=1 }
         '204': { description: Like removed or already absent }
         '401': { description: Missing or invalid session token }
   /api/posts/{id}/comments:
@@ -521,6 +527,9 @@ paths:
         schema: { type: integer, minimum: 1 }
     get:
       summary: List comments on a public post
+      parameters:
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 100 } }
+        - { in: query, name: offset, schema: { type: integer, minimum: 0, default: 0 } }
       responses:
         '200':
           description: Comments in creation order
@@ -529,6 +538,7 @@ paths:
               schema:
                 type: object
                 properties:
+                  nextOffset: { type: [integer, 'null'] }
                   data:
                     type: array
                     items:
@@ -565,6 +575,7 @@ paths:
                     properties:
                       id: { type: integer, format: int64 }
                       body: { type: string }
+                      author: { type: string }
         '400': { description: Comment input is invalid }
         '401': { description: Missing or invalid session token }
         '404': { description: Public post was not found }
@@ -605,7 +616,7 @@ paths:
         '401': { description: Missing or invalid session token }
         '404': { description: Trip is not owned by the signed-in user }
         '409': { description: Profile is unavailable or trip photo limit reached }
-        '413': { description: Image is larger than 5 MB }
+        '413': { description: Image is larger than 4 MB }
         '415': { description: Image type is not JPEG, PNG, or WebP }
         '429': { description: Upload or API request limit reached }
         '503': { description: Cloudinary photo storage is not configured }
