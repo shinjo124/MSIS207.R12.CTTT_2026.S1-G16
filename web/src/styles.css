@@ -189,3 +189,8 @@ footer > span:first-child { color: var(--teal-dark); font-size: 16px; font-weigh
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
+
+.app-nav { display: flex; align-items: center; gap: 20px; }
+@media (max-width: 640px) { .app-nav { gap: 10px; flex-wrap: wrap; } }
+
+@media (max-width: 640px) { .topbar .app-nav { order: 3; width: 100%; justify-content: space-between; padding-bottom: 10px; } .topbar .app-nav a { padding: 10px 2px; } }

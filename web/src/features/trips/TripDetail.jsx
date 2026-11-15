@@ -7,7 +7,7 @@ import TripForm from './TripForm.jsx';
 import { categoryLabel, formatDate, formatDayHeading, formatMoney, mapsUrl } from './trip-format.js';
 import './trips.css';
 
-function ActivityItem({ activity, trip, editing, onEdit, onCancel, onSave, onDelete, onToggleVisited }) {
+function ActivityItem({ activity, trip, editing, onEdit, onCancel, onSave, onDelete, onToggleVisited, onMove, onDragStart, onDragEnd }) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -34,7 +34,7 @@ function ActivityItem({ activity, trip, editing, onEdit, onCancel, onSave, onDel
 
   const place = [activity.address, activity.city].filter(Boolean).join(', ');
   return (
-    <li className={`activity${activity.visited ? ' visited' : ''}`}>
+    <li draggable={!busy} onDragStart={onDragStart} onDragEnd={onDragEnd} className={`activity${activity.visited ? ' visited' : ''}`}>
       <span className="activity-time">{activity.time || '—'}</span>
       <div className="activity-main">
         <p className="activity-title">
@@ -57,6 +57,7 @@ function ActivityItem({ activity, trip, editing, onEdit, onCancel, onSave, onDel
           </label>
           <a href={mapsUrl(activity)} target="_blank" rel="noreferrer">Open in Google Maps ↗</a>
           <button className="text-button" type="button" onClick={onEdit} disabled={busy}>Edit</button>
+          <label className="move-activity">Move to day <select value={activity.date} disabled={busy} onChange={(event) => run(() => onMove(event.target.value))}>{trip.days.map((day) => <option key={day.date} value={day.date}>Day {day.dayNumber} · {formatDayHeading(day.date)}</option>)}</select></label>
           {confirming
             ? <>
                 <button className="text-button danger" type="button" disabled={busy} onClick={() => run(onDelete)}>Confirm delete</button>
@@ -100,6 +101,12 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [addingOn, setAddingOn] = useState(null);
+  const [view, setView] = useState('itinerary');
+  const [selectedDay, setSelectedDay] = useState('');
+  const [dragged, setDragged] = useState(null);
+  const [moveError, setMoveError] = useState('');
+  const [undoMove, setUndoMove] = useState(null);
+  const [moving, setMoving] = useState(false);
   const [editingActivity, setEditingActivity] = useState(null);
   const ready = isSignedIn && profileStatus === 'ready';
 
@@ -151,6 +158,36 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
     await loadTrip();
   }
 
+  async function moveActivity(activity, date) {
+    if (moving || date === activity.date) return;
+    setMoving(true);
+    setMoveError('');
+    try {
+      await apiRequest(`/activities/${activity.id}`, { method: 'PATCH', body: { date }, getToken });
+      setUndoMove({ id: activity.id, date: activity.date, title: activity.title });
+      await loadTrip();
+    } catch (error) {
+      setMoveError(error.message);
+      throw error;
+    } finally {
+      setMoving(false);
+      setDragged(null);
+    }
+  }
+
+  async function undoLastMove() {
+    if (!undoMove || moving) return;
+    setMoving(true);
+    setMoveError('');
+    try {
+      await apiRequest(`/activities/${undoMove.id}`, { method: 'PATCH', body: { date: undoMove.date }, getToken });
+      setUndoMove(null);
+      await loadTrip();
+    } catch (error) {
+      setMoveError(error.message);
+    } finally { setMoving(false); }
+  }
+
   async function removeActivity(id) {
     await apiRequest(`/activities/${id}`, { method: 'DELETE', getToken });
     await loadTrip();
@@ -194,13 +231,30 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
                 </div>
               </header>}
 
-          <ShareControl tripId={trip.id} getToken={getToken} />
+          <div className="workspace-controls" aria-label="Trip sections">
+            <button type="button" aria-pressed={view === 'itinerary'} onClick={() => setView('itinerary')}>Itinerary</button>
+            <button type="button" aria-pressed={view === 'budget'} onClick={() => setView('budget')}>Budget</button>
+            <button type="button" aria-pressed={view === 'share'} onClick={() => setView('share')}>Share</button>
+          </div>
+          {view === 'share' && <ShareControl tripId={trip.id} getToken={getToken} />}
 
-          {trip.budgetSummary && <BudgetSummary summary={trip.budgetSummary} currencyCode={trip.currencyCode} />}
+          {view === 'budget' && trip.budgetSummary && <BudgetSummary summary={trip.budgetSummary} currencyCode={trip.currencyCode} />}
 
-          <ol className="day-list">
+          {view === 'itinerary' && <><div className="board-heading"><div><h2>Itinerary</h2><p>Drag an activity to another day, or use its move control.</p></div><button className="primary-button" type="button" onClick={() => { setAddingOn(trip.days[0].date); document.getElementById('day-' + trip.days[0].date)?.scrollIntoView({ behavior: 'smooth' }); }}>+ Add activity</button></div>
+          {moveError && <p className="form-error" role="alert">{moveError}</p>}
+          {undoMove && <p role="status" className="move-notice">Moved {undoMove.title}. <button type="button" className="text-button" disabled={moving} onClick={undoLastMove}>Undo</button></p>}
+          <label className="day-jump">Jump to day
+            <select value={selectedDay || trip.days[0]?.date || ''} onChange={(event) => {
+              const date = event.target.value;
+              setSelectedDay(date);
+              document.getElementById('day-' + date)?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+            }}>
+              {trip.days.map((day) => <option key={day.date} value={day.date}>Day {day.dayNumber} · {formatDayHeading(day.date)}</option>)}
+            </select>
+          </label>
+          <ol className="day-list itinerary-board">
             {trip.days.map((day) => (
-              <li key={day.date} className="day-card">
+              <li key={day.date} id={'day-' + day.date} className="day-card" onDragOver={(event) => { if (dragged) event.preventDefault(); }} onDrop={async (event) => { event.preventDefault(); if (!dragged || moving) return; try { await moveActivity(dragged, day.date); } catch { /* Error is shown above the board. */ } }}>
                 <div className="day-heading">
                   <h2><span>Day {day.dayNumber}</span> {formatDayHeading(day.date)}</h2>
                   {addingOn !== day.date && <button className="text-button" type="button" onClick={() => { setAddingOn(day.date); setEditingActivity(null); }}>+ Add activity</button>}
@@ -213,6 +267,9 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
                       activity={activity}
                       trip={trip}
                       editing={editingActivity === activity.id}
+                      onMove={(date) => moveActivity(activity, date)}
+                      onDragEnd={() => setDragged(null)}
+                      onDragStart={(event) => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', String(activity.id)); setDragged(activity); }}
                       onEdit={() => { setEditingActivity(activity.id); setAddingOn(null); }}
                       onCancel={() => setEditingActivity(null)}
                       onSave={(values) => updateActivity(activity.id, values)}
@@ -226,7 +283,7 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
                 </div>}
               </li>
             ))}
-          </ol>
+          </ol></>}
         </>}
       </ProfileGate>
     </section>
