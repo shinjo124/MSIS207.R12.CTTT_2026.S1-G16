@@ -12,7 +12,7 @@ function Topbar({ getToken }) {
       <a className="brand" href="/" aria-label="Tripo home"><span className="brand-mark">T</span> tripo</a>
       <span className="top-note">Make room for the good days.</span>
       {getToken ? <>
-        <a className="nav-link" href="/trips">My trips</a>
+        <nav className="app-nav" aria-label="Main navigation"><a className="nav-link" href="/trips">My trips</a><a className="nav-link" href="/explore">Explore</a><a className="nav-link" href="/stories">Stories</a></nav>
         <Show when="signed-out">
           <div className="auth-controls">
             <SignInButton mode="redirect"><button className="sign-in" type="button">Sign in</button></SignInButton>
@@ -45,10 +45,10 @@ export default function App(props) {
   if (tripId) {
     return <main className="page-shell"><Topbar getToken={props.getToken} /><TripDetail key={tripId} tripId={tripId} {...props} /></main>;
   }
-  return <HomePage {...props} />;
+  return <HomePage {...props} page={path === '/explore' ? 'explore' : path === '/stories' ? 'stories' : 'home'} />;
 }
 
-function HomePage({ getToken, isSignedIn = false, profileStatus = 'signed-out', profileError = '' }) {
+function HomePage({ getToken, isSignedIn = false, profileStatus = 'signed-out', profileError = '', page }) {
   const [destinations, setDestinations] = useState([]);
   const [category, setCategory] = useState('');
   const [destinationStatus, setDestinationStatus] = useState('loading');
@@ -56,6 +56,7 @@ function HomePage({ getToken, isSignedIn = false, profileStatus = 'signed-out', 
   const [categories, setCategories] = useState([]);
 
   useEffect(() => {
+    if (page !== 'explore') return undefined;
     const controller = new AbortController();
     const query = category ? `?category=${encodeURIComponent(category)}` : '';
     setDestinationStatus('loading');
@@ -79,13 +80,13 @@ function HomePage({ getToken, isSignedIn = false, profileStatus = 'signed-out', 
       });
 
     return () => controller.abort();
-  }, [category]);
+  }, [category, page]);
 
   return (
     <main className="page-shell">
       <Topbar getToken={getToken} />
 
-      <section className="hero" id="top">
+      {page === 'home' && <section className="hero" id="top">
         <div className="hero-copy">
           <p className="eyebrow">GOOD TRIPS, WELL PLANNED</p>
           <h1>More time<br />for <em>there.</em></h1>
@@ -99,9 +100,9 @@ function HomePage({ getToken, isSignedIn = false, profileStatus = 'signed-out', 
           <div className="sea" />
           <div className="art-label"><span>01</span> A little further, together</div>
         </div>
-      </section>
+      </section>}
 
-      <section className="destinations" aria-labelledby="destinations-title">
+      {page === 'explore' && <section className="destinations" aria-labelledby="destinations-title">
         <div className="section-heading">
           <div><p className="eyebrow">A PLACE TO START</p><h2 id="destinations-title">Find your kind of away.</h2></div>
           <p>Curated ideas for your next shared adventure.</p>
@@ -125,9 +126,9 @@ function HomePage({ getToken, isSignedIn = false, profileStatus = 'signed-out', 
             </a>
           )) : null}
         </div>}
-      </section>
+      </section>}
 
-      <PostsFeed getToken={getToken} isSignedIn={isSignedIn} profileStatus={profileStatus} profileError={profileError} />
+      {page === 'stories' && <PostsFeed getToken={getToken} isSignedIn={isSignedIn} profileStatus={profileStatus} profileError={profileError} />}
 
       <footer><span>tripo</span><span>Plan a little. Enjoy a lot.</span></footer>
     </main>
