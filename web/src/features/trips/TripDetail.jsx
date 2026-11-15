@@ -34,39 +34,26 @@ function ActivityItem({ activity, trip, editing, onEdit, onCancel, onSave, onDel
 
   const place = [activity.address, activity.city].filter(Boolean).join(', ');
   return (
-    <li draggable={!busy} onDragStart={onDragStart} onDragEnd={onDragEnd} className={`activity${activity.visited ? ' visited' : ''}`}>
-      <span className="activity-time">{activity.time || '—'}</span>
-      <div className="activity-main">
-        <p className="activity-title">
+    <li draggable={!busy} onDragStart={onDragStart} onDragEnd={onDragEnd} className={`activity board-activity${activity.visited ? ' visited' : ''}`}>
+      <details>
+        <summary>
           <span className={`category-badge category-${activity.category}`}>{categoryLabel(activity.category)}</span>
           <strong>{activity.title}</strong>
-        </p>
-        {place && <p className="activity-place">{place}</p>}
-        <p className="activity-money">
-          Planned {formatMoney(activity.plannedCost, trip.currencyCode)}
-          <span aria-hidden="true"> · </span>
-          {activity.actualSpend == null
-            ? <span className="not-recorded">Actual not recorded</span>
-            : <>Actual {formatMoney(activity.actualSpend, trip.currencyCode)}</>}
-        </p>
-        {activity.note && <p className="activity-note">{activity.note}</p>}
-        <div className="activity-actions">
-          <label className="check-in">
-            <input type="checkbox" checked={activity.visited} disabled={busy} onChange={() => run(() => onToggleVisited(!activity.visited))} />
-            {activity.visited ? 'Visited' : 'Check in'}
-          </label>
-          <a href={mapsUrl(activity)} target="_blank" rel="noreferrer">Open in Google Maps ↗</a>
-          <button className="text-button" type="button" onClick={onEdit} disabled={busy}>Edit</button>
-          <label className="move-activity">Move to day <select value={activity.date} disabled={busy} onChange={(event) => run(() => onMove(event.target.value))}>{trip.days.map((day) => <option key={day.date} value={day.date}>Day {day.dayNumber} · {formatDayHeading(day.date)}</option>)}</select></label>
-          {confirming
-            ? <>
-                <button className="text-button danger" type="button" disabled={busy} onClick={() => run(onDelete)}>Confirm delete</button>
-                <button className="text-button" type="button" disabled={busy} onClick={() => setConfirming(false)}>Keep</button>
-              </>
-            : <button className="text-button" type="button" disabled={busy} onClick={() => setConfirming(true)}>Delete</button>}
+          <span className="board-card-meta">{activity.time || 'No time'}{place ? ` · ${place}` : ''}</span>
+        </summary>
+        <div className="board-card-details">
+          <p>Planned {formatMoney(activity.plannedCost, trip.currencyCode)} · {activity.actualSpend == null ? 'Actual not recorded' : `Actual ${formatMoney(activity.actualSpend, trip.currencyCode)}`}</p>
+          {activity.note && <p className="activity-note">{activity.note}</p>}
+          <div className="activity-actions">
+            <label className="check-in"><input type="checkbox" checked={activity.visited} disabled={busy} onChange={() => run(() => onToggleVisited(!activity.visited))} />{activity.visited ? 'Visited' : 'Check in'}</label>
+            <a href={mapsUrl(activity)} target="_blank" rel="noreferrer">Open in Google Maps ↗</a>
+            <button className="text-button" type="button" onClick={onEdit} disabled={busy}>Edit</button>
+            <label className="move-activity">Move to day <select value={activity.date} disabled={busy} onChange={(event) => run(() => onMove(event.target.value))}>{trip.days.map((day) => <option key={day.date} value={day.date}>Day {day.dayNumber} · {formatDayHeading(day.date)}</option>)}</select></label>
+            {confirming ? <><button className="text-button danger" type="button" disabled={busy} onClick={() => run(onDelete)}>Confirm delete</button><button className="text-button" type="button" onClick={() => setConfirming(false)}>Keep</button></> : <button className="text-button danger" type="button" onClick={() => setConfirming(true)} disabled={busy}>Delete</button>}
+          </div>
+          {error && <p className="form-error" role="alert">{error}</p>}
         </div>
-        {error && <p className="form-error" role="alert">{error}</p>}
-      </div>
+      </details>
     </li>
   );
 }
@@ -104,6 +91,7 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
   const [view, setView] = useState('itinerary');
   const [selectedDay, setSelectedDay] = useState('');
   const [dragged, setDragged] = useState(null);
+  const [dropTarget, setDropTarget] = useState(null);
   const [moveError, setMoveError] = useState('');
   const [undoMove, setUndoMove] = useState(null);
   const [moving, setMoving] = useState(false);
@@ -160,7 +148,7 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
   }
 
   async function moveActivity(activity, date) {
-    if (moving || date === activity.date) return;
+    if (moving || date === activity.date) { setDragged(null); return; }
     setMoving(true);
     setMoveError('');
     try {
@@ -198,7 +186,7 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
     return <ActivityItem key={activity.id} activity={activity} trip={trip}
       editing={editingActivity === activity.id}
       onMove={(date) => moveActivity(activity, date)}
-      onDragEnd={() => setDragged(null)}
+      onDragEnd={() => { setDragged(null); setDropTarget(null); }}
       onDragStart={(event) => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', String(activity.id)); setDragged(activity); }}
       onEdit={() => { setEditingActivity(activity.id); setAddingOn(null); }}
       onCancel={() => setEditingActivity(null)}
@@ -259,7 +247,7 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
 
           {view === 'budget' && trip.budgetSummary && <BudgetSummary summary={trip.budgetSummary} currencyCode={trip.currencyCode} />}
 
-          {view === 'itinerary' && <><div className="board-heading"><div><h2>Itinerary</h2><p>Drag an activity to another day, or use its move control.</p></div><button className="primary-button" type="button" onClick={() => { setAddingOn(trip.days[0].date); document.getElementById('day-' + trip.days[0].date)?.scrollIntoView({ behavior: 'smooth' }); }}>+ Add activity</button></div>
+          {view === 'itinerary' && <><div className="board-heading"><div><h2>Itinerary</h2><p>Each column is a day. Drag a card or open it to move it.</p></div><button className="primary-button" type="button" onClick={() => { setAddingOn(trip.days[0].date); document.getElementById('day-' + trip.days[0].date)?.scrollIntoView({ behavior: 'smooth' }); }}>+ Add activity</button></div>
           {moveError && <p className="form-error" role="alert">{moveError}</p>}
           {undoMove && <p role="status" className="move-notice">Moved {undoMove.title}. <button type="button" className="text-button" disabled={moving} onClick={undoLastMove}>Undo</button></p>}
           <label className="day-jump">Jump to day
@@ -273,21 +261,15 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
           </label>
           <ol className="day-list itinerary-board">
             {trip.days.map((day) => (
-              <li key={day.date} id={'day-' + day.date} className="day-card" onDragOver={(event) => { if (dragged) event.preventDefault(); }} onDrop={async (event) => { event.preventDefault(); if (!dragged || moving) return; try { await moveActivity(dragged, day.date); } catch { /* Error is shown above the board. */ } }}>
+              <li key={day.date} id={'day-' + day.date} className={`day-card${dropTarget === day.date ? ' is-drop-target' : ''}`} onDragOver={(event) => { if (dragged && dragged.date !== day.date && !moving) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; if (dropTarget !== day.date) setDropTarget(day.date); } }} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setDropTarget(null); }} onDrop={async (event) => { event.preventDefault(); const id = event.dataTransfer.getData('text/plain'); const activity = trip.days.flatMap((item) => item.activities).find((item) => String(item.id) === id); setDropTarget(null); if (!activity || moving) return; try { await moveActivity(activity, day.date); } catch { /* Error is shown above the board. */ } }}>
                 <div className="day-heading">
                   <h2><span>Day {day.dayNumber}</span> {formatDayHeading(day.date)}</h2>
                   {addingOn !== day.date && <button className="text-button" type="button" onClick={() => { setAddingOn(day.date); setEditingActivity(null); }}>+ Add activity</button>}
                 </div>
-                <div className="calendar-unscheduled"><h3>Unscheduled</h3><ul className="activity-list">
-                  {day.activities.filter((activity) => !activity.time).map((activity) => renderActivity(activity))}
-                  {!day.activities.some((activity) => !activity.time) && <li className="calendar-empty">No unscheduled activities</li>}
-                </ul></div>
-                <div className="calendar-hours" aria-label={`Schedule for ${formatDayHeading(day.date)}`}>
-                  {Array.from({ length: 24 }, (_, hour) => <div className="calendar-hour" key={hour}>
-                    <span className="calendar-hour-label">{String(hour).padStart(2, '0')}:00</span>
-                    <ul className="activity-list">{day.activities.filter((activity) => activity.time && Number(activity.time.slice(0, 2)) === hour).map((activity) => renderActivity(activity))}</ul>
-                  </div>)}
-                </div>
+                <ul className="activity-list board-cards">
+                  {day.activities.map((activity) => renderActivity(activity))}
+                  {day.activities.length === 0 && <li className="board-empty">No activities yet. Add one below.</li>}
+                </ul>
                 {addingOn === day.date && <div className="activity editing">
                   <ActivityForm date={day.date} days={trip.days} currencyCode={trip.currencyCode} onSubmit={addActivity} onCancel={() => setAddingOn(null)} />
                 </div>}
