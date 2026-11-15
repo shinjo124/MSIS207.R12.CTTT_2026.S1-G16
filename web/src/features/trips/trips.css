@@ -170,3 +170,22 @@
 .day-jump { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; color: var(--teal-dark); font-size: 12px; font-weight: 700; }
 .day-jump select { min-height: 44px; max-width: 100%; padding: 8px 12px; border: 1px solid #cddbd5; border-radius: 10px; background: white; color: var(--teal-dark); font: inherit; }
 @media (max-width: 640px) { .workspace-controls { overflow-x: auto; } .workspace-controls button { flex: 1 0 auto; padding: 12px; } .day-jump { align-items: stretch; flex-direction: column; } .itinerary-board { grid-auto-columns: minmax(260px, 100%); } .itinerary-board .day-card { scroll-margin-top: 90px; } }
+
+/* Calendar */
+.budget-overview { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin-bottom: 18px; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: var(--line); }
+.budget-overview div { display: grid; gap: 6px; padding: 16px 20px; background: white; }
+.budget-overview span { color: var(--muted); font-size: 12px; }
+.budget-overview strong { color: var(--teal-dark); font-size: 17px; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.itinerary-board { grid-auto-columns: minmax(340px, 1fr); }
+.itinerary-board .day-card { padding: 0; overflow: hidden; }
+.itinerary-board .day-heading { padding: 16px; background: #f6faf7; }
+.calendar-unscheduled { min-height: 80px; padding: 12px 16px; border-top: 1px solid var(--line); }
+.calendar-unscheduled h3 { margin: 0; font-size: 12px; color: var(--muted); }
+.calendar-empty { padding: 12px 0; color: var(--muted); font-size: 11px; }
+.calendar-hours { max-height: 650px; overflow-y: auto; border-top: 1px solid var(--line); }
+.calendar-hour { display: grid; grid-template-columns: 48px minmax(0,1fr); min-height: 58px; border-bottom: 1px solid #e7ece8; }
+.calendar-hour-label { padding: 8px 6px; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.calendar-hour > ul { min-width: 0; padding: 4px 8px; border-left: 1px solid #e7ece8; }
+.itinerary-board .activity { padding: 10px; margin: 2px 0; border: 1px solid #cddbd5; border-radius: 9px; background: #eef6f1; }
+.itinerary-board .activity.editing { background: white; }
+@media (max-width: 640px) { .budget-overview div { padding: 12px 9px; } .budget-overview strong { font-size: 13px; } .itinerary-board { grid-auto-columns: minmax(280px, 100%); } }

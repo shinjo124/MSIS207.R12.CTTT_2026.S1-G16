@@ -7,7 +7,7 @@ import './styles.css';
 
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
-function AuthenticatedApp() {
+function AuthenticatedApp({ path }) {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const [profileStatus, setProfileStatus] = useState('signed-out');
   const [profileError, setProfileError] = useState('');
@@ -34,7 +34,7 @@ function AuthenticatedApp() {
     return () => controller.abort();
   }, [getToken, isLoaded, isSignedIn, userId]);
 
-  return <App key={userId || 'guest'} getToken={getToken} isSignedIn={isLoaded && Boolean(isSignedIn)} profileStatus={isLoaded ? profileStatus : 'loading'} profileError={profileError} />;
+  return <App path={path} key={userId || 'guest'} getToken={getToken} isSignedIn={isLoaded && Boolean(isSignedIn)} profileStatus={isLoaded ? profileStatus : 'loading'} profileError={profileError} />;
 }
 
 function AuthPage({ signUp }) {
@@ -52,10 +52,27 @@ function AuthPage({ signUp }) {
 }
 
 function AppRoot() {
-  const path = window.location.pathname;
+  const [path, setPath] = useState(window.location.pathname);
+  useEffect(() => {
+    const updatePath = () => setPath(window.location.pathname);
+    const followLink = (event) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const link = event.target.closest('a[href]');
+      if (!link || link.target || link.hasAttribute('download')) return;
+      const url = new URL(link.href, window.location.href);
+      if (url.origin !== window.location.origin || url.hash || url.pathname.startsWith('/sign-in') || url.pathname.startsWith('/sign-up')) return;
+      event.preventDefault();
+      window.history.pushState(null, '', url.pathname + url.search);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+      window.scrollTo(0, 0);
+    };
+    window.addEventListener('popstate', updatePath);
+    document.addEventListener('click', followLink);
+    return () => { window.removeEventListener('popstate', updatePath); document.removeEventListener('click', followLink); };
+  }, []);
   if (path === '/sign-up' || path.startsWith('/sign-up/')) return <AuthPage signUp />;
   if (path === '/sign-in' || path.startsWith('/sign-in/')) return <AuthPage />;
-  return <AuthenticatedApp />;
+  return <AuthenticatedApp path={path} />;
 }
 
 createRoot(document.getElementById('root')).render(
