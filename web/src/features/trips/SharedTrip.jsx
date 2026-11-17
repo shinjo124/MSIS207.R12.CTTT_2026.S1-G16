@@ -35,6 +35,7 @@ export default function SharedTrip({ token }) {
       <p className="eyebrow">A TRIPO SHARED TRIP</p>
       <h1>{trip.title}</h1>
       <p>{formatDate(trip.startDate)} – {formatDate(trip.endDate)}{dayCount ? <> <span>·</span> {dayCount} {dayCount === 1 ? 'day' : 'days'}</> : null} <span>·</span> {trip.groupSize} {trip.groupSize === 1 ? 'traveler' : 'travelers'}</p>
+      <p>{trip.timeZone ? `Trip times use ${trip.timeZone}.` : 'Trip time zone is not set; activity times are shown without conversion.'}</p>
       <p className="shared-budget">Budget {formatMoney(trip.budget, trip.currencyCode)}</p>
       <h2>Destinations</h2>
       <ul>{trip.destinations.map((place) => (
@@ -64,6 +65,7 @@ export default function SharedTrip({ token }) {
                             <span className={`category-badge category-${activity.category}`}>{categoryLabel(activity.category)}</span>
                             <strong>{activity.title}</strong>
                           </p>
+                          {activity.durationMinutes != null && <p className="activity-place">Duration: {activity.durationMinutes} min</p>}
                           {place && <p className="activity-place">{place}</p>}
                         </div>
                       </li>

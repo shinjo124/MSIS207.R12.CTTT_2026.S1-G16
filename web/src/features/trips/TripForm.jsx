@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import DestinationPicker from './DestinationPicker.jsx';
-import { CURRENCIES, countDays, todayIso } from './trip-format.js';
+import { CURRENCIES, countDays } from './trip-format.js';
 
 function initialValues(trip) {
   if (trip) {
@@ -12,9 +12,10 @@ function initialValues(trip) {
       groupSize: String(trip.groupSize),
       currencyCode: trip.currencyCode,
       budget: String(Number(trip.budget)),
+      timeZone: trip.timeZone || '',
     };
   }
-  return { title: '', destinations: [], startDate: todayIso(), endDate: todayIso(), groupSize: '2', currencyCode: 'VND', budget: '' };
+  return { title: '', destinations: [], startDate: '', endDate: '', groupSize: '2', currencyCode: 'VND', budget: '', timeZone: '' };
 }
 
 // Same rules as the API; the server still validates every request.
@@ -32,21 +33,28 @@ function validate(values) {
 
 export default function TripForm({ trip = null, submitLabel, onSubmit, onCancel }) {
   const [values, setValues] = useState(() => initialValues(trip));
+  const [revision] = useState(() => trip?.revision);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [zoneConfirmed, setZoneConfirmed] = useState(false);
   const dayCount = values.endDate >= values.startDate ? countDays(values.startDate, values.endDate) : 0;
+  const destinationsChanged = Boolean(trip) && values.destinations.map((item) => item.id).join(',') !== trip.destinations.map((item) => item.id).join(',');
+  const zone = values.timeZone.trim();
+  const zoneChanged = zone !== (trip?.timeZone || '') || Boolean(zone && destinationsChanged);
 
   const update = (field) => (event) => setValues((current) => ({ ...current, [field]: event.target.value }));
 
   async function handleSubmit(event) {
     event.preventDefault();
-    const problem = validate(values);
+    let problem = validate(values);
+    if (!problem && zoneChanged && zone && !zoneConfirmed) problem = 'Confirm that the time zone matches the trip destinations.';
     setError(problem);
     if (problem) return;
 
     setSaving(true);
     try {
       await onSubmit({
+        ...(trip ? { revision } : {}),
         title: values.title.trim(),
         destinationIds: values.destinations.map((destination) => destination.id),
         startDate: values.startDate,
@@ -54,6 +62,7 @@ export default function TripForm({ trip = null, submitLabel, onSubmit, onCancel 
         groupSize: Number(values.groupSize),
         currencyCode: values.currencyCode,
         budget: values.budget.trim(),
+        ...(zoneChanged ? { timeZone: zone || null, timeZoneConfirmed: zoneConfirmed } : {}),
       });
     } catch (submitError) {
       setError(submitError.message);
@@ -71,9 +80,15 @@ export default function TripForm({ trip = null, submitLabel, onSubmit, onCancel 
         <legend>Destinations <span>(type to search, pick in visiting order)</span></legend>
         <DestinationPicker
           selected={values.destinations}
-          onChange={(destinations) => setValues((current) => ({ ...current, destinations }))}
+          onChange={(destinations) => { setZoneConfirmed(false); setValues((current) => ({ ...current, destinations })); }}
         />
       </fieldset>
+
+      <label className="field field-wide">Trip time zone (IANA)
+        <input value={values.timeZone} onChange={(event) => { setZoneConfirmed(false); update('timeZone')(event); }} placeholder="Asia/Ho_Chi_Minh" />
+        <span>Use the destination time zone. Leave blank if you are unsure; activity times will not be converted.</span>
+      </label>
+      {zoneChanged && zone && <label className="field-wide"><input type="checkbox" checked={zoneConfirmed} onChange={(event) => setZoneConfirmed(event.target.checked)} /> I confirm this time zone matches the trip destinations.</label>}
 
       <label className="field">Start date
         <input type="date" value={values.startDate} onChange={update('startDate')} required />
@@ -82,7 +97,7 @@ export default function TripForm({ trip = null, submitLabel, onSubmit, onCancel 
         <input type="date" value={values.endDate} min={values.startDate} onChange={update('endDate')} required />
       </label>
       <p className="day-count field-wide" aria-live="polite">
-        {dayCount ? <><b>{dayCount}</b> {dayCount === 1 ? 'day' : 'days'} — start and end dates included</> : 'The end date is before the start date.'}
+        {dayCount ? <><b>{dayCount}</b> {dayCount === 1 ? 'day' : 'days'} — start and end dates included</> : !values.startDate || !values.endDate ? 'Choose dates to see the trip length.' : 'The end date is before the start date.'}
       </p>
 
       <label className="field">Group size

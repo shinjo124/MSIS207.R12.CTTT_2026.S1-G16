@@ -1,7 +1,7 @@
 import cors from 'cors';
 import express from 'express';
-import { clerkMiddleware } from '@clerk/express';
-import { rateLimit } from 'express-rate-limit';
+import { clerkMiddleware, getAuth } from '@clerk/express';
+import { rateLimit, ipKeyGenerator } from 'express-rate-limit';
 import swaggerUi from 'swagger-ui-express';
 import { readFile } from 'node:fs/promises';
 import { parse } from 'yaml';
@@ -14,6 +14,8 @@ import postsRouter from './routes/posts.js';
 import photosRouter from './routes/photos.js';
 import tripsRouter from './routes/trips.js';
 import activitiesRouter from './routes/activities.js';
+import weatherRouter from './routes/weather.js';
+import { isTripSyncRequest, tripSyncKey } from './services/trip-sync-limit.js';
 
 const app = express();
 const openApiPath = new URL('../../docs/api/openapi.yaml', import.meta.url);
@@ -34,6 +36,17 @@ const apiLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: { code: 'RATE_LIMITED', message: 'Too many requests. Try again later.' } },
 });
+const tripSyncLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 600,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const auth = process.env.CLERK_SECRET_KEY ? getAuth(req) : null;
+    return tripSyncKey(auth?.isAuthenticated ? auth.userId : null, ipKeyGenerator(req.ip));
+  },
+  message: { error: { code: 'RATE_LIMITED', message: 'Too many trip refreshes. Try again later.' } },
+});
 
 if (Number(process.env.TRUST_PROXY_HOPS) > 0) {
   app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS));
@@ -45,7 +58,7 @@ app.use(cors({
 app.use(express.json({ limit: '1mb' }));
 if (process.env.CLERK_SECRET_KEY) app.use(clerkMiddleware());
 // shortcut: per-process memory only; use a shared store before running multiple API instances.
-app.use('/api', apiLimiter);
+app.use('/api', (req, res, next) => (isTripSyncRequest(req) ? tripSyncLimiter : apiLimiter)(req, res, next));
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openApiDocument));
 
 app.get('/api/health', async (_req, res) => {
@@ -61,6 +74,7 @@ app.use('/api/destinations', destinationsRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/trips', tripsRouter);
 app.use('/api', activitiesRouter);
+app.use('/api', weatherRouter);
 app.use('/api', shareRouter);
 app.use('/api/posts', postsRouter);
 app.use('/api/trip-photos', photosRouter);

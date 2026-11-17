@@ -2,9 +2,32 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { once } from 'node:events';
 import { DatabaseSync } from 'node:sqlite';
+import { readFileSync } from 'node:fs';
 import express from 'express';
 import posts from '../src/routes/posts.js';
 import { pool } from '../src/db/pool.js';
+
+test('sample feed seed is labelled and repeatable', () => {
+  const sql = readFileSync(new URL('../database/seeds/002_demo_trip_and_story.sql', import.meta.url), 'utf8');
+  const statement = sql.match(/-- Sample feed stories\n([\s\S]*?);/)?.[1];
+  const update = sql.match(/UPDATE posts SET body = CONCAT\([\s\S]*?;/)?.[0];
+  assert.ok(statement, 'sample feed seed is present');
+  assert.ok(update, 'existing sample story is labelled');
+  const db = new DatabaseSync(':memory:');
+  try {
+    db.function('CONCAT', (...values) => values.join(''));
+    db.exec("CREATE TABLE users (id INTEGER, clerk_user_id TEXT); CREATE TABLE posts (author_user_id INTEGER, trip_id INTEGER, place_id INTEGER, body TEXT, visibility TEXT); INSERT INTO users VALUES (1, 'seed-demo-traveler');");
+    db.exec("INSERT INTO posts VALUES (1, NULL, NULL, 'We left the afternoons open for coffee, lake walks, and whatever looked interesting on the way.', 'public');");
+    db.exec(update);
+    db.exec(statement);
+    const first = db.prepare('SELECT body, visibility FROM posts').all();
+    assert.ok(first.length >= 12);
+    assert.ok(first.every((post) => post.body.startsWith('[Sample story] ') && post.visibility === 'public'));
+    db.exec(update);
+    db.exec(statement);
+    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM posts').get().count, first.length);
+  } finally { db.close(); }
+});
 
 test('public feed and comments return all pages and exclude private posts', async (t) => {
   delete process.env.CLERK_SECRET_KEY; // Test process serves anonymous requests.

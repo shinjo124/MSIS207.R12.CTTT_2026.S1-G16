@@ -18,6 +18,10 @@ export async function apiRequest(path, options = {}) {
   const response = await fetch(new URL(`/api${path}`, apiBaseUrl), { ...requestOptions, headers, body });
   if (response.status === 204) return null;
   const result = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(result.error?.message || 'The request could not be completed.');
+  if (!response.ok) {
+    const error = new Error(result.error?.message || 'The request could not be completed.');
+    error.code = result.error?.code;
+    throw error;
+  }
   return result;
 }

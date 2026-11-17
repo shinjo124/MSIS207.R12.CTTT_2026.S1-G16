@@ -41,9 +41,8 @@ router.post('/trips/:tripId/share', requireAuth, async (req, res, next) => {
   try {
     const shareToken = randomBytes(32).toString('hex');
     const [result] = await pool.execute(
-      `UPDATE trips t JOIN users u ON u.id = t.owner_user_id
-       SET t.share_token = ?, t.share_enabled = 1
-       WHERE t.id = ? AND u.clerk_user_id = ?`,
+      `UPDATE trips SET share_token = ?, share_enabled = 1, revision = revision + 1
+       WHERE id = ? AND owner_user_id = (SELECT id FROM users WHERE clerk_user_id = ?)`,
       [shareToken, tripId, req.clerkUserId],
     );
     if (!result.affectedRows) {
@@ -65,10 +64,8 @@ router.delete('/trips/:tripId/share', requireAuth, async (req, res, next) => {
 
   try {
     const [result] = await pool.execute(
-      `UPDATE trips t
-       JOIN users u ON u.id = t.owner_user_id
-       SET t.share_token = NULL, t.share_enabled = 0
-       WHERE t.id = ? AND u.clerk_user_id = ?`,
+      `UPDATE trips SET share_token = NULL, share_enabled = 0, revision = revision + 1
+       WHERE id = ? AND owner_user_id = (SELECT id FROM users WHERE clerk_user_id = ?)`,
       [tripId, req.clerkUserId],
     );
     if (!result.affectedRows) {
@@ -103,7 +100,7 @@ router.get('/share/:token', async (req, res, next) => {
     const [trips] = await pool.execute(
       `SELECT id, title, DATE_FORMAT(start_date, '%Y-%m-%d') AS startDate,
               DATE_FORMAT(end_date, '%Y-%m-%d') AS endDate,
-              group_size AS groupSize, budget, currency_code AS currencyCode
+              group_size AS groupSize, budget, currency_code AS currencyCode, time_zone AS timeZone
        FROM trips WHERE share_token = ? AND share_enabled = 1`,
       [token],
     );
@@ -124,7 +121,7 @@ router.get('/share/:token', async (req, res, next) => {
     );
     const [activityRows] = await pool.execute(
       `SELECT id, DATE_FORMAT(activity_date, '%Y-%m-%d') AS date,
-              TIME_FORMAT(start_time, '%H:%i') AS time,
+              TIME_FORMAT(start_time, '%H:%i') AS time, duration_minutes AS durationMinutes,
               category, title, city, address
        FROM activities WHERE trip_id = ?
        ORDER BY activity_date, start_time IS NULL, start_time, id`,

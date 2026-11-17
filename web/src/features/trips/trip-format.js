@@ -43,7 +43,15 @@ export function mapsUrl(activity) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }
 
-export function todayIso() {
-  const now = new Date();
-  return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+export function todayInTimeZone(timeZone, now = new Date()) {
+  if (!timeZone) return null;
+  try {
+    const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now).map(({ type, value }) => [type, value]));
+    return `${parts.year}-${parts.month}-${parts.day}`;
+  } catch { return null; }
 }
+export function calendarStartDate(trip, now = new Date()) {
+  const today = todayInTimeZone(trip.timeZone, now);
+  return today && today >= trip.startDate && today <= trip.endDate ? today : trip.startDate;
+}
+export function canCompareWeatherDate(tripZone, weatherZone) { return Boolean(tripZone && weatherZone && tripZone === weatherZone); }

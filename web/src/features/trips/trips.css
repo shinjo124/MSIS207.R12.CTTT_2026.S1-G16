@@ -32,7 +32,6 @@
 /* Trip list */
 .trip-list { display: grid; gap: 15px; margin: 0; padding: 0; list-style: none; }
 .trip-card { position: relative; display: grid; grid-template-columns: 80px minmax(0, 1fr) auto; align-items: center; gap: 22px; overflow: hidden; padding: 20px 24px; border: 1px solid var(--line); border-radius: 18px; background: var(--white); text-decoration: none; box-shadow: 0 8px 24px rgb(14 49 52 / 4%); transition: transform .18s ease, box-shadow .18s ease; }
-.trip-card::before { position: absolute; top: 0; bottom: 0; left: 0; width: 7px; background: linear-gradient(180deg, var(--coral), #f0bd78); content: ''; }
 .trip-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
 .trip-card-days { display: grid; place-items: center; min-height: 72px; border-radius: 14px; background: #e7f1ec; color: var(--teal-dark); font-family: Georgia, serif; font-size: 30px; line-height: 1; }
 .trip-card-days small { padding-top: 4px; color: var(--muted); font-family: 'DM Sans', 'Segoe UI', sans-serif; font-size: 10px; }
@@ -182,7 +181,7 @@
 .calendar-unscheduled { min-height: 80px; padding: 12px 16px; border-top: 1px solid var(--line); }
 .calendar-unscheduled h3 { margin: 0; font-size: 12px; color: var(--muted); }
 .calendar-empty { padding: 12px 0; color: var(--muted); font-size: 11px; }
-.calendar-hours { max-height: 650px; overflow-y: auto; border-top: 1px solid var(--line); }
+.calendar-hours { border-top: 1px solid var(--line); }
 .calendar-hour { display: grid; grid-template-columns: 48px minmax(0,1fr); min-height: 58px; border-bottom: 1px solid #e7ece8; }
 .calendar-hour-label { padding: 8px 6px; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
 .calendar-hour > ul { min-width: 0; padding: 4px 8px; border-left: 1px solid #e7ece8; }
@@ -217,3 +216,39 @@
 
 .itinerary-board .day-card.is-drop-target { outline: 3px solid var(--teal); outline-offset: -3px; background: #e3f3ec; }
 .board-activity summary:focus-visible, .workspace-controls button:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+
+.trip-calendar { margin: 28px 0; }
+.calendar-heading { display: flex; align-items: start; justify-content: space-between; gap: 18px; }
+.calendar-heading h2, .calendar-unscheduled h3 { margin: 0; }
+.calendar-heading p, .calendar-unscheduled p { color: var(--muted); font-size: 13px; line-height: 1.5; }
+.calendar-days { display: flex; overflow-x: auto; gap: 8px; padding: 8px 0 14px; }
+.calendar-days button { flex: none; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: white; cursor: pointer; }
+.calendar-days button[aria-pressed='true'] { background: var(--teal-dark); color: white; }
+.calendar-scroll { height: min(70vh, 700px); overflow: auto; border: 1px solid var(--line); border-radius: 12px; background: white; }
+.calendar-hours { position: relative; min-width: 260px; }
+.calendar-hour { position: absolute; left: 0; right: 0; height: 64px; border-top: 1px solid var(--line); }
+.calendar-hour span { display: inline-block; width: 52px; padding: 5px; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.calendar-event { position: absolute; overflow: hidden; border-radius: 6px; background: #d9eeea; color: #103f48; }
+.calendar-event-drag { display: grid; gap: 2px; height: 100%; overflow: hidden; padding: 4px 40px 10px 7px; cursor: grab; touch-action: none; font-size: 12px; }
+.calendar-event-drag span { font-size: 11px; }
+.calendar-edit { position: absolute; right: 3px; top: 3px; padding: 3px; border: 0; background: white; color: #103f48; cursor: pointer; font-size: 11px; }
+.calendar-resize { position: absolute; bottom: 0; left: 0; right: 0; height: 12px; background: #9dc9bf; cursor: ns-resize; touch-action: none; }
+.calendar-unscheduled { margin: 22px 0; }
+.calendar-unscheduled ul { padding: 0; list-style: none; }
+.calendar-unscheduled li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+@media (max-width: 640px) { .calendar-heading { flex-direction: column; } .calendar-event-drag { font-size: 11px; } }
+.calendar-unscheduled-drag { flex: 1; padding: 8px; border-radius: 6px; background: #edf5f2; cursor: grab; touch-action: none; }
+.calendar-navigation { display: flex; gap: 8px; margin-bottom: 8px; }
+.calendar-navigation button { min-height: 44px; padding: 0 14px; }
+.calendar-column-headings, .calendar-unscheduled-columns { display: flex; padding-left: 58px; }
+.calendar-column-headings > *, .calendar-unscheduled-columns > * { flex: 1; min-width: 0; padding: 8px; }
+.calendar-columns { position: absolute; inset: 0 4px 0 58px; display: flex; }
+.calendar-column { position: relative; flex: 1; min-width: 0; border-left: 1px solid var(--line); }
+.calendar-edit { min-width: 44px; min-height: 44px; }
+.trip-sync-status { margin: 8px 0 14px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.trip-time-zone { color: var(--muted); font-size: 13px; line-height: 1.5; }
+.trip-header { padding: clamp(22px, 3vw, 32px); }
+.trip-header h1 { font-size: clamp(36px, 4.5vw, 54px); }
+.trip-role { display: inline-block; margin: 12px 0 0; padding: 5px 9px; border: 1px solid rgb(255 249 239 / 40%); border-radius: 6px; color: var(--cream); font-size: 12px; font-weight: 700; }
+.workspace-controls { position: static; }
+@media (max-width: 640px) { .trip-header { padding: 22px; } .workspace-controls { gap: 4px; padding: 6px; } .workspace-controls button { min-height: 44px; } }

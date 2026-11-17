@@ -1,5 +1,40 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiRequest } from '../../lib/api.js';
+import { feedImageSources } from '../../lib/cloudinary-image.js';
+
+export function StoryImage({ photo, priority }) {
+  const [fallback, setFallback] = useState(false);
+  const sources = fallback ? null : feedImageSources(photo.imageUrl);
+  return <img src={sources?.src || photo.imageUrl} srcSet={sources?.srcSet} sizes={sources?.sizes}
+    alt={photo.altText} loading={priority ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : undefined}
+    decoding="async" onError={sources ? () => setFallback(true) : undefined} />;
+}
+
+export function galleryPhotoIndex(scrollLeft, width, count) {
+  return width ? Math.max(0, Math.min(count - 1, Math.round(scrollLeft / width))) : 0;
+}
+
+export function StoryGallery({ photos, priority }) {
+  const gallery = useRef(null);
+  const [current, setCurrent] = useState(0);
+  if (!photos?.length) return null;
+  function move(direction) {
+    const element = gallery.current;
+    const index = galleryPhotoIndex(element.scrollLeft, element.clientWidth, photos.length);
+    element.scrollTo({ left: (index + direction) * element.clientWidth, behavior: 'smooth' });
+  }
+  return <div className="story-gallery-wrap">
+    <div className="story-gallery" ref={gallery} role="region" aria-label="Story photos" tabIndex={photos.length > 1 ? 0 : undefined}
+      onScroll={(event) => setCurrent(galleryPhotoIndex(event.currentTarget.scrollLeft, event.currentTarget.clientWidth, photos.length))}>
+      {photos.map((photo, index) => <StoryImage key={`${photo.imageUrl}-${index}`} photo={photo} priority={priority && index === 0} />)}
+    </div>
+    {photos.length > 1 && <div className="story-gallery-controls">
+      <button type="button" aria-label="Previous photo" disabled={current === 0} onClick={() => move(-1)}>Previous</button>
+      <span aria-live="polite">{current + 1} / {photos.length}</span>
+      <button type="button" aria-label="Next photo" disabled={current >= photos.length - 1} onClick={() => move(1)}>Next</button>
+    </div>}
+  </div>;
+}
 
 function mergeById(current, incoming) {
   return [...new Map([...current, ...incoming].map((item) => [item.id, item])).values()];
@@ -17,8 +52,13 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
   const [commentsByPost, setCommentsByPost] = useState({});
   const [commentsLoading, setCommentsLoading] = useState(() => new Set());
   const [commentDrafts, setCommentDrafts] = useState({});
+  const [composerOpen, setComposerOpen] = useState(false);
   const [composerBusy, setComposerBusy] = useState(false);
   const [composerMessage, setComposerMessage] = useState('');
+  const [composerSuccess, setComposerSuccess] = useState(false);
+  const [photo, setPhoto] = useState(null);
+  const [photoUrl, setPhotoUrl] = useState('');
+  const photoInput = useRef(null);
   const [linkedTrips, setLinkedTrips] = useState([]);
   const [destinations, setDestinations] = useState([]);
   const [places, setPlaces] = useState([]);
@@ -31,7 +71,27 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
   const canWrite = isSignedIn && profileStatus === 'ready';
 
   useEffect(() => {
-    if (!canWrite) return undefined;
+    if (!photo) { setPhotoUrl(''); return undefined; }
+    const url = URL.createObjectURL(photo);
+    setPhotoUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [photo]);
+
+  function selectPhoto(event) {
+    const file = event.target.files?.[0];
+    setComposerMessage('');
+    setComposerSuccess(false);
+    if (file && (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 4 * 1024 * 1024)) {
+      event.target.value = '';
+      setPhoto(null);
+      setComposerMessage('Choose a JPEG, PNG, or WebP image of 4 MB or smaller.');
+      return;
+    }
+    setPhoto(file || null);
+  }
+
+  useEffect(() => {
+    if (!canWrite || !composerOpen) return undefined;
     const controller = new AbortController();
     setLinksLoading(true);
     Promise.allSettled([
@@ -46,7 +106,7 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
       setLinksLoading(false);
     });
     return () => controller.abort();
-  }, [canWrite, getToken]);
+  }, [canWrite, composerOpen, getToken]);
 
   useEffect(() => {
     if (!destinationId) {
@@ -105,9 +165,11 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
     const image = form.get('image');
     const altText = String(form.get('altText') || '').trim();
     setComposerMessage('');
+    setComposerSuccess(false);
     setError('');
     if (!body) return setComposerMessage('Write a few words before publishing.');
     if (image?.size > 4 * 1024 * 1024) return setComposerMessage('Choose an image of 4 MB or smaller.');
+    if (image instanceof File && image.size && !['image/jpeg', 'image/png', 'image/webp'].includes(image.type)) return setComposerMessage('Choose a JPEG, PNG, or WebP image.');
     if (image instanceof File && image.size && !altText) {
       return setComposerMessage('Add a descriptive alt text for this photo.');
     }
@@ -136,9 +198,11 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
         });
       }
       formElement.reset();
+      setPhoto(null);
       setDestinationId('');
       setPlaceId('');
       setComposerMessage('Your story is published.');
+      setComposerSuccess(true);
       await loadPosts();
     } catch (requestError) {
       setComposerMessage(requestError.message);
@@ -207,10 +271,9 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
   return (
     <section className="stories" aria-labelledby="stories-title">
       <div className="section-heading">
-        <div><p className="eyebrow">NOTES FROM THE ROAD</p><h2 id="stories-title">Small moments, well kept.</h2></div>
-        <p>Stories shared by travelers.</p>
+        <div><h2 id="stories-title">Travel stories</h2><p>Discover moments and recommendations from travelers.</p></div>
       </div>
-      {canWrite && <form className="story-composer" onSubmit={createPost}>
+      {canWrite && <div className="story-compose-area"><button className="story-compose-toggle" type="button" aria-expanded={composerOpen} aria-controls="story-composer" onClick={() => setComposerOpen((open) => !open)} disabled={composerBusy}>{composerOpen ? 'Close composer' : 'Share a travel story'}</button><form id="story-composer" className="story-composer" hidden={!composerOpen} onSubmit={createPost}>
         <label>Write a travel story<textarea name="body" maxLength="2000" rows="3" required placeholder="A place, a moment, a recommendation…" /></label>
         <div className="composer-fields">
           <label>Trip (optional)
@@ -231,13 +294,14 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
               {places.map((place) => <option key={place.id} value={place.id}>{place.name}</option>)}
             </select>
           </label>}
-          <label>Photo (up to 4 MB) <input name="image" type="file" accept="image/jpeg,image/png,image/webp" /></label>
-          <label>Photo description <input name="altText" maxLength="255" placeholder="Describe the photo for screen readers" /></label>
+          <label>Photo (JPEG, PNG or WebP, up to 4 MB) <input ref={photoInput} name="image" type="file" accept="image/jpeg,image/png,image/webp" onChange={selectPhoto} /></label>
+          <label>Photo description <input name="altText" maxLength="255" required={Boolean(photo)} placeholder="Describe the photo for screen readers" /></label>
         </div>
+        {photoUrl && <div className="story-photo-preview"><img src={photoUrl} alt="Selected photo preview" /><button type="button" onClick={() => { photoInput.current.value = ''; setPhoto(null); }}>Remove photo</button></div>}
         {linksUnavailable && <p className="story-signin-note" role="status">Trip or place links are unavailable right now. You can still publish without linking them.</p>}
         <button type="submit" disabled={composerBusy || postsLoading}>{composerBusy ? 'Publishing…' : 'Publish story'}</button>
-        {composerMessage && <p role="status">{composerMessage}</p>}
-      </form>}
+        {composerMessage && <p className={composerSuccess ? 'story-success' : 'error-state'} role={composerSuccess ? 'status' : 'alert'}>{composerMessage}</p>}
+      </form></div>}
       {status === 'loading' && <p className="empty-state" role="status">Loading stories…</p>}
       {status === 'error' && <p className="empty-state error-state" role="alert">Stories are unavailable right now.</p>}
       {status === 'empty' && <p className="empty-state">New travel stories will show up here.</p>}
@@ -246,17 +310,17 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
       {isSignedIn && profileStatus === 'loading' && <p className="story-signin-note" role="status">Setting up your profile…</p>}
       {isSignedIn && profileStatus === 'error' && <p className="story-signin-note" role="alert">Profile setup failed: {profileError || 'Check the API connection and try again.'}</p>}
       {status === 'ready' && <div className="story-grid">
-        {posts.map((post) => (
+        {posts.map((post, index) => (
           <article className="story-card" key={post.id}>
-            {post.photos?.[0] && <img src={post.photos[0].imageUrl} alt={post.photos[0].altText} loading="lazy" />}
-            <p className="story-byline">{post.author} <span>· {new Date(post.createdAt).toLocaleDateString()}</span></p>
+            <div className="story-author"><span className="story-avatar" aria-hidden="true">{post.author?.trim().charAt(0).toUpperCase() || '?'}</span><p className="story-byline">{post.author} <span>{new Date(post.createdAt).toLocaleDateString()}</span></p></div>
+            <StoryGallery photos={post.photos} priority={index === 0} />
             <p className="story-body">{post.body}</p>
             <div className="story-actions">
               <span className="story-stats">{post.likesCount} likes <span>·</span> {post.commentsCount} comments</span>
               {canWrite && <button type="button" onClick={() => likePost(post)} disabled={likeBusy !== null || postsLoading} aria-pressed={Boolean(post.liked)}>
-                {post.liked ? 'Unlike' : 'Like'}
+                {likeBusy === post.id ? 'Saving…' : post.liked ? 'Unlike' : 'Like'}
               </button>}
-              <button type="button" onClick={() => toggleComments(post.id)}>
+              <button type="button" aria-expanded={openComments.has(post.id)} onClick={() => toggleComments(post.id)}>
                 {openComments.has(post.id) ? 'Hide comments' : 'Comments'}
               </button>
             </div>

@@ -1,18 +1,22 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { SignInButton, SignUpButton, Show, UserButton } from '@clerk/react';
-import PostsFeed from './features/posts/PostsFeed.jsx';
-import SharedTrip from './features/trips/SharedTrip.jsx';
-import TripDetail from './features/trips/TripDetail.jsx';
-import TripsPage from './features/trips/TripsPage.jsx';
 import { apiBaseUrl } from './lib/api.js';
 
-function Topbar({ getToken }) {
+const PostsFeed = lazy(() => import('./features/posts/PostsFeed.jsx'));
+const Dashboard = lazy(() => import('./features/dashboard/Dashboard.jsx'));
+const SharedTrip = lazy(() => import('./features/trips/SharedTrip.jsx'));
+const TripDetail = lazy(() => import('./features/trips/TripDetail.jsx'));
+const TripsPage = lazy(() => import('./features/trips/TripsPage.jsx'));
+const InvitePage = lazy(() => import('./features/trips/InvitePage.jsx'));
+
+export function Topbar({ getToken, active, isSignedIn }) {
   return (
     <header className="topbar">
       <a className="brand" href="/" aria-label="Tripo home"><span className="brand-mark">T</span> tripo</a>
-      <span className="top-note">Make room for the good days.</span>
+      <nav className="app-nav" aria-label="Main navigation">
+        {[['home', '/', isSignedIn ? 'Dashboard' : 'Home'], ['trips', '/trips', 'My trips'], ['explore', '/explore', 'Explore'], ['stories', '/stories', 'Stories']].map(([key, href, label]) => <a key={key} className="nav-link" href={href} aria-current={active === key ? 'page' : key === 'trips' && active === 'trip-detail' ? 'location' : undefined}>{label}</a>)}
+      </nav>
       {getToken ? <>
-        <nav className="app-nav" aria-label="Main navigation"><a className="nav-link" href="/trips">My trips</a><a className="nav-link" href="/explore">Explore</a><a className="nav-link" href="/stories">Stories</a></nav>
         <Show when="signed-out">
           <div className="auth-controls">
             <SignInButton mode="redirect"><button className="sign-in" type="button">Sign in</button></SignInButton>
@@ -20,7 +24,7 @@ function Topbar({ getToken }) {
           </div>
         </Show>
         <Show when="signed-in"><UserButton /></Show>
-      </> : <span className="top-note">Add VITE_CLERK_PUBLISHABLE_KEY to enable sign in.</span>}
+      </> : <span className="top-note">Sign in is not configured.</span>}
     </header>
   );
 }
@@ -35,15 +39,17 @@ export default function App(props) {
       <span className="top-note">A trip to look forward to.</span>
       <a className="nav-link" href="/">Plan your own trip ↗</a>
     </header>
-    <SharedTrip token={shareToken} />
+    <Suspense fallback={<p role="status">Loading…</p>}><SharedTrip token={shareToken} /></Suspense>
   </main>;
 
+  if (path === '/invite') return <main className="page-shell"><Topbar getToken={props.getToken} isSignedIn={props.isSignedIn} /><Suspense fallback={<p role="status">Loading…</p>}><InvitePage {...props} /></Suspense></main>;
+
   if (path === '/trips') {
-    return <main className="page-shell"><Topbar getToken={props.getToken} /><TripsPage {...props} /></main>;
+    return <main className="page-shell"><Topbar getToken={props.getToken} isSignedIn={props.isSignedIn} active="trips" /><Suspense fallback={<p role="status">Loading…</p>}><TripsPage {...props} /></Suspense></main>;
   }
   const tripId = path.match(/^\/trips\/(\d+)$/)?.[1];
   if (tripId) {
-    return <main className="page-shell"><Topbar getToken={props.getToken} /><TripDetail key={tripId} tripId={tripId} {...props} /></main>;
+    return <main className="page-shell"><Topbar getToken={props.getToken} isSignedIn={props.isSignedIn} active="trip-detail" /><Suspense fallback={<p role="status">Loading…</p>}><TripDetail key={tripId} tripId={tripId} {...props} /></Suspense></main>;
   }
   return <HomePage {...props} page={path === '/explore' ? 'explore' : path === '/stories' ? 'stories' : 'home'} />;
 }
@@ -84,14 +90,16 @@ function HomePage({ getToken, isSignedIn = false, profileStatus = 'signed-out', 
 
   return (
     <main className="page-shell">
-      <Topbar getToken={getToken} />
+      <Topbar getToken={getToken} isSignedIn={isSignedIn} active={page} />
 
-      {page === 'home' && <section className="hero" id="top">
+      {page === 'home' && isSignedIn && <Suspense fallback={<p role="status">Loading…</p>}><Dashboard getToken={getToken} isSignedIn={isSignedIn} profileStatus={profileStatus} profileError={profileError} /></Suspense>}
+
+      {page === 'home' && !isSignedIn && <section className="hero" id="top">
         <div className="hero-copy">
           <p className="eyebrow">GOOD TRIPS, WELL PLANNED</p>
           <h1>More time<br />for <em>there.</em></h1>
           <p className="hero-text">Bring the places, plans, and costs for your next trip together in one easy-to-share itinerary.</p>
-          <a className="primary-button" href={isSignedIn ? '/trips?new=1' : '/sign-in'}>Create a trip <span aria-hidden="true">↗</span></a>
+          <a className="primary-button" href="/trips?new=1">Create a trip <span aria-hidden="true">↗</span></a>
         </div>
         <div className="hero-art" aria-label="Illustration of a coastal trip">
           <div className="sun" />
@@ -128,7 +136,7 @@ function HomePage({ getToken, isSignedIn = false, profileStatus = 'signed-out', 
         </div>}
       </section>}
 
-      {page === 'stories' && <PostsFeed getToken={getToken} isSignedIn={isSignedIn} profileStatus={profileStatus} profileError={profileError} />}
+      {page === 'stories' && <Suspense fallback={<p role="status">Loading…</p>}><PostsFeed getToken={getToken} isSignedIn={isSignedIn} profileStatus={profileStatus} profileError={profileError} /></Suspense>}
 
       <footer><span>tripo</span><span>Plan a little. Enjoy a lot.</span></footer>
     </main>

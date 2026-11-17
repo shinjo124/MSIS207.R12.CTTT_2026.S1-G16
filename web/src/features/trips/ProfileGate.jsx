@@ -5,7 +5,7 @@ export default function ProfileGate({ isSignedIn, profileStatus, profileError, a
     return (
       <div className="panel empty-panel">
         <p>Sign in to {action}.</p>
-        <a className="primary-button" href="/sign-in">Sign in</a>
+        <a className="primary-button" href={`/sign-in?redirect_url=${encodeURIComponent(window.location.href)}`}>Sign in</a>
       </div>
     );
   }

@@ -1,5 +1,7 @@
 # Integration acceptance checklist
 
+Historical evidence only; this does not certify the current code or deployment. Track the current release in [the production checklist](working-on-tripo.md#public-production-release-checklist).
+
 Checked 2026-11-14 against the configured TiDB database and current production URLs.
 
 | Task | Check | Result / evidence |
