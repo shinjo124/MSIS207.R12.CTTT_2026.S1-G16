@@ -2,7 +2,6 @@ import cors from 'cors';
 import express from 'express';
 import { clerkMiddleware } from '@clerk/express';
 import { rateLimit } from 'express-rate-limit';
-import swaggerUi from 'swagger-ui-express';
 import { readFile } from 'node:fs/promises';
 import { parse } from 'yaml';
 import { fileURLToPath } from 'node:url';
@@ -27,6 +26,25 @@ const allowedOrigins = [
   'https://tripo-web.vercel.app',
   ...(process.env.NODE_ENV === 'production' ? [] : ['http://localhost:5173']),
 ];
+// Swagger UI page. Its JS/CSS load from a CDN because swagger-ui-express serves them from
+// node_modules, which Vercel does not bundle into the function: the page rendered blank in production.
+const SWAGGER_UI = 'https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14';
+const swaggerPage = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tripo API docs</title>
+  <link rel="stylesheet" href="${SWAGGER_UI}/swagger-ui.css">
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="${SWAGGER_UI}/swagger-ui-bundle.js"></script>
+  <script>
+    window.ui = SwaggerUIBundle({ url: '/api-docs/openapi.json', dom_id: '#swagger-ui', deepLinking: true });
+  </script>
+</body>
+</html>`;
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 120,
@@ -46,7 +64,19 @@ app.use(express.json({ limit: '1mb' }));
 if (process.env.CLERK_SECRET_KEY) app.use(clerkMiddleware());
 // shortcut: per-process memory only; use a shared store before running multiple API instances.
 app.use('/api', apiLimiter);
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openApiDocument));
+app.get('/api-docs/openapi.json', (_req, res) => res.json(openApiDocument));
+app.get(['/api-docs', '/api-docs/'], (_req, res) => res.type('html').send(swaggerPage));
+app.get('/', (_req, res) => res.redirect('/api'));
+
+// Index for the public API URL, so /api shows where to go instead of "Cannot GET /api".
+app.get('/api', (_req, res) => {
+  res.json({
+    name: 'Tripo API',
+    docs: '/api-docs',
+    health: '/api/health',
+    openapi: '/api-docs/openapi.json',
+  });
+});
 
 app.get('/api/health', async (_req, res) => {
   try {
@@ -64,6 +94,11 @@ app.use('/api', activitiesRouter);
 app.use('/api', shareRouter);
 app.use('/api/posts', postsRouter);
 app.use('/api/trip-photos', photosRouter);
+
+// Unknown API routes answer in the spec's JSON error shape instead of Express's HTML page.
+app.use('/api', (_req, res) => {
+  res.status(404).json({ error: { code: 'NOT_FOUND', message: 'This API route does not exist. See /api-docs.' } });
+});
 
 app.use((error, _req, res, _next) => {
   if (error.code === 'LIMIT_FILE_SIZE') {
