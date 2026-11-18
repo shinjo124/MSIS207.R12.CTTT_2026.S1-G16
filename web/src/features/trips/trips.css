@@ -217,3 +217,7 @@
 
 .itinerary-board .day-card.is-drop-target { outline: 3px solid var(--teal); outline-offset: -3px; background: #e3f3ec; }
 .board-activity summary:focus-visible, .workspace-controls button:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+
+/* Story composer: destination type-ahead (single choice) */
+.composer-destination { display: grid; align-content: start; gap: 8px; color: var(--teal-dark); font-size: 12px; font-weight: 700; }
+.composer-destination .destination-picker { gap: 8px; font-weight: 400; }
