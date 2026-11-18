@@ -8,6 +8,7 @@ export default function MemberControl({ tripId, getToken }) {
   const [status, setStatus] = useState('loading');
   const [message, setMessage] = useState('');
   const [invite, setInvite] = useState(null);
+  const [showInviteUrl, setShowInviteUrl] = useState(false);
   const [confirming, setConfirming] = useState(null);
   const loadMembers = useCallback(async () => {
     setStatus('loading');
@@ -21,6 +22,7 @@ export default function MemberControl({ tripId, getToken }) {
     try {
       const result = await apiRequest(`/trips/${tripId}/invitations`, { method: 'POST', getToken });
       setInvite({ url: invitationUrl(window.location.origin, result.data.token), expiresAt: result.data.expiresAt });
+      setShowInviteUrl(false);
       setStatus('ready');
     } catch (error) { setMessage(error.message); setStatus('error'); }
   }
@@ -36,14 +38,14 @@ export default function MemberControl({ tripId, getToken }) {
   }
   async function copyInvite() {
     try { await navigator.clipboard.writeText(invite.url); setMessage('Invitation copied.'); }
-    catch { setMessage('Copy unavailable. Select and copy the link below.'); }
+    catch { setShowInviteUrl(true); setMessage('Copy unavailable. Select and copy the link below.'); }
   }
 
   return <section className="share-control member-control" aria-labelledby="members-title">
     <h3 id="members-title">Trip collaborators</h3>
     <p>Invite one person to edit this trip. The link expires after 24 hours and works once. Creating a new link replaces any unused link.</p>
     <div className="share-actions"><button type="button" onClick={createInvite} disabled={status === 'working' || status === 'loading'}>Create invitation</button><button type="button" className="secondary-action" onClick={revokeInvite} disabled={status === 'working' || status === 'loading'}>Revoke invitation</button></div>
-    {invite && <><div className="share-link-row"><input readOnly aria-label="Invitation link" value={invite.url} /><button type="button" onClick={copyInvite}>Copy</button></div><p>Expires {formatDateTime(invite.expiresAt)}. Share it only with someone you trust.</p></>}
+    {invite && <><div className="share-link-row"><input readOnly aria-label="Invitation link" value={showInviteUrl ? invite.url : 'Invitation link ready to copy'} /><button type="button" onClick={copyInvite}>Copy link</button></div><p>Expires {formatDateTime(invite.expiresAt)}. Share it only with someone you trust.</p></>}
     <h4>Members</h4>
     {status === 'loading' && <p role="status">Loading members…</p>}
     {status === 'ready' && members.length === 0 && <p>No collaborators yet.</p>}
