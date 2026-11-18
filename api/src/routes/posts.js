@@ -84,7 +84,7 @@ router.get('/mine', requireAuth, async (req, res, next) => {
 
 router.get('/', async (req, res, next) => {
   const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 12, 1), 20);
-  const page = Math.min(Math.max(Number.parseInt(req.query.page, 10) || 1, 1), 10000);
+  const page = Math.min(Math.max(Number.parseInt(req.query.page, 10) || 1, 1), 1000);
   const offset = (page - 1) * limit;
   const viewer = process.env.CLERK_SECRET_KEY ? getAuth(req).userId : null;
 
@@ -98,12 +98,12 @@ router.get('/', async (req, res, next) => {
               (SELECT COUNT(*) FROM post_comments c WHERE c.post_id = p.id) AS commentsCount
        FROM posts p JOIN users u ON u.id = p.author_user_id
        WHERE p.visibility = 'public'
-       ORDER BY p.created_at DESC, p.id DESC LIMIT ${limit + 1} OFFSET ${offset}`,
-      [viewer ?? null],
+       ORDER BY p.created_at DESC, p.id DESC LIMIT ? OFFSET ?`,
+      [viewer ?? null, limit + 1, offset],
     );
 
     const data = posts.slice(0, limit).map((post) => ({ ...post, liked: Boolean(post.liked) }));
-    res.set('Cache-Control', 'private, no-store').json({ data: await addPhotos(data), page, limit, hasMore: posts.length > limit && page < 10000 });
+    res.set('Cache-Control', 'private, no-store').json({ data: await addPhotos(data), page, limit, hasMore: posts.length > limit && page < 1000 });
   } catch (error) {
     next(error);
   }
@@ -253,12 +253,12 @@ router.get('/:id/comments', async (req, res, next) => {
     if (!posts.length) return res.status(404).json({ error: { code: 'POST_NOT_FOUND', message: 'Post was not found.' } });
     const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 100, 1), 100);
     const offset = Number(req.query.offset ?? 0);
-    if (!Number.isSafeInteger(offset) || offset < 0) return res.status(400).json({ error: { code: 'INVALID_OFFSET', message: 'Invalid comment offset.' } });
+    if (!Number.isSafeInteger(offset) || offset < 0 || offset > 10_000) return res.status(400).json({ error: { code: 'INVALID_OFFSET', message: 'Invalid comment offset.' } });
     const [comments] = await pool.execute(
       `SELECT c.id, c.body, c.created_at AS createdAt, u.display_name AS author
        FROM post_comments c JOIN users u ON u.id = c.author_user_id
-       WHERE c.post_id = ? ORDER BY c.created_at, c.id LIMIT ${limit + 1} OFFSET ${offset}`,
-      [req.params.id],
+       WHERE c.post_id = ? ORDER BY c.created_at, c.id LIMIT ? OFFSET ?`,
+      [req.params.id, limit + 1, offset],
     );
     res.json({ data: comments.slice(0, limit), nextOffset: comments.length > limit ? offset + limit : null });
   } catch (error) {

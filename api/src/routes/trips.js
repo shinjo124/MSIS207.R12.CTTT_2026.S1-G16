@@ -102,7 +102,6 @@ async function loadTripDetail(tripId, userId, db = pool) {
      WHERE a.trip_id = ? ORDER BY a.activity_date, a.start_time IS NULL, a.start_time, a.id`,
     [trip.id],
   );
-  const [plannedRows] = await db.execute('SELECT CAST(COALESCE(SUM(planned_cost), 0) AS CHAR) AS plannedTotal FROM activities WHERE trip_id = ?', [trip.id]);
   const activitiesByDate = new Map();
   for (const row of activityRows) {
     activitiesByDate.set(row.date, [...(activitiesByDate.get(row.date) || []), shapeActivity(row)]);
@@ -128,7 +127,7 @@ async function loadTripDetail(tripId, userId, db = pool) {
   const firstDestinationId = destinations[0]?.id ?? null;
   const destinationByDate = new Map(dayDestinations.map(({ date, destinationId }) => [date, Number(destinationId)]));
   for (const day of days) day.destinationId = destinationByDate.get(day.date) ?? firstDestinationId;
-  return { ...trip, destinations, days, budgetSummary: { ...summarizeBudget(trip.budget, activityRows), plannedTotal: plannedRows[0].plannedTotal } };
+  return { ...trip, destinations, days, budgetSummary: summarizeBudget(trip.budget, activityRows) };
 }
 
 router.get('/', signedIn, async (req, res, next) => {

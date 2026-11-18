@@ -13,10 +13,12 @@ function fromCents(cents) {
 
 export function summarizeBudget(budget, activities) {
   const budgetCents = toCents(budget);
+  let plannedCents = 0n;
   let totalCents = 0n;
   const categoryCents = new Map();
 
   for (const activity of activities) {
+    plannedCents += toCents(activity.plannedCost);
     if (activity.actualSpend != null) {
       const cents = toCents(activity.actualSpend);
       totalCents += cents;
@@ -26,6 +28,7 @@ export function summarizeBudget(budget, activities) {
 
   return {
     budget: fromCents(budgetCents),
+    plannedTotal: fromCents(plannedCents),
     totalActualSpend: fromCents(totalCents),
     remainingBudget: fromCents(budgetCents - totalCents),
     overBudget: fromCents(totalCents > budgetCents ? totalCents - budgetCents : 0n),

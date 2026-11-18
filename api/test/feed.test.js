@@ -55,4 +55,7 @@ test('public feed and comments return all pages and exclude private posts', asyn
   const more = await get('/1/comments?limit=1&offset=1');
   assert.deepEqual(more.data.map((c) => c.body), ['second']);
   assert.equal(more.nextOffset, null);
+  const oversizedOffset = await fetch(`http://127.0.0.1:${server.address().port}/posts/1/comments?offset=10001`);
+  assert.equal(oversizedOffset.status, 400);
+  assert.equal((await oversizedOffset.json()).error.code, 'INVALID_OFFSET');
 });
