@@ -235,7 +235,7 @@
 .calendar-hour { position: absolute; left: 0; right: 0; height: 64px; border-top: 1px solid var(--line); }
 .calendar-hour span { display: inline-block; width: 52px; padding: 5px; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .calendar-event { position: absolute; overflow: hidden; border-radius: 6px; background: #d9eeea; color: #103f48; }
-.calendar-event-drag { display: grid; gap: 2px; height: 100%; overflow: hidden; padding: 4px 40px 10px 7px; cursor: grab; touch-action: none; font-size: 12px; }
+.calendar-event-drag { display: grid; gap: 2px; height: 100%; overflow: hidden; padding: 4px 82px 10px 7px; cursor: grab; touch-action: none; font-size: 12px; }
 .calendar-event-drag span { font-size: 12px; }
 .calendar-edit { position: absolute; right: 3px; top: 3px; padding: 3px; border: 0; background: white; color: #103f48; cursor: pointer; }
 .calendar-resize { position: absolute; bottom: 0; left: 0; right: 0; height: 12px; background: #9dc9bf; cursor: ns-resize; touch-action: none; }
@@ -262,6 +262,9 @@
 .calendar-columns { position: absolute; inset: 0 4px 0 58px; display: flex; }
 .calendar-column { position: relative; flex: 1; min-width: 0; border-left: 1px solid var(--line); }
 .calendar-edit { min-width: 44px; min-height: 44px; }
+.calendar-map-link { position: absolute; top: 8px; right: 49px; display: grid; width: 28px; height: 28px; place-items: center; border-radius: 8px; background: rgb(255 255 255 / 85%); color: #103f48; }
+.calendar-map-link:hover, .calendar-map-link:focus-visible { background: #103f48; color: white; }
+.calendar-map-link svg { width: 16px; height: 16px; }
 .trip-sync-dot { display: inline-block; width: 8px; height: 8px; margin-left: 10px; border-radius: 50%; background: #59b58a; vertical-align: 1px; }
 .trip-sync-dot.is-paused { background: #d89a3c; }
 .trip-sync-dot.is-error { background: #d45d4c; }
