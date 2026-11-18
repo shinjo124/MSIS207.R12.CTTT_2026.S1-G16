@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiRequest } from '../../lib/api.js';
 import { feedImageSources } from '../../lib/cloudinary-image.js';
+import DestinationPicker from '../trips/DestinationPicker.jsx';
+import { displayName } from '../trips/destination-search.js';
+import '../trips/trips.css';
 
 export function StoryImage({ photo, priority }) {
   const [fallback, setFallback] = useState(false);
@@ -282,12 +285,22 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
               {linkedTrips.map((trip) => <option key={trip.id} value={trip.id}>{trip.title}</option>)}
             </select>
           </label>
-          <label>Destination (optional)
-            <select value={destinationId} disabled={linksLoading || linksUnavailable} onChange={(event) => { setDestinationId(event.target.value); setPlaceId(''); }}>
-              <option value="">{linksLoading ? 'Loading destinations…' : destinations.length ? 'Do not link a place' : 'No destinations available'}</option>
-              {destinations.map((destination) => <option key={destination.id} value={destination.id}>{destination.localName || destination.name}</option>)}
-            </select>
-          </label>
+          <div className="composer-destination">
+            <span id="story-destination-label">Destination (optional)</span>
+            <DestinationPicker
+              max={1}
+              showPlaces={false}
+              options={destinations}
+              labelledBy="story-destination-label"
+              disabled={linksLoading || linksUnavailable}
+              placeholder={linksLoading ? 'Loading destinations…' : 'Type a place, e.g. Đà Lạt, da lat, H…'}
+              selected={(() => {
+                const chosen = destinations.find((destination) => String(destination.id) === destinationId);
+                return chosen ? [{ id: chosen.id, name: displayName(chosen) }] : [];
+              })()}
+              onChange={(list) => { setDestinationId(list[0] ? String(list[0].id) : ''); setPlaceId(''); }}
+            />
+          </div>
           {destinationId && <label>Place (optional)
             <select name="placeId" value={placeId} disabled={placesLoading || placesUnavailable} onChange={(event) => setPlaceId(event.target.value)}>
               <option value="">{placesLoading ? 'Loading places…' : placesUnavailable ? 'Places unavailable right now' : places.length ? 'Do not link a place' : 'No places for this destination'}</option>

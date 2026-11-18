@@ -4,7 +4,6 @@ import { categoryLabel } from './trip-format.js';
 import { displayName, searchDestinations } from './destination-search.js';
 import { filterPlacesByCategory } from './place-filters.js';
 
-const MAX_DESTINATIONS = 10;
 
 function PlaceSuggestions({ destination }) {
   const [places, setPlaces] = useState([]);
@@ -56,9 +55,16 @@ function PlaceSuggestions({ destination }) {
 
 // Type-ahead picker. All destinations (~50 rows) load once and are filtered in the browser,
 // so typing does not send a request per keystroke (the API is rate limited).
-export default function DestinationPicker({ selected, onChange }) {
-  const [all, setAll] = useState([]);
-  const [status, setStatus] = useState('loading');
+// Trip form: up to 10 destinations with place suggestions. Story composer: max={1}, showPlaces={false},
+// and `options` reuses the destination list the composer already loaded.
+export default function DestinationPicker({
+  selected, onChange, max = 10, showPlaces = true, options, disabled = false, labelledBy,
+  placeholder = 'Type a city or province, e.g. Đà Lạt, da lat, H…',
+}) {
+  const [fetched, setFetched] = useState([]);
+  const [fetchStatus, setFetchStatus] = useState('loading');
+  const all = options || fetched;
+  const status = options ? (options.length ? 'ready' : 'empty') : fetchStatus;
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -66,31 +72,33 @@ export default function DestinationPicker({ selected, onChange }) {
   const listId = useId();
 
   useEffect(() => {
+    if (options) return undefined;
     const controller = new AbortController();
     apiRequest('/destinations?scope=all', { signal: controller.signal })
       .then((result) => {
-        setAll(result.data || []);
-        setStatus(result.data?.length ? 'ready' : 'empty');
+        setFetched(result.data || []);
+        setFetchStatus(result.data?.length ? 'ready' : 'empty');
       })
       .catch((error) => {
-        if (error.name !== 'AbortError') setStatus('error');
+        if (error.name !== 'AbortError') setFetchStatus('error');
       });
     return () => controller.abort();
-  }, []);
+  }, [options]);
 
   const suggestions = useMemo(() => {
     const selectedIds = new Set(selected.map((destination) => destination.id));
     return searchDestinations(all.filter((destination) => !selectedIds.has(destination.id)), query);
   }, [all, query, selected]);
-  const full = selected.length >= MAX_DESTINATIONS;
+  const single = max === 1;
+  const full = selected.length >= max;
 
   function choose(destination) {
     if (!destination || full) return;
     onChange([...selected, { id: destination.id, name: displayName(destination) }]);
     setQuery('');
     setActive(0);
-    setOpen(true);
-    inputRef.current?.focus();
+    setOpen(!single);
+    if (!single) inputRef.current?.focus();
   }
 
   function remove(id) {
@@ -115,34 +123,36 @@ export default function DestinationPicker({ selected, onChange }) {
     }
   }
 
-  const showList = open && status === 'ready' && !full;
+  const showList = open && status === 'ready' && !full && !disabled;
 
   return (
     <div className="destination-picker">
-      {selected.length > 0 && <ol className="selected-destinations" aria-label="Chosen destinations, in visiting order">
+      {selected.length > 0 && <ol className="selected-destinations" aria-label={single ? 'Chosen destination' : 'Chosen destinations, in visiting order'}>
         {selected.map((destination, index) => (
           <li key={destination.id} className="chip chip-selected">
-            <b>{index + 1}</b>{destination.name}
+            {!single && <b>{index + 1}</b>}{destination.name}
             <button type="button" className="chip-remove" onClick={() => remove(destination.id)} aria-label={`Remove ${destination.name}`}>×</button>
           </li>
         ))}
       </ol>}
 
-      {selected.length > 0 && <div className="place-suggestions-list">
+      {showPlaces && selected.length > 0 && <div className="place-suggestions-list">
         {selected.map((destination) => <PlaceSuggestions key={destination.id} destination={destination} />)}
       </div>}
 
-      <div className="combobox">
+      {!(single && full) && <div className="combobox">
         <input
           ref={inputRef}
           role="combobox"
+          aria-labelledby={labelledBy}
+          aria-label={labelledBy ? undefined : 'Search destinations'}
           aria-expanded={showList}
           aria-controls={listId}
           aria-autocomplete="list"
           aria-activedescendant={showList && suggestions[active] ? `${listId}-${suggestions[active].id}` : undefined}
           value={query}
-          disabled={full || status === 'error'}
-          placeholder={full ? 'Up to 10 destinations' : 'Type a city or province, e.g. Đà Lạt, da lat, H…'}
+          disabled={disabled || full || status === 'error'}
+          placeholder={full ? `Up to ${max} destinations` : placeholder}
           onChange={(event) => { setQuery(event.target.value); setActive(0); setOpen(true); }}
           onFocus={() => setOpen(true)}
           onBlur={() => setOpen(false)}
@@ -166,11 +176,11 @@ export default function DestinationPicker({ selected, onChange }) {
               ))
             : <li className="no-match" role="option" aria-disabled="true" aria-selected="false">No destination matches “{query}”.</li>}
         </ul>}
-      </div>
+      </div>}
 
-      {status === 'loading' && <p className="form-hint" role="status">Loading destinations…</p>}
+      {!options && status === 'loading' && <p className="form-hint" role="status">Loading destinations…</p>}
       {status === 'error' && <p className="form-hint error-state" role="alert">Could not load destinations. Refresh to try again.</p>}
-      {status === 'empty' && <p className="form-hint">No destinations yet. Run the seed files first.</p>}
+      {!options && status === 'empty' && <p className="form-hint">No destinations yet. Run the seed files first.</p>}
     </div>
   );
 }

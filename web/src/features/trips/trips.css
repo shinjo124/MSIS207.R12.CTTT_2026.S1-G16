@@ -252,3 +252,6 @@
 .trip-role { display: inline-block; margin: 12px 0 0; padding: 5px 9px; border: 1px solid rgb(255 249 239 / 40%); border-radius: 6px; color: var(--cream); font-size: 12px; font-weight: 700; }
 .workspace-controls { position: static; }
 @media (max-width: 640px) { .trip-header { padding: 22px; } .workspace-controls { gap: 4px; padding: 6px; } .workspace-controls button { min-height: 44px; } }
+/* Story composer: destination type-ahead (single choice) */
+.composer-destination { display: grid; align-content: start; gap: 8px; color: var(--teal-dark); font-size: 12px; font-weight: 700; }
+.composer-destination .destination-picker { gap: 8px; font-weight: 400; }
