@@ -75,7 +75,12 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json({ limit: '1mb' }));
-if (process.env.CLERK_SECRET_KEY) app.use(clerkMiddleware());
+if (process.env.CLERK_SECRET_KEY) {
+  app.use(clerkMiddleware({
+    // Local Clerk tokens were issued ~95s ahead; Vercel keeps Clerk's 5s default.
+    clockSkewInMs: process.env.VERCEL ? undefined : 120_000,
+  }));
+}
 // shortcut: per-process memory only; use a shared store before running multiple API instances.
 app.use('/api', (req, res, next) => (isTripSyncRequest(req) ? tripSyncLimiter : apiLimiter)(req, res, next));
 app.get('/api-docs/openapi.json', (_req, res) => res.json(openApiDocument));
