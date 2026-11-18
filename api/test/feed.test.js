@@ -7,26 +7,13 @@ import express from 'express';
 import posts from '../src/routes/posts.js';
 import { pool } from '../src/db/pool.js';
 
-test('sample feed seed is labelled and repeatable', () => {
-  const sql = readFileSync(new URL('../database/seeds/002_demo_trip_and_story.sql', import.meta.url), 'utf8');
-  const statement = sql.match(/-- Sample feed stories\n([\s\S]*?);/)?.[1];
-  const update = sql.match(/UPDATE posts SET body = CONCAT\([\s\S]*?;/)?.[0];
-  assert.ok(statement, 'sample feed seed is present');
-  assert.ok(update, 'existing sample story is labelled');
-  const db = new DatabaseSync(':memory:');
-  try {
-    db.function('CONCAT', (...values) => values.join(''));
-    db.exec("CREATE TABLE users (id INTEGER, clerk_user_id TEXT); CREATE TABLE posts (author_user_id INTEGER, trip_id INTEGER, place_id INTEGER, body TEXT, visibility TEXT); INSERT INTO users VALUES (1, 'seed-demo-traveler');");
-    db.exec("INSERT INTO posts VALUES (1, NULL, NULL, 'We left the afternoons open for coffee, lake walks, and whatever looked interesting on the way.', 'public');");
-    db.exec(update);
-    db.exec(statement);
-    const first = db.prepare('SELECT body, visibility FROM posts').all();
-    assert.ok(first.length >= 12);
-    assert.ok(first.every((post) => post.body.startsWith('[Sample story] ') && post.visibility === 'public'));
-    db.exec(update);
-    db.exec(statement);
-    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM posts').get().count, first.length);
-  } finally { db.close(); }
+test('presentation story seed labels public demo stories and avoids duplicates', () => {
+  const sql = readFileSync(new URL('../database/seeds/004_presentation_demo.sql', import.meta.url), 'utf8');
+  const statement = sql.match(/INSERT INTO posts \(author_user_id, trip_id, place_id, body, visibility\)([\s\S]*?)\nWHERE u\.clerk_user_id NOT LIKE/)?.[1];
+  assert.ok(statement, 'presentation story seed is present');
+  assert.match(statement, /'Demo ·/);
+  assert.match(statement, /'public'/);
+  assert.match(sql, /AND NOT EXISTS \(SELECT 1 FROM posts x WHERE x\.author_user_id = u\.id AND x\.trip_id = t\.id AND x\.body = demo\.body\)/);
 });
 
 test('public feed and comments return all pages and exclude private posts', async (t) => {
