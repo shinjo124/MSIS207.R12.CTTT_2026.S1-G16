@@ -1,7 +1,6 @@
-ALTER TABLE destinations
-  ADD COLUMN latitude DECIMAL(9,6) NULL AFTER image_url,
-  ADD COLUMN longitude DECIMAL(9,6) NULL AFTER latitude,
-  ADD COLUMN time_zone VARCHAR(64) NULL AFTER longitude;
+ALTER TABLE destinations ADD COLUMN latitude DECIMAL(9,6) NULL AFTER image_url;
+ALTER TABLE destinations ADD COLUMN longitude DECIMAL(9,6) NULL AFTER latitude;
+ALTER TABLE destinations ADD COLUMN time_zone VARCHAR(64) NULL AFTER longitude;
 
 UPDATE destinations SET latitude = 21.02851, longitude = 105.85420, time_zone = 'Asia/Ho_Chi_Minh' WHERE name IN ('Hanoi', 'Ha Noi');
 UPDATE destinations SET latitude = 16.05441, longitude = 108.20217, time_zone = 'Asia/Ho_Chi_Minh' WHERE name = 'Da Nang';
