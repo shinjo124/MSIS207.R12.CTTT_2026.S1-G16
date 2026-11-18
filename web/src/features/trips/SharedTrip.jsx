@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../../lib/api.js';
-import { categoryLabel, formatDate, formatDayHeading, formatMoney, timeZoneLabel, withDefaultTimeZone } from './trip-format.js';
+import { categoryLabel, formatDate, formatDayHeading, timeZoneLabel, withDefaultTimeZone } from './trip-format.js';
 
 export default function SharedTrip({ token }) {
   const [trip, setTrip] = useState(null);
@@ -35,7 +35,6 @@ export default function SharedTrip({ token }) {
       <p className="eyebrow">A TRIPO SHARED TRIP</p>
       <h1>{trip.title}</h1>
       <p>{formatDate(trip.startDate)} – {formatDate(trip.endDate)}{dayCount ? <> <span>·</span> {dayCount} {dayCount === 1 ? 'day' : 'days'}</> : null} <span>·</span> {trip.groupSize} {trip.groupSize === 1 ? 'traveler' : 'travelers'} <span>·</span> {timeZoneLabel(trip.timeZone)}</p>
-      <p className="shared-budget">Budget {formatMoney(trip.budget, trip.currencyCode)}</p>
       <h2>Destinations</h2>
       <ul>{trip.destinations.map((place) => (
         <li key={place.id}>

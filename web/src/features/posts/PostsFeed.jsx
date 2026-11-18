@@ -217,14 +217,21 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
 
   async function likePost(post) {
     if (!canWrite || likeBusy !== null) return;
+    const nextLiked = !post.liked;
+    setPosts((current) => current.map((item) => item.id === post.id
+      ? { ...item, liked: nextLiked, likesCount: Math.max(0, Number(item.likesCount) + (nextLiked ? 1 : -1)) }
+      : item));
     setLikeBusy(post.id);
     setError('');
     try {
-      const { data } = await apiRequest(`/posts/${post.id}/likes?summary=1`, { method: post.liked ? 'DELETE' : 'POST', getToken });
+      const { data } = await apiRequest(`/posts/${post.id}/likes?summary=1`, { method: nextLiked ? 'POST' : 'DELETE', getToken });
       setPosts((current) => current.map((item) => item.id === post.id
         ? { ...item, ...data }
         : item));
     } catch (requestError) {
+      setPosts((current) => current.map((item) => item.id === post.id
+        ? { ...item, liked: post.liked, likesCount: post.likesCount }
+        : item));
       setError(requestError.message);
     } finally {
       setLikeBusy(null);
@@ -326,7 +333,7 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
       {status === 'ready' && <div className="story-grid">
         {posts.map((post, index) => (
           <article className="story-card" key={post.id}>
-            <div className="story-author"><span className="story-avatar" aria-hidden="true">{post.author?.trim().charAt(0).toUpperCase() || '?'}</span><p className="story-byline">{post.author} <span>{formatDateTime(post.createdAt, { dateStyle: 'medium' })}</span></p></div>
+            <div className="story-author">{post.authorAvatar ? <img className="story-avatar" src={post.authorAvatar} alt="" /> : <span className="story-avatar" aria-hidden="true">{post.author?.trim().charAt(0).toUpperCase() || '?'}</span>}<p className="story-byline">{post.author} <span>{formatDateTime(post.createdAt, { dateStyle: 'medium' })}</span></p></div>
             <StoryGallery photos={post.photos} priority={index === 0} />
             <p className="story-body">{post.body}</p>
             <div className="story-actions">

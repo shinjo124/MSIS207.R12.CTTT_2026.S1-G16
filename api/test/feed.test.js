@@ -7,11 +7,11 @@ import express from 'express';
 import posts from '../src/routes/posts.js';
 import { pool } from '../src/db/pool.js';
 
-test('presentation story seed labels public demo stories and avoids duplicates', () => {
+test('presentation story seed uses public posts without demo labels and avoids duplicates', () => {
   const sql = readFileSync(new URL('../database/seeds/004_presentation_demo.sql', import.meta.url), 'utf8');
   const statement = sql.match(/INSERT INTO posts \(author_user_id, trip_id, place_id, body, visibility\)([\s\S]*?)\nWHERE u\.clerk_user_id NOT LIKE/)?.[1];
   assert.ok(statement, 'presentation story seed is present');
-  assert.match(statement, /'Demo ·/);
+  assert.doesNotMatch(sql, /Demo ·/);
   assert.match(statement, /'public'/);
   assert.match(sql, /AND NOT EXISTS \(SELECT 1 FROM posts x WHERE x\.author_user_id = u\.id AND x\.trip_id = t\.id AND x\.body = demo\.body\)/);
 });
@@ -21,12 +21,12 @@ test('public feed and comments return all pages and exclude private posts', asyn
   const db = new DatabaseSync(':memory:');
   t.after(() => db.close());
   db.exec(`
-    CREATE TABLE users (id, clerk_user_id, display_name);
+    CREATE TABLE users (id, clerk_user_id, display_name, avatar_url);
     CREATE TABLE posts (id INTEGER, body, created_at, trip_id, place_id, author_user_id, visibility);
     CREATE TABLE post_likes (post_id, user_id);
     CREATE TABLE post_comments (id INTEGER, post_id INTEGER, body, created_at, author_user_id);
     CREATE TABLE post_photos (id, post_id, image_url, alt_text, sort_order);
-    INSERT INTO users VALUES (1, 'a', 'Test');
+    INSERT INTO users (id, clerk_user_id, display_name) VALUES (1, 'a', 'Test');
     INSERT INTO posts VALUES (1,'older',1,NULL,NULL,1,'public'),(2,'newer',2,NULL,NULL,1,'public'),(3,'private',3,NULL,NULL,1,'private');
     INSERT INTO post_comments VALUES (1,1,'first',1,1),(2,1,'second',2,1);
     INSERT INTO post_likes VALUES (1,1);

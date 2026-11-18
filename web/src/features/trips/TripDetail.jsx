@@ -32,6 +32,7 @@ function ActivityItem({ activity, trip, onEdit, onDelete, onToggleVisited, onMov
   const place = [activity.address, activity.city].filter(Boolean).join(', ');
   return (
     <li draggable={!busy} onDragStart={onDragStart} onDragEnd={onDragEnd} className={`activity board-activity${activity.visited ? ' visited' : ''}`}>
+      <label className="check-in board-check-in"><input type="checkbox" checked={activity.visited} disabled={busy} onChange={() => run(() => onToggleVisited(!activity.visited))} /><span>{activity.visited ? '✓' : 'Check in'}</span></label>
       <details>
         <summary>
           <span className={`category-badge category-${activity.category}`}>{categoryLabel(activity.category)}</span>
@@ -42,7 +43,6 @@ function ActivityItem({ activity, trip, onEdit, onDelete, onToggleVisited, onMov
           <p>Planned {formatMoney(activity.plannedCost, trip.currencyCode)} · {activity.actualSpend == null ? 'Actual not recorded' : `Actual ${formatMoney(activity.actualSpend, trip.currencyCode)}`}</p>
           {activity.note && <p className="activity-note">{activity.note}</p>}
           <div className="activity-actions">
-            <label className="check-in"><input type="checkbox" checked={activity.visited} disabled={busy} onChange={() => run(() => onToggleVisited(!activity.visited))} />{activity.visited ? 'Visited' : 'Check in'}</label>
             <a href={mapsUrl(activity)} target="_blank" rel="noreferrer">Open in Google Maps ↗</a>
             <button className="text-button" type="button" onClick={onEdit} disabled={busy}>Edit</button>
             <label className="move-activity">Move to day <select value={activity.date} disabled={busy} onChange={(event) => run(() => onMove(event.target.value))}>{trip.days.map((day) => <option key={day.date} value={day.date}>Day {day.dayNumber} · {formatDayHeading(day.date)}</option>)}</select></label>
@@ -245,12 +245,19 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
 
   async function updateActivity(id, values, closeEditor = false) {
     await withMutation(async () => {
+      const previous = trip.days.flatMap((day) => day.activities).find((activity) => activity.id === id);
+      if (previous && Object.hasOwn(values, 'visited')) {
+        setTrip((current) => ({ ...current, days: current.days.map((day) => ({ ...day, activities: day.activities.map((activity) => activity.id === id ? { ...activity, visited: values.visited } : activity) })) }));
+      }
       try {
         await apiRequest(`/activities/${id}`, { method: 'PATCH', body: values, getToken });
         if (closeEditor) setEditingActivity(null);
         setConflictError('');
         await loadTrip();
       } catch (error) {
+        if (previous && Object.hasOwn(values, 'visited')) {
+          setTrip((current) => ({ ...current, days: current.days.map((day) => ({ ...day, activities: day.activities.map((activity) => activity.id === id ? { ...activity, visited: previous.visited } : activity) })) }));
+        }
         if (error.code === 'ACTIVITY_CONFLICT') {
           setConflictError(error.message);
         }
