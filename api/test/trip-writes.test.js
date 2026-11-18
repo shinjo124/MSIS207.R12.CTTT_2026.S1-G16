@@ -207,6 +207,8 @@ test('an owner can create, edit and delete with one connection; another fixture 
   db.prepare('UPDATE activities SET note = ?, actual_spend = ? WHERE id = ?').run('private note', 42, activity.id);
   viewer = null;
   const sharedView = (await (await fetch(origin + '/share/' + shared.data.shareToken)).json()).data;
+  assert.equal('budget' in sharedView, false);
+  assert.equal('currencyCode' in sharedView, false);
   assert.equal(sharedView.timeZone, 'Asia/Ho_Chi_Minh');
   const sharedActivity = sharedView.days.flatMap((day) => day.activities).find((item) => item.id === activity.id);
   assert.ok(sharedActivity);

@@ -100,7 +100,7 @@ router.get('/share/:token', async (req, res, next) => {
     const [trips] = await pool.execute(
       `SELECT id, title, DATE_FORMAT(start_date, '%Y-%m-%d') AS startDate,
               DATE_FORMAT(end_date, '%Y-%m-%d') AS endDate,
-              group_size AS groupSize, budget, currency_code AS currencyCode, time_zone AS timeZone
+              group_size AS groupSize, time_zone AS timeZone
        FROM trips WHERE share_token = ? AND share_enabled = 1`,
       [token],
     );

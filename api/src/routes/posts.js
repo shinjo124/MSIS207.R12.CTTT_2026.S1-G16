@@ -91,7 +91,7 @@ router.get('/', async (req, res, next) => {
   try {
     const [posts] = await pool.execute(
       `SELECT p.id, p.body, p.created_at AS createdAt, p.trip_id AS tripId,
-              p.place_id AS placeId, u.display_name AS author,
+              p.place_id AS placeId, u.display_name AS author, u.avatar_url AS authorAvatar,
               EXISTS(SELECT 1 FROM post_likes l JOIN users v ON v.id = l.user_id
                      WHERE l.post_id = p.id AND v.clerk_user_id = ?) AS liked,
               (SELECT COUNT(*) FROM post_likes l WHERE l.post_id = p.id) AS likesCount,

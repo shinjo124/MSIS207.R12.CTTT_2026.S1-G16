@@ -26,8 +26,10 @@ export default function WeatherPanel({ trip, getToken, date, destinationId, onWe
   useEffect(() => { onWeatherChange?.(destinationId || date, status === 'ready' ? data : null); }, [data, date, destinationId, status, onWeatherChange]);
 
   const forecast = data?.forecast?.find((item) => item.date === date);
+  const description = forecast?.description?.toLowerCase() || '';
+  const weather = /thunder|storm|rain|drizzle|shower/.test(description) ? 'rain' : /cloud|overcast|mist|fog/.test(description) ? 'cloud' : 'sun';
   if (hidden) return null;
-  return <section className="weather-panel" aria-label="Trip weather">
+  return <section className="weather-panel" data-weather={status === 'ready' && data?.status === 'available' ? weather : undefined} aria-label="Trip weather">
     <div className="weather-heading"><h2>Weather</h2></div>
     {status === 'loading' && <p role="status">Loading weather…</p>}
     {status === 'error' && <p role="alert">{message} <button className="text-button" type="button" onClick={() => load()}>Retry</button></p>}

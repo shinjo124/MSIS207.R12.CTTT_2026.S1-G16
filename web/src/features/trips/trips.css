@@ -200,9 +200,12 @@
 .itinerary-board .day-heading h2 span { display: block; margin: 0 0 5px; padding: 0; background: transparent; }
 .itinerary-board .day-heading .text-button { flex-shrink: 0; font-size: 12px; }
 .board-cards { display: grid; gap: 8px; min-height: 55px; }
-.itinerary-board .board-activity { display: block; padding: 0; margin: 0; border: 1px solid #d6e3dc; background: white; cursor: grab; box-shadow: 0 2px 6px rgb(14 49 52 / 5%); }
+.itinerary-board .board-activity { position: relative; display: block; padding: 0; margin: 0; border: 1px solid #d6e3dc; background: white; cursor: grab; box-shadow: 0 2px 6px rgb(14 49 52 / 5%); }
+.board-check-in { position: absolute; z-index: 1; top: 10px; right: 10px; min-height: 30px; padding: 4px 9px; border: 1px solid var(--line); border-radius: 999px; background: white; font-size: 12px; }
+.board-check-in input { width: 16px; height: 16px; margin: 0; accent-color: var(--teal); }
+.board-activity summary { padding-right: 104px; }
 .board-activity:active { cursor: grabbing; }
-.board-activity summary { display: grid; gap: 7px; padding: 14px; list-style: none; cursor: pointer; }
+.board-activity summary { display: grid; gap: 7px; padding: 14px 104px 14px 14px; list-style: none; cursor: pointer; }
 .board-activity summary::-webkit-details-marker { display: none; }
 .board-activity summary .category-badge { justify-self: start; }
 .board-activity summary strong { color: var(--teal-dark); font-size: 15px; overflow-wrap: anywhere; }
