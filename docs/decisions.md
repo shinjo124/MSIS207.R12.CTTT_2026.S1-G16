@@ -22,26 +22,26 @@ Keep this log short. Record decisions that affect architecture, scope, or team i
 - **Decision:** Deploy `web/` and `api/` as separate Vercel projects from the monorepo. The Express API runs as a Vercel Function.
 - **Reason:** One Git-connected platform gives the class a simple preview/deploy workflow and avoids Render Free's idle spin-down for the API.
 - **Consequences and limits:** The API is request-oriented, not an always-running server. Do not depend on process memory for durable/shared state or background work. WebSockets are out of MVP scope; Vercel's current WebSocket support is beta and function connections have a maximum duration. A Vercel incident can affect both deployments, though a static frontend may still load during an API-only failure.
-- **Cost constraint:** Target Vercel Hobby for a non-commercial school demo, subject to its current usage limits and terms. Recheck current plan limits before demo day.
+- **Cost constraint:** Target free service tiers, subject to current eligibility and terms; the separately purchased domain is the planned exception. Verify the intended public production use is eligible before release. Do not enable paid upgrades.
 
 ## D-004 — Keep MySQL and use a managed remote database in deployment
 
-- **Status:** TiDB Cloud Starter is provisioned. Migrations `001`–`006` and destination seeds `001_demo.sql` and `003_vietnam_destinations.sql` are applied; TLS and CHECK constraint enforcement were verified. Production health, destination search, places, and Swagger endpoints respond; authenticated trip-flow acceptance remains.
-- **Decision:** Keep local MySQL for development. Use a TiDB Cloud Starter instance in MySQL compatibility mode for the shared demo, with TLS enabled; never use a teammate's laptop as the shared database.
+- **Status:** Historical checks recorded a provisioned TiDB Cloud Starter instance, migrations `001`–`006`, destination seeds, TLS and CHECK enforcement. The 2026-11-14 acceptance record contains deployed checks; current deployment and migration state are unverified.
+- **Decision:** Keep local MySQL for development. Target a TiDB Cloud Starter instance in MySQL compatibility mode for production and labelled sample content, with TLS enabled; never use a teammate's laptop as the shared database.
 - **Reason:** The project already uses MySQL and `mysql2`; Starter currently includes a free monthly quota without requiring a credit card.
 - **Consequences and limits:** The shared database is named `tripo`. Starter currently includes 5 GiB row storage, 5 GiB columnar storage, and 50 million request units per month. When a free quota is reached, new connections are denied until usage resets or the instance is upgraded. Free Starter backups retain one day and manual backups are unavailable. Enable TLS with `DB_SSL=true`. TiDB disables `CHECK` constraint enforcement by default, so enable `tidb_enable_check_constraint` before applying migrations; enforcement is enabled on the current instance. Keep the pool size within provider limits and test the deployed API before the demo. Recheck quotas and terms before demo day.
 
-## D-005 — Prioritize the trip-planning vertical slice
+## D-005 — Prioritize the trip-planning vertical slice (historical)
 
-- **Status:** Decided
+- **Status:** Historical demo priority. The current production scope and release checks are in `spec.md` and `working-on-tripo.md`.
 - **Decision:** The required demo is sign-in, trip CRUD, itinerary activities, recorded-spend/budget totals, and read-only share/revoke. Destinations support this flow; blog is secondary; photos and weather are stretch goals.
 - **Reason:** The core planner is the product's main value and needs to work end to end before optional features.
-- **Consequence:** Do not expand blog, photo, or weather work while the core demo acceptance flow is incomplete.
+- **Historical consequence:** Do not expand blog, photo, or weather work while the core demo acceptance flow is incomplete. This priority is superseded by the current production scope.
 
-## D-006 — No realtime requirement in the MVP
+## D-006 — No realtime requirement in the original MVP (superseded)
 
-- **Status:** Decided
-- **Decision:** Use ordinary REST requests for the MVP; do not add WebSockets, chat, or live collaboration.
+- **Status:** Superseded by [ADR-0001](adr/0001-bounded-trip-long-polling.md), following the approved collaborative calendar direction.
+- **Original decision:** Use ordinary REST requests for the MVP; do not add WebSockets, chat, or live collaboration.
 - **Reason:** Current requirements do not need bidirectional live updates, and removing realtime infrastructure keeps deployment and debugging smaller.
 
 ## D-007 — Derive itinerary days from trip dates instead of a `trip_days` table

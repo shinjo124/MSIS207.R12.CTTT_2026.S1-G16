@@ -4,8 +4,9 @@ import { rateLimit } from 'express-rate-limit';
 import { uploadImage } from '../middleware/image-upload.js';
 import { pool } from '../db/pool.js';
 import { requireAuth } from '../middleware/require-auth.js';
+import { requireProfile } from '../middleware/require-profile.js';
+import { sharedWriteLimit } from '../middleware/shared-write-limit.js';
 import { deleteCloudinaryImage, isCloudinaryConfigured, uploadCloudinaryImage } from '../services/cloudinary.js';
-import { findLocalUserId } from '../services/profiles.js';
 
 const router = Router();
 const uploadLimiter = rateLimit({
@@ -16,8 +17,9 @@ const uploadLimiter = rateLimit({
   message: { error: { code: 'UPLOAD_LIMITED', message: 'Too many photo uploads. Try again later.' } },
 });
 const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const sharedUploadLimit = sharedWriteLimit('upload', 10, 40);
 
-router.post('/', requireAuth, uploadLimiter, uploadImage, async (req, res, next) => {
+router.post('/', requireAuth, requireProfile, uploadLimiter, sharedUploadLimit, uploadImage, async (req, res, next) => {
   const tripId = Number(req.body.tripId);
   if (!Number.isSafeInteger(tripId) || tripId < 1 || !req.file) {
     return res.status(400).json({ error: { code: 'INVALID_PHOTO', message: 'Choose an image and a valid trip.' } });
@@ -40,8 +42,7 @@ router.post('/', requireAuth, uploadLimiter, uploadImage, async (req, res, next)
   let uploaded;
   let committing = false;
   try {
-    const userId = await findLocalUserId(req.clerkUserId);
-    if (!userId) return res.status(409).json({ error: { code: 'PROFILE_NOT_READY', message: 'Load your profile before uploading photos.' } });
+    const userId = req.userId;
     const [owned] = await pool.execute(
       'SELECT (SELECT COUNT(*) FROM trip_photos WHERE trip_id = t.id) AS total FROM trips t WHERE t.id = ? AND owner_user_id = ?',
       [tripId, userId],

@@ -117,6 +117,178 @@ paths:
                         mapQuery: { type: string }
         '400': { description: Destination ID is invalid }
         '404': { description: Destination was not found }
+  /api/trips/{tripId}/weather-location:
+    parameters:
+      - in: path
+        name: tripId
+        required: true
+        schema: { type: integer, minimum: 1 }
+    put:
+      summary: Set a confirmed weather location for an accessible trip
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [destinationId, latitude, longitude, timeZone, confirmed]
+              properties:
+                destinationId: { type: integer, minimum: 1, description: Must belong to the trip }
+                latitude: { type: number, minimum: -90, maximum: 90 }
+                longitude: { type: number, minimum: -180, maximum: 180 }
+                timeZone: { type: string, description: Confirmed IANA time zone }
+                confirmed: { type: boolean, enum: [true] }
+      responses:
+        '200': { description: Confirmed location saved }
+        '400': { description: Invalid or unconfirmed location, or destination not in trip }
+        '404': { description: Trip unavailable or caller has no access }
+    delete:
+      summary: Remove the trip weather location and stop weather requests for it
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Location removed }
+        '404': { description: Trip unavailable or caller has no access }
+  /api/trips/{tripId}/weather:
+    get:
+      summary: Read configured trip weather from OpenWeather
+      description: Requires trip access. Forecasts are 3-hour samples selected near noon on each destination-local date, not daily highs or lows.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: tripId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200': { description: Status is not-configured, missing-location, or available with current conditions and dated forecast samples }
+        '404': { description: Trip unavailable or caller has no access }
+        '429': { description: Weather rate limit reached }
+        '503': { description: Weather provider unavailable }
+  /api/trips/{tripId}/version:
+    get:
+      summary: Get the current revision of an accessible trip
+      description: The revision advances when trip detail or its activities change. With wait=1 and since, hold the response for up to eight seconds of waiting and check the shared database approximately once per second. Access is rechecked on every database read. The client cancels on hidden tabs, offline state, edits and writes. Database latency adds to these timings.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: tripId
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: sync
+          schema: { type: string, enum: ['1'] }
+          description: Marks a periodic refresh for its separate rate limit.
+        - in: query
+          name: wait
+          schema: { type: string, enum: ['1'] }
+          description: Enable bounded long polling; requires since. Omit for an immediate response.
+        - in: query
+          name: since
+          schema: { type: integer, minimum: 0 }
+          description: Last observed revision; required with wait=1.
+      responses:
+        '200':
+          description: Current revision
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pollAfterMs:
+                    type: integer
+                    enum: [0]
+                    description: Present for completed long polls; renew immediately. Older servers omit this and clients retain their five-second fallback.
+                  data:
+                    type: object
+                    properties:
+                      revision: { type: integer, minimum: 1 }
+        '400': { description: Invalid trip ID or long-poll revision }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { description: Trip unavailable or caller has no access }
+  /api/trips/{tripId}/invitations:
+    parameters:
+      - in: path
+        name: tripId
+        required: true
+        schema: { type: integer, minimum: 1 }
+    post:
+      summary: Owner creates a single-use invitation valid for 24 hours
+      description: Creating an invitation revokes any previous unconsumed invitation. Treat the returned token as a secret.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201':
+          description: Invitation token and expiration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      token: { type: string, pattern: '^[a-f0-9]{64}$' }
+                      expiresAt: { type: string, format: date-time }
+        '404': { description: Trip unavailable or caller is not the owner }
+    delete:
+      summary: Owner revokes the outstanding invitation
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Invitation revoked }
+        '404': { description: Trip unavailable or caller is not the owner }
+  /api/trips/invitations/accept:
+    post:
+      summary: Signed-in recipient accepts an invitation
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string, pattern: '^[a-f0-9]{64}$' }
+      responses:
+        '200':
+          description: Membership granted and invitation consumed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      tripId: { type: integer }
+        '404': { description: Invalid, expired, revoked or consumed invitation }
+  /api/trips/{tripId}/members:
+    get:
+      summary: Owner lists trip members
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: tripId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200': { description: Members with userId and displayName }
+        '404': { description: Trip unavailable or caller is not the owner }
+  /api/trips/{tripId}/members/{userId}:
+    delete:
+      summary: Owner removes a member
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: tripId
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - in: path
+          name: userId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '204': { description: Membership revoked }
+        '404': { description: Trip or member unavailable, or caller is not the owner }
   /api/trips:
     get:
       summary: List the signed-in user's trips
@@ -124,7 +296,7 @@ paths:
         - bearerAuth: []
       responses:
         '200':
-          description: Trips owned by the user, newest start date first
+          description: Trips owned by or shared with the user, newest start date first
           content:
             application/json:
               schema:
@@ -183,14 +355,20 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '404': { description: Trip does not exist or is not owned by the signed-in user }
     put:
-      summary: Replace all editable trip fields (same body as POST)
+      summary: Replace all editable trip fields using the revision last read
       security:
         - bearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/TripInput' }
+            schema:
+              allOf:
+                - { $ref: '#/components/schemas/TripInput' }
+                - type: object
+                  required: [revision]
+                  properties:
+                    revision: { type: integer, minimum: 1 }
       responses:
         '200':
           description: Updated trip detail
@@ -203,7 +381,7 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '404': { description: Trip does not exist or is not owned by the signed-in user }
-        '409': { description: New dates would leave existing activities outside the trip (ACTIVITIES_OUTSIDE_DATES) }
+        '409': { description: Stale revision (TRIP_CONFLICT) or activities outside the new dates (ACTIVITIES_OUTSIDE_DATES) }
     delete:
       summary: Delete an owned trip and all its activities
       security:
@@ -264,12 +442,22 @@ paths:
         content:
           application/json:
             schema:
-              allOf:
-                - $ref: '#/components/schemas/ActivityInput'
-              required: []
+              type: object
+              required: [version]
               properties:
+                version: { type: integer, minimum: 1, description: Version last read by this client }
+                date: { type: string, format: date }
+                time: { type: [string, 'null'], pattern: '^\d{2}:\d{2}$' }
+                durationMinutes: { type: [integer, 'null'], minimum: 1, maximum: 1440 }
+                category: { type: string, enum: [sightseeing, food_drink, accommodation, transport, shopping, other] }
+                title: { type: string, maxLength: 160 }
+                city: { type: [string, 'null'], maxLength: 120 }
+                address: { type: [string, 'null'], maxLength: 255 }
+                plannedCost: { $ref: '#/components/schemas/Money' }
+                actualSpend: { oneOf: [{ $ref: '#/components/schemas/Money' }, { type: 'null' }] }
+                note: { type: [string, 'null'], maxLength: 1000 }
                 visited: { type: boolean }
-            example: { visited: true, actualSpend: '120000' }
+            example: { version: 1, visited: true, actualSpend: '120000' }
       responses:
         '200':
           description: Updated activity
@@ -282,14 +470,26 @@ paths:
         '400': { description: Invalid field, no fields sent, or date outside the trip }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '404': { description: Activity does not exist or its trip is not owned by the signed-in user }
+        '409': { description: ACTIVITY_CONFLICT; reload the latest activity before editing }
     delete:
       summary: Delete an activity
       security:
         - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version]
+              properties:
+                version: { type: integer, minimum: 1, description: Version last read by this client }
       responses:
         '204': { description: Activity deleted }
+        '400': { description: Missing or invalid version }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '404': { description: Activity does not exist or its trip is not owned by the signed-in user }
+        '409': { description: ACTIVITY_CONFLICT; reload the latest activity before deleting }
   /api/trips/{tripId}/share:
     parameters:
       - in: path
@@ -367,6 +567,7 @@ paths:
                       groupSize: { type: integer }
                       budget: { type: string, example: '1000.00' }
                       currencyCode: { type: string, minLength: 3, maxLength: 3 }
+                      timeZone: { type: [string, 'null'], description: Confirmed trip IANA time zone; null means unknown }
                       destinations: { type: array, items: { type: object } }
                       days:
                         type: array
@@ -666,11 +867,15 @@ components:
         groupSize: { type: integer, minimum: 1, maximum: 100 }
         currencyCode: { type: string, pattern: '^[A-Z]{3}$' }
         budget: { $ref: '#/components/schemas/Money' }
+        timeZone: { type: [string, 'null'], maxLength: 64, description: Confirmed IANA time zone or null; omit to preserve it when destinations do not change }
+        timeZoneConfirmed: { type: boolean, description: Must be true when setting a non-null timeZone }
     TripSummary:
       type: object
       properties:
         id: { type: integer }
+        revision: { type: integer, minimum: 1 }
         title: { type: string }
+        timeZone: { type: [string, 'null'], description: Confirmed trip IANA time zone; null means unknown }
         startDate: { type: string, format: date }
         endDate: { type: string, format: date }
         dayCount: { type: integer, description: Calendar difference + 1 }
@@ -692,6 +897,7 @@ components:
         - $ref: '#/components/schemas/TripSummary'
         - type: object
           properties:
+            role: { type: string, enum: [owner, member], description: Role of the signed-in user }
             budgetSummary:
               type: object
               properties:
@@ -724,6 +930,7 @@ components:
       properties:
         date: { type: string, format: date, description: Must be within the trip dates }
         time: { type: [string, 'null'], pattern: '^\d{2}:\d{2}$' }
+        durationMinutes: { type: [integer, 'null'], minimum: 1, maximum: 1440, description: Duration in minutes; null means not recorded }
         category: { type: string, enum: [sightseeing, food_drink, accommodation, transport, shopping, other] }
         title: { type: string, maxLength: 160, description: Place or activity name }
         city: { type: [string, 'null'], maxLength: 120 }
@@ -743,12 +950,14 @@ components:
             id: { type: integer }
             tripId: { type: integer }
             visited: { type: boolean }
+            version: { type: integer, minimum: 1, description: Required for the next activity PATCH }
     SharedActivity:
       type: object
       properties:
         id: { type: integer }
         date: { type: string, format: date }
         time: { type: [string, 'null'], pattern: '^\d{2}:\d{2}$' }
+        durationMinutes: { type: [integer, 'null'], minimum: 1, maximum: 1440, description: Duration in minutes; null means not recorded }
         category: { type: string, enum: [sightseeing, food_drink, accommodation, transport, shopping, other] }
         title: { type: string }
         city: { type: [string, 'null'] }

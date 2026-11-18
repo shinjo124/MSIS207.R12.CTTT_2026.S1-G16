@@ -63,6 +63,11 @@ export function optionalText(value, maxLength) {
   return { ok: true, value: trimmed || null };
 }
 
+export function isValidTimeZone(value) {
+  if (typeof value !== 'string' || value.length > 64 || (value !== 'UTC' && !value.includes('/'))) return false;
+  try { new Intl.DateTimeFormat('en', { timeZone: value }); return true; } catch { return false; }
+}
+
 export function validateTripInput(body) {
   const input = body && typeof body === 'object' ? body : {};
   const title = typeof input.title === 'string' ? input.title.trim() : '';
@@ -102,5 +107,13 @@ export function validateTripInput(body) {
     return { error: badRequest('INVALID_BUDGET', 'Budget must be zero or a positive amount with at most 2 decimals.') };
   }
 
-  return { value: { title, destinationIds, startDate, endDate, groupSize, currencyCode, budget } };
+  const value = { title, destinationIds, startDate, endDate, groupSize, currencyCode, budget };
+  if (Object.hasOwn(input, 'timeZone')) {
+    const timeZone = input.timeZone === '' ? null : input.timeZone;
+    if (timeZone !== null && (!isValidTimeZone(timeZone) || input.timeZoneConfirmed !== true)) {
+      return { error: badRequest('INVALID_TIME_ZONE', 'Confirm a valid IANA time zone for the trip.') };
+    }
+    value.timeZone = timeZone;
+  }
+  return { value };
 }

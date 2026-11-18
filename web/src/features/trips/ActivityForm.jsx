@@ -7,6 +7,7 @@ function initialValues(activity, date) {
   return {
     date: activity?.date || date,
     time: activity?.time || '',
+    durationMinutes: activity?.durationMinutes == null ? '' : String(activity.durationMinutes),
     category: activity?.category || 'sightseeing',
     title: activity?.title || '',
     city: activity?.city || '',
@@ -20,6 +21,7 @@ function initialValues(activity, date) {
 
 export default function ActivityForm({ activity = null, date, days, currencyCode, onSubmit, onCancel }) {
   const [values, setValues] = useState(() => initialValues(activity, date));
+  const [initialVersion] = useState(() => activity?.version);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const update = (field) => (event) => setValues((current) => ({ ...current, [field]: event.target.value }));
@@ -28,6 +30,7 @@ export default function ActivityForm({ activity = null, date, days, currencyCode
     event.preventDefault();
     let problem = '';
     if (!values.title.trim()) problem = 'Enter a place or activity name.';
+    else if (values.durationMinutes && (!/^\d+$/.test(values.durationMinutes) || Number(values.durationMinutes) < 1 || Number(values.durationMinutes) > 1440)) problem = 'Duration must be between 1 and 1440 minutes.';
     else if (values.plannedCost.trim() && !MONEY.test(values.plannedCost.trim())) problem = 'Planned cost must be zero or a positive amount.';
     else if (values.actualSpend.trim() && !MONEY.test(values.actualSpend.trim())) problem = 'Actual spend must be empty or a positive amount.';
     setError(problem);
@@ -36,8 +39,10 @@ export default function ActivityForm({ activity = null, date, days, currencyCode
     setSaving(true);
     try {
       await onSubmit({
+        ...(activity ? { version: initialVersion } : {}),
         date: values.date,
         time: values.time || null,
+        durationMinutes: values.durationMinutes ? Number(values.durationMinutes) : null,
         category: values.category,
         title: values.title.trim(),
         city: values.city.trim() || null,
@@ -67,6 +72,9 @@ export default function ActivityForm({ activity = null, date, days, currencyCode
         <div className="activity-more-fields">
       <label className="field">Time
         <input type="time" value={values.time} onChange={update('time')} />
+      </label>
+      <label className="field">Duration (minutes)
+        <input type="number" min="1" max="1440" step="1" value={values.durationMinutes} onChange={update('durationMinutes')} placeholder="Not set" />
       </label>
       {activity && <label className="field">Day
         <select value={values.date} onChange={update('date')}>

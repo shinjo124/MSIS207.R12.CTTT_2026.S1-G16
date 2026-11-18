@@ -1,13 +1,17 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiRequest } from '../../lib/api.js';
 import ActivityForm from './ActivityForm.jsx';
 import ProfileGate from './ProfileGate.jsx';
 import ShareControl from './ShareControl.jsx';
 import TripForm from './TripForm.jsx';
+import TripCalendar from './TripCalendar.jsx';
+import MemberControl from './MemberControl.jsx';
+import { createMutationLock, updateSchedule } from './schedule-update.js';
+import { createTripPoller, fetchChangedTrip } from './trip-polling.js';
 import { categoryLabel, formatDate, formatDayHeading, formatMoney, mapsUrl } from './trip-format.js';
 import './trips.css';
 
-function ActivityItem({ activity, trip, editing, onEdit, onCancel, onSave, onDelete, onToggleVisited, onMove, onDragStart, onDragEnd }) {
+function ActivityItem({ activity, trip, onEdit, onDelete, onToggleVisited, onMove, onDragStart, onDragEnd }) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -19,17 +23,10 @@ function ActivityItem({ activity, trip, editing, onEdit, onCancel, onSave, onDel
       await action();
     } catch (actionError) {
       setError(actionError.message);
+      if (actionError.code === 'ACTIVITY_CONFLICT') setConfirming(false);
     } finally {
       setBusy(false);
     }
-  }
-
-  if (editing) {
-    return (
-      <li className="activity editing">
-        <ActivityForm activity={activity} days={trip.days} currencyCode={trip.currencyCode} onSubmit={onSave} onCancel={onCancel} />
-      </li>
-    );
   }
 
   const place = [activity.address, activity.city].filter(Boolean).join(', ');
@@ -49,13 +46,22 @@ function ActivityItem({ activity, trip, editing, onEdit, onCancel, onSave, onDel
             <a href={mapsUrl(activity)} target="_blank" rel="noreferrer">Open in Google Maps ↗</a>
             <button className="text-button" type="button" onClick={onEdit} disabled={busy}>Edit</button>
             <label className="move-activity">Move to day <select value={activity.date} disabled={busy} onChange={(event) => run(() => onMove(event.target.value))}>{trip.days.map((day) => <option key={day.date} value={day.date}>Day {day.dayNumber} · {formatDayHeading(day.date)}</option>)}</select></label>
-            {confirming ? <><button className="text-button danger" type="button" disabled={busy} onClick={() => run(onDelete)}>Confirm delete</button><button className="text-button" type="button" onClick={() => setConfirming(false)}>Keep</button></> : <button className="text-button danger" type="button" onClick={() => setConfirming(true)} disabled={busy}>Delete</button>}
+            {confirming ? <><button className="text-button danger" type="button" disabled={busy} onClick={() => run(() => onDelete(confirming.version))}>Confirm delete</button><button className="text-button" type="button" onClick={() => setConfirming(false)}>Keep</button></> : <button className="text-button danger" type="button" onClick={() => setConfirming({ version: activity.version })} disabled={busy}>Delete</button>}
           </div>
           {error && <p className="form-error" role="alert">{error}</p>}
         </div>
       </details>
     </li>
   );
+}
+
+export function ActivityEditor({ activity, trip, onSave, onCancel }) {
+  const current = trip.days.flatMap((day) => day.activities).find((item) => item.id === activity.id);
+  return <div className="activity editing">
+    {!current && <p role="alert">This activity was removed. Your draft is still here; copy it before closing.</p>}
+    {current && current.version !== activity.version && <p role="status">This activity changed while you were editing. Your draft uses the original version.</p>}
+    <ActivityForm activity={activity} days={trip.days} currencyCode={trip.currencyCode} onSubmit={onSave} onCancel={onCancel} />
+  </div>;
 }
 
 function BudgetSummary({ summary, currencyCode }) {
@@ -82,13 +88,15 @@ function BudgetSummary({ summary, currencyCode }) {
 
 export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus, profileError }) {
   const [trip, setTrip] = useState(null);
+  const tripRef = useRef(null);
+  tripRef.current = trip;
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState('');
   const [editingTrip, setEditingTrip] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [addingOn, setAddingOn] = useState(null);
-  const [view, setView] = useState('itinerary');
+  const [view, setView] = useState('calendar');
   const [selectedDay, setSelectedDay] = useState('');
   const [dragged, setDragged] = useState(null);
   const [dropTarget, setDropTarget] = useState(null);
@@ -96,7 +104,42 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
   const [undoMove, setUndoMove] = useState(null);
   const [moving, setMoving] = useState(false);
   const [editingActivity, setEditingActivity] = useState(null);
+  const [conflictError, setConflictError] = useState('');
+  const [writing, setWriting] = useState(false);
+  const [calendarInteraction, setCalendarInteraction] = useState(false);
+  const [weatherEditing, setWeatherEditing] = useState(false);
+  const [visible, setVisible] = useState(() => document.visibilityState === 'visible');
+  const [online, setOnline] = useState(() => navigator.onLine);
+  const [syncStatus, setSyncStatus] = useState('waiting');
+  const [refreshGeneration, setRefreshGeneration] = useState(0);
   const ready = isSignedIn && profileStatus === 'ready';
+  const runMutation = useRef(createMutationLock()).current;
+  const pollerRef = useRef(null);
+  const paused = Boolean(editingTrip || confirmDelete || addingOn || dragged || moving || writing || calendarInteraction || weatherEditing);
+
+  const onCalendarInteraction = useCallback((active) => {
+    if (active) pollerRef.current?.stop();
+    setCalendarInteraction(active);
+    if (!active) setRefreshGeneration((current) => current + 1);
+  }, []);
+
+  const onWeatherEditingChange = useCallback((active) => {
+    if (active) pollerRef.current?.stop();
+    setWeatherEditing(active);
+    if (!active) setRefreshGeneration((current) => current + 1);
+  }, []);
+
+  async function withMutation(work) {
+    return runMutation(async () => {
+      pollerRef.current?.stop();
+      setWriting(true);
+      try { return await work(); }
+      finally { setWriting(false); setRefreshGeneration((current) => current + 1); }
+    });
+  }
+
+  function beginAdd(date) { pollerRef.current?.stop(); setAddingOn(date); setEditingActivity(null); }
+  function beginEdit(activity) { setEditingActivity((current) => current?.id === activity.id ? current : activity); setAddingOn(null); }
 
   const loadTrip = useCallback(async (signal) => {
     try {
@@ -118,33 +161,92 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
     return () => controller.abort();
   }, [ready, loadTrip]);
 
+  useEffect(() => {
+    const onVisibility = () => { const next = document.visibilityState === 'visible'; if (!next) pollerRef.current?.stop(); setVisible(next); };
+    const onOnline = () => { const next = navigator.onLine; if (!next) pollerRef.current?.stop(); setOnline(next); };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOnline);
+    return () => { document.removeEventListener('visibilitychange', onVisibility); window.removeEventListener('online', onOnline); window.removeEventListener('offline', onOnline); };
+  }, []);
+
+  useEffect(() => {
+    if (!ready || status !== 'ready' || paused || !visible || !online) return undefined;
+    const poller = createTripPoller({
+      load: (signal) => fetchChangedTrip(
+        () => apiRequest(`/trips/${tripId}/version?sync=1&wait=1&since=${tripRef.current?.revision || 0}`, { getToken, signal }),
+        () => apiRequest(`/trips/${tripId}?sync=1`, { getToken, signal }),
+        tripRef.current?.revision,
+      ),
+      apply: (result) => { if (result?.data) { tripRef.current = result.data; setTrip(result.data); } },
+      onState: setSyncStatus,
+    });
+    pollerRef.current = poller;
+    poller.start();
+    return () => { poller.stop(); if (pollerRef.current === poller) pollerRef.current = null; };
+  }, [ready, status, paused, visible, online, getToken, tripId, refreshGeneration]);
+
   async function saveTrip(values) {
-    const result = await apiRequest(`/trips/${tripId}`, { method: 'PUT', body: values, getToken });
-    setTrip(result.data);
-    setEditingTrip(false);
+    await withMutation(async () => {
+      const result = await apiRequest(`/trips/${tripId}`, { method: 'PUT', body: values, getToken });
+      setTrip(result.data);
+      setEditingTrip(false);
+    });
   }
 
   async function deleteTrip() {
     setDeleteError('');
     try {
-      await apiRequest(`/trips/${tripId}`, { method: 'DELETE', getToken });
-      window.history.pushState(null, '', '/trips');
-      window.dispatchEvent(new PopStateEvent('popstate'));
-    } catch (removeError) {
-      setDeleteError(removeError.message);
-    }
+      await withMutation(async () => {
+        await apiRequest(`/trips/${tripId}`, { method: 'DELETE', getToken });
+        window.history.pushState(null, '', '/trips');
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      });
+    } catch (removeError) { setDeleteError(removeError.message); }
   }
 
   async function addActivity(values) {
-    await apiRequest(`/trips/${tripId}/activities`, { method: 'POST', body: values, getToken });
-    setAddingOn(null);
-    await loadTrip();
+    await withMutation(async () => {
+      await apiRequest(`/trips/${tripId}/activities`, { method: 'POST', body: values, getToken });
+      setAddingOn(null);
+      await loadTrip();
+    });
   }
 
-  async function updateActivity(id, values) {
-    await apiRequest(`/activities/${id}`, { method: 'PATCH', body: values, getToken });
-    setEditingActivity(null);
-    await loadTrip();
+  async function updateActivity(id, values, closeEditor = false) {
+    await withMutation(async () => {
+      try {
+        await apiRequest(`/activities/${id}`, { method: 'PATCH', body: values, getToken });
+        if (closeEditor) setEditingActivity(null);
+        setConflictError('');
+        await loadTrip();
+      } catch (error) {
+        if (error.code === 'ACTIVITY_CONFLICT') {
+          setConflictError(error.message);
+        }
+        throw error;
+      }
+    });
+  }
+
+  async function saveSchedule(id, values) {
+    await withMutation(async () => {
+      const activity = trip.days.flatMap((day) => day.activities).find((item) => item.id === id);
+      if (!activity) throw new Error('Activity no longer exists. Reload the trip.');
+      const original = { date: activity.date, time: activity.time, durationMinutes: activity.durationMinutes, version: activity.version };
+      const { version = activity.version, ...schedule } = values;
+      setTrip((current) => updateSchedule(current, id, schedule));
+      try {
+        const { data } = await apiRequest(`/activities/${id}`, { method: 'PATCH', body: { ...schedule, version }, getToken });
+        setTrip((current) => updateSchedule(current, id, { date: data.date, time: data.time, durationMinutes: data.durationMinutes, version: data.version }));
+        setConflictError('');
+      } catch (error) {
+        setTrip((current) => updateSchedule(current, id, original));
+        if (error.code === 'ACTIVITY_CONFLICT') setConflictError(error.message);
+        await loadTrip();
+        throw error;
+      }
+    });
   }
 
   async function moveActivity(activity, date) {
@@ -152,9 +254,8 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
     setMoving(true);
     setMoveError('');
     try {
-      await apiRequest(`/activities/${activity.id}`, { method: 'PATCH', body: { date }, getToken });
+      await saveSchedule(activity.id, { date, version: activity.version });
       setUndoMove({ id: activity.id, date: activity.date, title: activity.title });
-      await loadTrip();
     } catch (error) {
       setMoveError(error.message);
       throw error;
@@ -169,30 +270,36 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
     setMoving(true);
     setMoveError('');
     try {
-      await apiRequest(`/activities/${undoMove.id}`, { method: 'PATCH', body: { date: undoMove.date }, getToken });
+      await saveSchedule(undoMove.id, { date: undoMove.date });
       setUndoMove(null);
-      await loadTrip();
-    } catch (error) {
-      setMoveError(error.message);
-    } finally { setMoving(false); }
+    } catch (error) { setMoveError(error.message); }
+    finally { setMoving(false); }
   }
 
-  async function removeActivity(id) {
-    await apiRequest(`/activities/${id}`, { method: 'DELETE', getToken });
-    await loadTrip();
+  async function removeActivity(id, version) {
+    await withMutation(async () => {
+      try {
+        await apiRequest(`/activities/${id}`, { method: 'DELETE', body: { version }, getToken });
+        setConflictError('');
+        await loadTrip();
+      } catch (error) {
+        if (error.code === 'ACTIVITY_CONFLICT') {
+          setConflictError(error.message);
+          await loadTrip();
+        }
+        throw error;
+      }
+    });
   }
 
   function renderActivity(activity) {
     return <ActivityItem key={activity.id} activity={activity} trip={trip}
-      editing={editingActivity === activity.id}
       onMove={(date) => moveActivity(activity, date)}
       onDragEnd={() => { setDragged(null); setDropTarget(null); }}
-      onDragStart={(event) => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', String(activity.id)); setDragged(activity); }}
-      onEdit={() => { setEditingActivity(activity.id); setAddingOn(null); }}
-      onCancel={() => setEditingActivity(null)}
-      onSave={(values) => updateActivity(activity.id, values)}
-      onDelete={() => removeActivity(activity.id)}
-      onToggleVisited={(visited) => updateActivity(activity.id, { visited })} />;
+      onDragStart={(event) => { pollerRef.current?.stop(); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', String(activity.id)); setDragged(activity); }}
+      onEdit={() => beginEdit(activity)}
+      onDelete={(version) => removeActivity(activity.id, version)}
+      onToggleVisited={(visited) => updateActivity(activity.id, { visited, version: activity.version })} />;
   }
 
   return (
@@ -206,6 +313,9 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
           <a className="text-button" href="/trips">Back to my trips</a>
         </div>}
         {status === 'ready' && trip && <>
+          {conflictError && <p className="form-error" role="alert">{conflictError}</p>}
+          <p className="trip-time-zone">{trip.timeZone ? `Trip times use ${trip.timeZone}.` : 'Trip time zone is not set. Edit the trip to confirm one; activity times are shown without conversion.'}</p>
+          <p className="trip-sync-status" role="status">{!online ? 'Offline · Reconnect to save changes.' : paused ? 'Updates paused while you edit.' : syncStatus === 'error' ? 'Could not refresh trip. Retrying; your view may be out of date.' : 'Watching for trip changes.'}</p>
           {editingTrip
             ? <div className="panel">
                 <h2>Edit trip</h2>
@@ -215,6 +325,7 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
                 <div>
                   <p className="eyebrow">{trip.destinations.map((destination) => destination.name.toUpperCase()).join(' → ')}</p>
                   <h1>{trip.title}</h1>
+                  {trip.role && <p className="trip-role">{trip.role === 'owner' ? 'Trip owner' : 'Collaborator'}</p>}
                   <p className="trip-meta">
                     {formatDate(trip.startDate)} – {formatDate(trip.endDate)}
                     <span> · </span>{trip.dayCount} {trip.dayCount === 1 ? 'day' : 'days'}
@@ -222,13 +333,13 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
                   </p>
                 </div>
                 <div className="trip-header-actions">
-                  <button className="text-button" type="button" onClick={() => setEditingTrip(true)}>Edit trip</button>
-                  {confirmDelete
+                  <button className="text-button" type="button" onClick={() => { pollerRef.current?.stop(); setEditingTrip(true); }}>Edit trip</button>
+                  {trip.role === 'owner' && (confirmDelete
                     ? <>
                         <button className="text-button danger" type="button" onClick={deleteTrip}>Delete trip and all activities</button>
                         <button className="text-button" type="button" onClick={() => setConfirmDelete(false)}>Cancel</button>
                       </>
-                    : <button className="text-button" type="button" onClick={() => setConfirmDelete(true)}>Delete</button>}
+                    : <button className="text-button" type="button" onClick={() => { pollerRef.current?.stop(); setConfirmDelete(true); }}>Delete</button>)}
                   {deleteError && <p className="form-error" role="alert">{deleteError}</p>}
                 </div>
               </header>}
@@ -238,16 +349,21 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
             <div><span>Spent</span><strong>{formatMoney(trip.budgetSummary.totalActualSpend, trip.currencyCode)}</strong></div>
             <div><span>Remaining</span><strong>{formatMoney(trip.budgetSummary.remainingBudget, trip.currencyCode)}</strong></div>
           </div>}
-          <div className="workspace-controls" aria-label="Trip sections">
-            <button type="button" aria-pressed={view === 'itinerary'} onClick={() => setView('itinerary')}>Itinerary</button>
+          <div className="workspace-controls" role="group" aria-label="Trip sections">
+            <button type="button" aria-pressed={view === 'calendar'} onClick={() => { setView('calendar'); setAddingOn(null); }}>Calendar</button>
+            <button type="button" aria-pressed={view === 'itinerary'} onClick={() => setView('itinerary')}>Day board</button>
             <button type="button" aria-pressed={view === 'budget'} onClick={() => setView('budget')}>Budget</button>
-            <button type="button" aria-pressed={view === 'share'} onClick={() => setView('share')}>Share</button>
+            {trip.role === 'owner' && <button type="button" aria-pressed={view === 'share'} onClick={() => setView('share')}>Share &amp; members</button>}
           </div>
-          {view === 'share' && <ShareControl tripId={trip.id} getToken={getToken} />}
+          {editingActivity && <ActivityEditor key={editingActivity.id} activity={editingActivity} trip={trip} onSave={(values) => updateActivity(editingActivity.id, values, true)} onCancel={() => setEditingActivity(null)} />}
+          {view === 'calendar' && <><TripCalendar trip={trip} getToken={getToken} disabled={!online || writing} onUpdate={saveSchedule} onInteractionChange={onCalendarInteraction} onWeatherEditingChange={onWeatherEditingChange} onEdit={beginEdit} onAdd={beginAdd} />
+            {addingOn && <div className="activity editing"><ActivityForm key={addingOn} date={addingOn} days={trip.days} currencyCode={trip.currencyCode} onSubmit={addActivity} onCancel={() => setAddingOn(null)} /></div>}
+          </>}
+          {view === 'share' && trip.role === 'owner' && <><MemberControl tripId={trip.id} getToken={getToken} /><ShareControl tripId={trip.id} getToken={getToken} /></>}
 
           {view === 'budget' && trip.budgetSummary && <BudgetSummary summary={trip.budgetSummary} currencyCode={trip.currencyCode} />}
 
-          {view === 'itinerary' && <><div className="board-heading"><div><h2>Itinerary</h2><p>Each column is a day. Drag a card or open it to move it.</p></div><button className="primary-button" type="button" onClick={() => { setAddingOn(trip.days[0].date); document.getElementById('day-' + trip.days[0].date)?.scrollIntoView({ behavior: 'smooth' }); }}>+ Add activity</button></div>
+          {view === 'itinerary' && <><div className="board-heading"><div><h2>Day board</h2><p>Each column is a day. Drag a card or open it to move it.</p></div><button className="primary-button" type="button" onClick={() => { beginAdd(trip.days[0].date); document.getElementById('day-' + trip.days[0].date)?.scrollIntoView({ behavior: 'smooth' }); }}>+ Add activity</button></div>
           {moveError && <p className="form-error" role="alert">{moveError}</p>}
           {undoMove && <p role="status" className="move-notice">Moved {undoMove.title}. <button type="button" className="text-button" disabled={moving} onClick={undoLastMove}>Undo</button></p>}
           <label className="day-jump">Jump to day
@@ -264,7 +380,7 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
               <li key={day.date} id={'day-' + day.date} className={`day-card${dropTarget === day.date ? ' is-drop-target' : ''}`} onDragOver={(event) => { if (dragged && dragged.date !== day.date && !moving) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; if (dropTarget !== day.date) setDropTarget(day.date); } }} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setDropTarget(null); }} onDrop={async (event) => { event.preventDefault(); const id = event.dataTransfer.getData('text/plain'); const activity = trip.days.flatMap((item) => item.activities).find((item) => String(item.id) === id); setDropTarget(null); if (!activity || moving) return; try { await moveActivity(activity, day.date); } catch { /* Error is shown above the board. */ } }}>
                 <div className="day-heading">
                   <h2><span>Day {day.dayNumber}</span> {formatDayHeading(day.date)}</h2>
-                  {addingOn !== day.date && <button className="text-button" type="button" onClick={() => { setAddingOn(day.date); setEditingActivity(null); }}>+ Add activity</button>}
+                  {addingOn !== day.date && <button className="text-button" type="button" onClick={() => beginAdd(day.date)}>+ Add activity</button>}
                 </div>
                 <ul className="activity-list board-cards">
                   {day.activities.map((activity) => renderActivity(activity))}

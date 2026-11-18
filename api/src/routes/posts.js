@@ -5,6 +5,8 @@ import { rateLimit } from 'express-rate-limit';
 import { uploadImage } from '../middleware/image-upload.js';
 import { pool } from '../db/pool.js';
 import { requireAuth } from '../middleware/require-auth.js';
+import { requireProfile as requireLocalProfile } from '../middleware/require-profile.js';
+import { sharedWriteLimit } from '../middleware/shared-write-limit.js';
 import { deleteCloudinaryImage, isCloudinaryConfigured, uploadCloudinaryImage } from '../services/cloudinary.js';
 import { findLocalUserId } from '../services/profiles.js';
 
@@ -18,6 +20,8 @@ const uploadLimiter = rateLimit({
   message: { error: { code: 'UPLOAD_LIMITED', message: 'Too many photo uploads. Try again later.' } },
 });
 const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const postWriteLimit = sharedWriteLimit('post', 15, 100);
+const sharedUploadLimit = sharedWriteLimit('upload', 10, 40);
 
 async function requireProfile(req, res) {
   const userId = await findLocalUserId(req.clerkUserId);
@@ -105,8 +109,10 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-router.post('/', requireAuth, (req, res, next) => (
+router.post('/', requireAuth, requireLocalProfile, postWriteLimit, (req, res, next) => (
   req.is('multipart/form-data') ? uploadLimiter(req, res, next) : next()
+), (req, res, next) => (
+  req.is('multipart/form-data') ? sharedUploadLimit(req, res, next) : next()
 ), uploadImage, async (req, res, next) => {
   const body = typeof req.body.body === 'string' ? req.body.body.trim() : '';
   const visibility = req.body.visibility || 'public';
@@ -138,8 +144,7 @@ router.post('/', requireAuth, (req, res, next) => (
   let uploadedImage;
   let photoCommitted = false;
   try {
-    const userId = await requireProfile(req, res);
-    if (!userId) return;
+    const userId = req.userId;
 
     if (tripId !== null) {
       const [ownedTrips] = await pool.execute(

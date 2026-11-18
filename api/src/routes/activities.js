@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { pool } from '../db/pool.js';
 import { requireAuth } from '../middleware/require-auth.js';
 import { requireProfile } from '../middleware/require-profile.js';
-import { ACTIVITY_COLUMNS, shapeActivity } from './trips.js';
+import { ACTIVITY_COLUMNS, shapeActivity, findEditableTrip } from './trips.js';
 import {
   ACTIVITY_CATEGORIES, badRequest, optionalText, parseDate, parseId, parseMoney, parseTime, sendError,
 } from '../services/trip-rules.js';
@@ -14,7 +14,7 @@ const ACTIVITY_NOT_FOUND = { status: 404, code: 'ACTIVITY_NOT_FOUND', message: '
 
 // Validates only the fields present, so PATCH can send e.g. { "visited": true }.
 // With `partial = false` (create), date, category and title are required.
-function validateActivity(body, partial) {
+export function validateActivity(body, partial) {
   const input = body && typeof body === 'object' ? body : {};
   const has = (key) => Object.hasOwn(input, key);
   const out = {};
@@ -38,6 +38,13 @@ function validateActivity(body, partial) {
     const time = parseTime(input.time);
     if (!time.ok) return { error: badRequest('INVALID_TIME', 'Time must use 24-hour HH:MM format.') };
     out.start_time = time.value;
+  }
+  if (has('durationMinutes')) {
+    const duration = input.durationMinutes;
+    if (duration !== null && (!Number.isInteger(duration) || duration < 1 || duration > 1440)) {
+      return { error: badRequest('INVALID_DURATION', 'Duration must be empty or a whole number of minutes from 1 to 1440.') };
+    }
+    out.duration_minutes = duration;
   }
   for (const [key, column, max] of [['city', 'city', 120], ['address', 'address', 255], ['note', 'note', 1000]]) {
     if (!has(key)) continue;
@@ -89,16 +96,12 @@ router.post('/trips/:tripId/activities', signedIn, async (req, res, next) => {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
-    const [trips] = await connection.execute(
-      `SELECT DATE_FORMAT(start_date, '%Y-%m-%d') AS startDate, DATE_FORMAT(end_date, '%Y-%m-%d') AS endDate
-       FROM trips WHERE id = ? AND owner_user_id = ? FOR UPDATE`,
-      [tripId, req.userId],
-    );
-    if (!trips.length) {
+    const trip = await findEditableTrip(connection, tripId, req.userId, true);
+    if (!trip) {
       await connection.rollback();
       return sendError(res, TRIP_NOT_FOUND);
     }
-    if (isOutsideTrip(value.activity_date, trips[0])) {
+    if (isOutsideTrip(value.activity_date, trip)) {
       await connection.rollback();
       return sendError(res, DATE_OUTSIDE_TRIP);
     }
@@ -108,6 +111,7 @@ router.post('/trips/:tripId/activities', signedIn, async (req, res, next) => {
       `INSERT INTO activities (${columns.join(', ')}) VALUES (${columns.map(() => '?').join(', ')})`,
       [tripId, ...Object.values(value)],
     );
+    await connection.execute('UPDATE trips SET revision = revision + 1 WHERE id = ?', [tripId]);
     await connection.commit();
     res.status(201).json({ data: await loadActivity(result.insertId, connection) });
   } catch (error) {
@@ -121,33 +125,35 @@ router.post('/trips/:tripId/activities', signedIn, async (req, res, next) => {
 router.patch('/activities/:activityId', signedIn, async (req, res, next) => {
   const activityId = parseId(req.params.activityId);
   if (!activityId) return sendError(res, { status: 400, code: 'INVALID_ACTIVITY_ID', message: 'Activity ID must be a positive integer.' });
+  const version = req.body?.version;
+  if (!Number.isSafeInteger(version) || version < 1) return sendError(res, badRequest('INVALID_VERSION', 'Send the activity version you last read.'));
   const { value, error } = validateActivity(req.body, true);
   if (error) return sendError(res, error);
 
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
-    // Joins the trip so only its owner can find (and therefore change) the activity.
-    const [rows] = await connection.execute(
-      `SELECT DATE_FORMAT(t.start_date, '%Y-%m-%d') AS startDate, DATE_FORMAT(t.end_date, '%Y-%m-%d') AS endDate
-       FROM activities a JOIN trips t ON t.id = a.trip_id
-       WHERE a.id = ? AND t.owner_user_id = ? FOR UPDATE`,
-      [activityId, req.userId],
-    );
-    if (!rows.length) {
+    const [activities] = await connection.execute('SELECT trip_id AS tripId FROM activities WHERE id = ?', [activityId]);
+    const trip = activities.length && await findEditableTrip(connection, activities[0].tripId, req.userId, true);
+    if (!trip) {
       await connection.rollback();
       return sendError(res, ACTIVITY_NOT_FOUND);
     }
-    if (value.activity_date && isOutsideTrip(value.activity_date, rows[0])) {
+    const [current] = await connection.execute('SELECT id, version FROM activities WHERE id = ? AND trip_id = ? FOR UPDATE', [activityId, activities[0].tripId]);
+    if (!current.length) { await connection.rollback(); return sendError(res, ACTIVITY_NOT_FOUND); }
+    if (Number(current[0].version) !== version) { await connection.rollback(); return sendError(res, { status: 409, code: 'ACTIVITY_CONFLICT', message: 'This activity changed elsewhere. Reload the trip and review it before trying again.' }); }
+    if (value.activity_date && isOutsideTrip(value.activity_date, trip)) {
       await connection.rollback();
       return sendError(res, DATE_OUTSIDE_TRIP);
     }
 
     // Column names come from validateActivity's fixed list, never from the request.
     const assignments = Object.keys(value).map((column) => `${column} = ?`).join(', ');
-    await connection.execute(`UPDATE activities SET ${assignments} WHERE id = ?`, [...Object.values(value), activityId]);
+    await connection.execute(`UPDATE activities SET ${assignments}, version = version + 1 WHERE id = ? AND version = ?`, [...Object.values(value), activityId, version]);
+    await connection.execute('UPDATE trips SET revision = revision + 1 WHERE id = ?', [activities[0].tripId]);
+    const updated = await loadActivity(activityId, connection);
     await connection.commit();
-    res.json({ data: await loadActivity(activityId, connection) });
+    res.json({ data: updated });
   } catch (error) {
     await connection.rollback().catch(() => {});
     next(error);
@@ -159,17 +165,25 @@ router.patch('/activities/:activityId', signedIn, async (req, res, next) => {
 router.delete('/activities/:activityId', signedIn, async (req, res, next) => {
   const activityId = parseId(req.params.activityId);
   if (!activityId) return sendError(res, { status: 400, code: 'INVALID_ACTIVITY_ID', message: 'Activity ID must be a positive integer.' });
+  const version = req.body?.version;
+  if (!Number.isSafeInteger(version) || version < 1) return sendError(res, badRequest('INVALID_VERSION', 'Send the activity version you last read.'));
+  const connection = await pool.getConnection();
   try {
-    const [result] = await pool.execute(
-      `DELETE a FROM activities a JOIN trips t ON t.id = a.trip_id
-       WHERE a.id = ? AND t.owner_user_id = ?`,
-      [activityId, req.userId],
-    );
-    if (!result.affectedRows) return sendError(res, ACTIVITY_NOT_FOUND);
+    await connection.beginTransaction();
+    const [activities] = await connection.execute('SELECT trip_id AS tripId FROM activities WHERE id = ?', [activityId]);
+    const trip = activities.length && await findEditableTrip(connection, activities[0].tripId, req.userId, true);
+    if (!trip) { await connection.rollback(); return sendError(res, ACTIVITY_NOT_FOUND); }
+    const [current] = await connection.execute('SELECT id, version FROM activities WHERE id = ? AND trip_id = ? FOR UPDATE', [activityId, activities[0].tripId]);
+    if (!current.length) { await connection.rollback(); return sendError(res, ACTIVITY_NOT_FOUND); }
+    if (Number(current[0].version) !== version) { await connection.rollback(); return sendError(res, { status: 409, code: 'ACTIVITY_CONFLICT', message: 'This activity changed elsewhere. Reload the trip and review it before trying again.' }); }
+    await connection.execute('DELETE FROM activities WHERE id = ? AND version = ?', [activityId, version]);
+    await connection.execute('UPDATE trips SET revision = revision + 1 WHERE id = ?', [activities[0].tripId]);
+    await connection.commit();
     res.status(204).end();
   } catch (error) {
+    await connection.rollback().catch(() => {});
     next(error);
-  }
+  } finally { connection.release(); }
 });
 
 export default router;

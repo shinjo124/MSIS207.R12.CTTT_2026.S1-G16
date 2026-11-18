@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { ClerkProvider, SignIn, SignUp, useAuth } from '@clerk/react';
 import App from './App.jsx';
 import { apiRequest } from './lib/api.js';
+import { INVITATION_RETURN_KEY, INVITATION_STORAGE_KEY } from './features/trips/invitation.js';
 import './styles.css';
 
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
@@ -11,6 +12,17 @@ function AuthenticatedApp({ path }) {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const [profileStatus, setProfileStatus] = useState('signed-out');
   const [profileError, setProfileError] = useState('');
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn || path !== '/') return;
+    try {
+      if (sessionStorage.getItem(INVITATION_RETURN_KEY) && sessionStorage.getItem(INVITATION_STORAGE_KEY)) {
+        sessionStorage.removeItem(INVITATION_RETURN_KEY);
+        window.history.replaceState(null, '', '/invite');
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      }
+    } catch { /* The invitation can be reopened after sign in. */ }
+  }, [isLoaded, isSignedIn, path]);
 
   useEffect(() => {
     if (!isLoaded) return;

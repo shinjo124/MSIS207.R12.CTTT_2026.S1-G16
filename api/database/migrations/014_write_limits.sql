@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS write_limits (
+  scope VARCHAR(16) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  subject VARCHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  window_start BIGINT UNSIGNED NOT NULL,
+  hits INT UNSIGNED NOT NULL,
+  PRIMARY KEY (scope, subject)
+) ENGINE=InnoDB;

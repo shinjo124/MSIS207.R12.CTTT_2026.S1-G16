@@ -4,8 +4,8 @@ export function buildSharedTripView(trip, destinations, activities) {
   const activitiesByDate = new Map();
   for (const activity of activities) {
     const items = activitiesByDate.get(activity.date) || [];
-    const { id, date, time, category, title, city, address } = activity;
-    items.push({ id, date, time, category, title, city, address });
+    const { id, date, time, durationMinutes, category, title, city, address } = activity;
+    items.push({ id, date, time, durationMinutes, category, title, city, address });
     activitiesByDate.set(activity.date, items);
   }
 
