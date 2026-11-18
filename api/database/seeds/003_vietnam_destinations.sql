@@ -62,3 +62,12 @@ UPDATE destinations SET local_name = 'Hội An', aliases = 'Hoian' WHERE name = 
 UPDATE destinations SET local_name = 'Vịnh Hạ Long', aliases = 'Hạ Long, Halong' WHERE name = 'Ha Long Bay' AND country = 'Vietnam';
 UPDATE destinations SET local_name = 'TP. Hồ Chí Minh', aliases = 'Hồ Chí Minh, Sài Gòn, Saigon, HCM, TPHCM, HCMC, Bình Dương'
   WHERE name = 'Ho Chi Minh City' AND country = 'Vietnam';
+
+-- Best-season display hints use the Viet Nam National Authority of Tourism destination pages.
+UPDATE destinations SET best_season = CASE name
+  WHEN 'Sa Pa' THEN 'September–November; April–May'
+  WHEN 'Phong Nha' THEN 'February–August'
+  WHEN 'Nha Trang' THEN 'January–August'
+  WHEN 'Phu Quoc' THEN 'November–April'
+END
+WHERE country = 'Vietnam' AND name IN ('Sa Pa', 'Phong Nha', 'Nha Trang', 'Phu Quoc');

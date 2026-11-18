@@ -2,6 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { todayInTimeZone, calendarStartDate } from '../src/features/trips/trip-format.js';
 
+test('defaults Vietnamese trips without overwriting a saved zone or guessing an overseas zone', async () => {
+  const { withDefaultTimeZone, destinationTimeZone } = await import('../src/features/trips/trip-format.js');
+  assert.equal(destinationTimeZone({ country: 'Vietnam' }), 'Asia/Ho_Chi_Minh');
+  assert.equal(destinationTimeZone({ country: 'Japan' }), null);
+  const oldTrip = { timeZone: null, destinations: [{ country: 'Vietnam' }] };
+  assert.equal(withDefaultTimeZone(oldTrip).timeZone, 'Asia/Ho_Chi_Minh');
+  assert.equal(oldTrip.timeZone, null);
+  assert.equal(withDefaultTimeZone({ timeZone: 'Asia/Tokyo', destinations: [{ country: 'Vietnam' }] }).timeZone, 'Asia/Tokyo');
+  assert.equal(withDefaultTimeZone({ timeZone: null, destinations: [{ country: 'Japan' }] }).timeZone, null);
+});
+
 test('resolves today at the destination rather than the device, including DST', () => {
   const instant = new Date('2026-03-08T07:30:00Z');
   assert.equal(todayInTimeZone('America/Los_Angeles', instant), '2026-03-07');

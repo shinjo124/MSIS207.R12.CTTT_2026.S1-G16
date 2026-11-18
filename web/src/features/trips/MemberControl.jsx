@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiRequest } from '../../lib/api.js';
 import { invitationUrl } from './invitation.js';
+import { formatDateTime } from './trip-format.js';
 
 export default function MemberControl({ tripId, getToken }) {
   const [members, setMembers] = useState([]);
@@ -42,7 +43,7 @@ export default function MemberControl({ tripId, getToken }) {
     <h3 id="members-title">Trip collaborators</h3>
     <p>Invite one person to edit this trip. The link expires after 24 hours and works once. Creating a new link replaces any unused link.</p>
     <div className="share-actions"><button type="button" onClick={createInvite} disabled={status === 'working' || status === 'loading'}>Create invitation</button><button type="button" className="secondary-action" onClick={revokeInvite} disabled={status === 'working' || status === 'loading'}>Revoke invitation</button></div>
-    {invite && <><div className="share-link-row"><input readOnly aria-label="Invitation link" value={invite.url} /><button type="button" onClick={copyInvite}>Copy</button></div><p>Expires {new Date(invite.expiresAt).toLocaleString()}. Share it only with someone you trust.</p></>}
+    {invite && <><div className="share-link-row"><input readOnly aria-label="Invitation link" value={invite.url} /><button type="button" onClick={copyInvite}>Copy</button></div><p>Expires {formatDateTime(invite.expiresAt)}. Share it only with someone you trust.</p></>}
     <h4>Members</h4>
     {status === 'loading' && <p role="status">Loading members…</p>}
     {status === 'ready' && members.length === 0 && <p>No collaborators yet.</p>}

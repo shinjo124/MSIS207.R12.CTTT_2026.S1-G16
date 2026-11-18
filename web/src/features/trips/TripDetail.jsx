@@ -8,7 +8,7 @@ import TripCalendar from './TripCalendar.jsx';
 import MemberControl from './MemberControl.jsx';
 import { createMutationLock, updateSchedule } from './schedule-update.js';
 import { createTripPoller, fetchChangedTrip } from './trip-polling.js';
-import { categoryLabel, formatDate, formatDayHeading, formatMoney, mapsUrl } from './trip-format.js';
+import { categoryLabel, formatDate, formatDayHeading, formatMoney, mapsUrl, timeZoneLabel, todayInTimeZone, withDefaultTimeZone } from './trip-format.js';
 import './trips.css';
 
 function ActivityItem({ activity, trip, onEdit, onDelete, onToggleVisited, onMove, onDragStart, onDragEnd }) {
@@ -64,15 +64,32 @@ export function ActivityEditor({ activity, trip, onSave, onCancel }) {
   </div>;
 }
 
-function BudgetSummary({ summary, currencyCode }) {
+function BudgetSpendRow({ activity, onRecordSpend }) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  async function submit(event) {
+    event.preventDefault();
+    setSaving(true); setError('');
+    const actualSpend = String(new FormData(event.currentTarget).get('actualSpend') || '').trim() || null;
+    try { await onRecordSpend(activity, actualSpend); }
+    catch (saveError) { setError(saveError.message); }
+    finally { setSaving(false); }
+  }
+  return <li><span>Day {activity.dayNumber} · {activity.title}</span><form onSubmit={submit}><label className="visually-hidden" htmlFor={`spend-${activity.id}`}>Actual spend for {activity.title}</label><input id={`spend-${activity.id}`} name="actualSpend" inputMode="decimal" pattern="\d{1,10}(\.\d{1,2})?" defaultValue={activity.actualSpend ?? ''} placeholder="Amount" /><button className="text-button" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>{error && <span role="alert" className="form-error">{error}</span>}</form></li>;
+}
+
+function BudgetSummary({ summary, trip, onRecordSpend }) {
+  const currencyCode = trip.currencyCode;
+  const activities = trip.days.flatMap((day) => day.activities.map((activity) => ({ ...activity, dayNumber: day.dayNumber })));
   return (
     <section className="budget-summary" aria-labelledby="budget-summary-title">
       <h2 id="budget-summary-title">Budget summary</h2>
       <dl className="budget-totals">
         <div><dt>Budget</dt><dd>{formatMoney(summary.budget, currencyCode)}</dd></div>
+        <div><dt>Planned total</dt><dd>{formatMoney(summary.plannedTotal, currencyCode)}</dd></div>
         <div><dt>Actual spent</dt><dd>{formatMoney(summary.totalActualSpend, currencyCode)}</dd></div>
         <div><dt>Remaining</dt><dd>{formatMoney(summary.remainingBudget, currencyCode)}</dd></div>
-        <div><dt>Over budget</dt><dd>{formatMoney(summary.overBudget, currencyCode)}</dd></div>
+        <div className={Number(summary.overBudget) > 0 ? 'is-over-budget' : ''}><dt>Over budget</dt><dd>{formatMoney(summary.overBudget, currencyCode)}</dd></div>
       </dl>
       <h3>Actual spend by category</h3>
       {summary.spendByCategory.length
@@ -82,11 +99,13 @@ function BudgetSummary({ summary, currencyCode }) {
             ))}
           </ul>
         : <p className="day-empty">No actual spend recorded yet.</p>}
+      <h3>Record spending</h3>
+      {activities.length ? <ul className="budget-record-list">{activities.map((activity) => <BudgetSpendRow key={`${activity.id}:${activity.version}`} activity={activity} onRecordSpend={onRecordSpend} />)}</ul> : <p className="day-empty">Add an activity before recording its spend.</p>}
     </section>
   );
 }
 
-export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus, profileError }) {
+export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus, profileError, search = '' }) {
   const [trip, setTrip] = useState(null);
   const tripRef = useRef(null);
   tripRef.current = trip;
@@ -112,10 +131,21 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
   const [online, setOnline] = useState(() => navigator.onLine);
   const [syncStatus, setSyncStatus] = useState('waiting');
   const [refreshGeneration, setRefreshGeneration] = useState(0);
+  const addActivityFormRef = useRef(null);
+  const addFromDashboardHandled = useRef(false);
+  const tripToday = todayInTimeZone(trip?.timeZone);
   const ready = isSignedIn && profileStatus === 'ready';
   const runMutation = useRef(createMutationLock()).current;
   const pollerRef = useRef(null);
   const paused = Boolean(editingTrip || confirmDelete || addingOn || dragged || moving || writing || calendarInteraction || weatherEditing);
+
+  useEffect(() => { if (addingOn) addActivityFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, [addingOn]);
+  useEffect(() => {
+    if (status !== 'ready' || !trip || addFromDashboardHandled.current || new URLSearchParams(search).get('add') !== '1') return;
+    addFromDashboardHandled.current = true;
+    const date = trip.days.find((day) => day.date === tripToday)?.date || trip.days[0]?.date;
+    if (date) beginAdd(date);
+  }, [search, status, trip]);
 
   const onCalendarInteraction = useCallback((active) => {
     if (active) pollerRef.current?.stop();
@@ -144,7 +174,7 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
   const loadTrip = useCallback(async (signal) => {
     try {
       const result = await apiRequest(`/trips/${tripId}`, { getToken, signal });
-      setTrip(result.data);
+      setTrip(withDefaultTimeZone(result.data));
       setStatus('ready');
     } catch (loadError) {
       if (loadError.name === 'AbortError') return;
@@ -178,7 +208,7 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
         () => apiRequest(`/trips/${tripId}?sync=1`, { getToken, signal }),
         tripRef.current?.revision,
       ),
-      apply: (result) => { if (result?.data) { tripRef.current = result.data; setTrip(result.data); } },
+      apply: (result) => { if (result?.data) { tripRef.current = withDefaultTimeZone(result.data); setTrip(tripRef.current); } },
       onState: setSyncStatus,
     });
     pollerRef.current = poller;
@@ -189,7 +219,7 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
   async function saveTrip(values) {
     await withMutation(async () => {
       const result = await apiRequest(`/trips/${tripId}`, { method: 'PUT', body: values, getToken });
-      setTrip(result.data);
+      setTrip(withDefaultTimeZone(result.data));
       setEditingTrip(false);
     });
   }
@@ -246,6 +276,13 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
         await loadTrip();
         throw error;
       }
+    });
+  }
+
+  async function setDayDestination(date, destinationId) {
+    await withMutation(async () => {
+      await apiRequest(`/trips/${tripId}/days/${date}/destination`, { method: 'PUT', body: { destinationId }, getToken });
+      await loadTrip();
     });
   }
 
@@ -314,8 +351,6 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
         </div>}
         {status === 'ready' && trip && <>
           {conflictError && <p className="form-error" role="alert">{conflictError}</p>}
-          <p className="trip-time-zone">{trip.timeZone ? `Trip times use ${trip.timeZone}.` : 'Trip time zone is not set. Edit the trip to confirm one; activity times are shown without conversion.'}</p>
-          <p className="trip-sync-status" role="status">{!online ? 'Offline · Reconnect to save changes.' : paused ? 'Updates paused while you edit.' : syncStatus === 'error' ? 'Could not refresh trip. Retrying; your view may be out of date.' : 'Watching for trip changes.'}</p>
           {editingTrip
             ? <div className="panel">
                 <h2>Edit trip</h2>
@@ -330,6 +365,8 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
                     {formatDate(trip.startDate)} – {formatDate(trip.endDate)}
                     <span> · </span>{trip.dayCount} {trip.dayCount === 1 ? 'day' : 'days'}
                     <span> · </span>{trip.groupSize} {trip.groupSize === 1 ? 'traveler' : 'travelers'}
+                    <span> · </span>{timeZoneLabel(trip.timeZone)}
+                    <span className={`trip-sync-dot${!online || syncStatus === 'error' ? ' is-error' : paused ? ' is-paused' : ''}`} role="status" title={!online ? 'Offline · Reconnect to save changes.' : paused ? 'Updates paused while you edit.' : syncStatus === 'error' ? 'Could not refresh trip. Retrying; your view may be out of date.' : 'Watching for trip changes.'} aria-label={!online ? 'Offline · Reconnect to save changes.' : paused ? 'Updates paused while you edit.' : syncStatus === 'error' ? 'Could not refresh trip. Retrying; your view may be out of date.' : 'Watching for trip changes.'} />
                   </p>
                 </div>
                 <div className="trip-header-actions">
@@ -344,11 +381,6 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
                 </div>
               </header>}
 
-          {trip.budgetSummary && <div className="budget-overview" aria-label="Trip budget overview">
-            <div><span>Total budget</span><strong>{formatMoney(trip.budgetSummary.budget, trip.currencyCode)}</strong></div>
-            <div><span>Spent</span><strong>{formatMoney(trip.budgetSummary.totalActualSpend, trip.currencyCode)}</strong></div>
-            <div><span>Remaining</span><strong>{formatMoney(trip.budgetSummary.remainingBudget, trip.currencyCode)}</strong></div>
-          </div>}
           <div className="workspace-controls" role="group" aria-label="Trip sections">
             <button type="button" aria-pressed={view === 'calendar'} onClick={() => { setView('calendar'); setAddingOn(null); }}>Calendar</button>
             <button type="button" aria-pressed={view === 'itinerary'} onClick={() => setView('itinerary')}>Day board</button>
@@ -356,14 +388,14 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
             {trip.role === 'owner' && <button type="button" aria-pressed={view === 'share'} onClick={() => setView('share')}>Share &amp; members</button>}
           </div>
           {editingActivity && <ActivityEditor key={editingActivity.id} activity={editingActivity} trip={trip} onSave={(values) => updateActivity(editingActivity.id, values, true)} onCancel={() => setEditingActivity(null)} />}
-          {view === 'calendar' && <><TripCalendar trip={trip} getToken={getToken} disabled={!online || writing} onUpdate={saveSchedule} onInteractionChange={onCalendarInteraction} onWeatherEditingChange={onWeatherEditingChange} onEdit={beginEdit} onAdd={beginAdd} />
-            {addingOn && <div className="activity editing"><ActivityForm key={addingOn} date={addingOn} days={trip.days} currencyCode={trip.currencyCode} onSubmit={addActivity} onCancel={() => setAddingOn(null)} /></div>}
+          {view === 'calendar' && <><TripCalendar trip={trip} getToken={getToken} disabled={!online || writing} onUpdate={saveSchedule} onInteractionChange={onCalendarInteraction} onEdit={beginEdit} onAdd={beginAdd} onDestinationChange={setDayDestination} />
+            {addingOn && <div ref={addActivityFormRef} className="activity editing"><ActivityForm key={addingOn} date={addingOn} days={trip.days} currencyCode={trip.currencyCode} onSubmit={addActivity} onCancel={() => setAddingOn(null)} /></div>}
           </>}
           {view === 'share' && trip.role === 'owner' && <><MemberControl tripId={trip.id} getToken={getToken} /><ShareControl tripId={trip.id} getToken={getToken} /></>}
 
-          {view === 'budget' && trip.budgetSummary && <BudgetSummary summary={trip.budgetSummary} currencyCode={trip.currencyCode} />}
+          {view === 'budget' && trip.budgetSummary && <BudgetSummary summary={trip.budgetSummary} trip={trip} onRecordSpend={(activity, actualSpend) => updateActivity(activity.id, { actualSpend, version: activity.version })} />}
 
-          {view === 'itinerary' && <><div className="board-heading"><div><h2>Day board</h2><p>Each column is a day. Drag a card or open it to move it.</p></div><button className="primary-button" type="button" onClick={() => { beginAdd(trip.days[0].date); document.getElementById('day-' + trip.days[0].date)?.scrollIntoView({ behavior: 'smooth' }); }}>+ Add activity</button></div>
+          {view === 'itinerary' && <><div className="board-heading"><div><h2>Day board</h2><p>Each column is a day. Drag a card or open it to move it.</p></div><button className="primary-button" type="button" onClick={() => { const date = trip.days.find((day) => day.date === selectedDay)?.date || trip.days.find((day) => day.date === tripToday)?.date || trip.days[0].date; setSelectedDay(date); beginAdd(date); }}>+ Add activity</button></div>
           {moveError && <p className="form-error" role="alert">{moveError}</p>}
           {undoMove && <p role="status" className="move-notice">Moved {undoMove.title}. <button type="button" className="text-button" disabled={moving} onClick={undoLastMove}>Undo</button></p>}
           <label className="day-jump">Jump to day
@@ -380,13 +412,14 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
               <li key={day.date} id={'day-' + day.date} className={`day-card${dropTarget === day.date ? ' is-drop-target' : ''}`} onDragOver={(event) => { if (dragged && dragged.date !== day.date && !moving) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; if (dropTarget !== day.date) setDropTarget(day.date); } }} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setDropTarget(null); }} onDrop={async (event) => { event.preventDefault(); const id = event.dataTransfer.getData('text/plain'); const activity = trip.days.flatMap((item) => item.activities).find((item) => String(item.id) === id); setDropTarget(null); if (!activity || moving) return; try { await moveActivity(activity, day.date); } catch { /* Error is shown above the board. */ } }}>
                 <div className="day-heading">
                   <h2><span>Day {day.dayNumber}</span> {formatDayHeading(day.date)}</h2>
+                  <label className="day-destination">Weather destination<select value={day.destinationId ?? ''} disabled={!online || writing} onChange={(event) => setDayDestination(day.date, Number(event.target.value))}>{trip.destinations.map((destination) => <option key={destination.id} value={destination.id}>{destination.name}</option>)}</select></label>
                   {addingOn !== day.date && <button className="text-button" type="button" onClick={() => beginAdd(day.date)}>+ Add activity</button>}
                 </div>
                 <ul className="activity-list board-cards">
                   {day.activities.map((activity) => renderActivity(activity))}
                   {day.activities.length === 0 && <li className="board-empty">No activities yet. Add one below.</li>}
                 </ul>
-                {addingOn === day.date && <div className="activity editing">
+                {addingOn === day.date && <div ref={addActivityFormRef} className="activity editing">
                   <ActivityForm date={day.date} days={trip.days} currencyCode={trip.currencyCode} onSubmit={addActivity} onCancel={() => setAddingOn(null)} />
                 </div>}
               </li>

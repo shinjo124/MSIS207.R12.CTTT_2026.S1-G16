@@ -1,35 +1,66 @@
-import { useEffect, useRef, useState } from 'react';
-import { calendarStartDate, formatDayHeading, todayInTimeZone } from './trip-format.js';
-import { minutesOfDay, shiftedTime, resizedDuration, calendarLanes, calendarDrop } from './calendar-math.js';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { calendarStartDate, categoryLabel, formatDayHeading, formatMoney, todayInTimeZone } from './trip-format.js';
+import { minutesOfDay, shiftedTime, resizedDuration, calendarLanes, calendarDrop, calendarWeather, timeRange } from './calendar-math.js';
 import WeatherPanel from '../dashboard/WeatherPanel.jsx';
 
 const HOUR_HEIGHT = 64;
+const TIP_WIDTH = 280;
 
-export default function TripCalendar({ trip, getToken, onUpdate, onEdit, onAdd, onInteractionChange, onWeatherEditingChange, disabled = false }) {
+function EventTip({ hover, currencyCode }) {
+  const { activity, rect } = hover;
+  const place = [activity.address, activity.city].filter(Boolean).join(', ');
+  const duration = activity.durationMinutes;
+  const left = rect.right + 10 + TIP_WIDTH <= window.innerWidth ? rect.right + 10 : Math.max(8, rect.left - 10 - TIP_WIDTH);
+  const top = Math.min(Math.max(8, rect.top), Math.max(8, window.innerHeight - 230));
+  return <div id={`calendar-tip-${activity.id}`} className="calendar-tip" role="tooltip" style={{ top, left, width: TIP_WIDTH }}>
+    <span className={`category-badge category-${activity.category}`}>{categoryLabel(activity.category)}</span>
+    <strong>{activity.title}</strong>
+    <p>{activity.time ? (duration ? `${timeRange(activity.time, duration)} · ${duration} min` : `${activity.time} · Duration not set`) : 'No time set'}</p>
+    {place && <p>{place}</p>}
+    <p>Planned {formatMoney(activity.plannedCost, currencyCode)} · {activity.actualSpend == null ? 'Actual not recorded' : `Actual ${formatMoney(activity.actualSpend, currencyCode)}`}</p>
+    {activity.note && <p className="calendar-tip-note">{activity.note}</p>}
+    {activity.visited && <p>✓ Visited</p>}
+    <small>Drag to move · drag the bottom edge to resize</small>
+  </div>;
+}
+
+export default function TripCalendar({ trip, getToken, onUpdate, onEdit, onAdd, onInteractionChange, onDestinationChange, disabled = false }) {
   const [date, setDate] = useState(() => calendarStartDate(trip));
   const [now, setNow] = useState(() => new Date());
   const [busy, setBusy] = useState(false);
   const [wide, setWide] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 641px)').matches);
   const [preview, setPreview] = useState(null);
+  const [weatherByDestination, setWeatherByDestination] = useState({});
   const [error, setError] = useState('');
+  const [pressed, setPressed] = useState(null);
+  const [hover, setHover] = useState(null);
   const scrollRef = useRef(null);
   const hoursRef = useRef(null);
   const gesture = useRef(null);
   const day = trip.days.find((item) => item.date === date) || trip.days[0];
   const today = todayInTimeZone(trip.timeZone, now);
-  const startIndex = Math.max(0, trip.days.findIndex((item) => item.date === day.date));
-  const visibleDays = trip.days.slice(startIndex, startIndex + (wide ? 3 : 1));
+  const columnCount = wide ? 3 : 1;
+  const startIndex = Math.min(Math.max(0, trip.days.findIndex((item) => item.date === day.date)), Math.max(0, trip.days.length - columnCount));
+  const visibleDays = trip.days.slice(startIndex, startIndex + columnCount);
+  const updateWeather = useCallback((destinationId, value) => setWeatherByDestination((current) => ({ ...current, [destinationId]: value })), []);
+  const weatherDestinations = [...new Set(visibleDays.map((item) => item.destinationId).filter(Boolean).map(String))];
 
   useEffect(() => { const media = window.matchMedia('(min-width: 641px)'); const change = () => setWide(media.matches); media.addEventListener('change', change); return () => media.removeEventListener('change', change); }, []);
-  useEffect(() => { if (disabled) { gesture.current = null; setPreview(null); onInteractionChange(false); } }, [disabled, onInteractionChange]);
+  useEffect(() => { if (disabled) { gesture.current = null; setPreview(null); setPressed(null); setHover(null); onInteractionChange(false); } }, [disabled, onInteractionChange]);
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = 8 * HOUR_HEIGHT; }, []);
   useEffect(() => { const timer = window.setInterval(() => setNow(new Date()), 60000); return () => window.clearInterval(timer); }, []);
   useEffect(() => () => onInteractionChange(false), [onInteractionChange]);
+  useEffect(() => {
+    if (!hover) return undefined;
+    const clear = () => setHover(null);
+    window.addEventListener('scroll', clear, true);
+    return () => window.removeEventListener('scroll', clear, true);
+  }, [hover]);
 
   async function save(activity, values) {
     setBusy(true);
     setError('');
-    try { await onUpdate(activity.id, { ...values, version: activity.version }); }
+    try { await onUpdate(activity.id, { ...values, version: activity.version }); if (values.date) setDate(values.date); }
     catch (err) { setError(err.message); }
     finally { setBusy(false); }
   }
@@ -40,12 +71,15 @@ export default function TripCalendar({ trip, getToken, onUpdate, onEdit, onAdd, 
     onInteractionChange(true);
     event.currentTarget.setPointerCapture(event.pointerId);
     gesture.current = { activity, mode, y: event.clientY, x: event.clientX };
+    setPressed({ id: activity.id, mode });
+    setHover(null);
   }
 
   function finishGesture(event) {
     const current = gesture.current;
     gesture.current = null;
     setPreview(null);
+    setPressed(null);
     onInteractionChange(false);
     if (!current || Math.hypot(event.clientY - current.y, event.clientX - current.x) < 4) return;
     const delta = (event.clientY - current.y) / HOUR_HEIGHT * 60;
@@ -71,16 +105,21 @@ export default function TripCalendar({ trip, getToken, onUpdate, onEdit, onAdd, 
     }
   }
 
-  function cancelGesture() { if (!gesture.current) return; gesture.current = null; setPreview(null); onInteractionChange(false); }
+  function cancelGesture() { if (!gesture.current) return; gesture.current = null; setPreview(null); setPressed(null); onInteractionChange(false); }
+  function showTip(event, activity) {
+    if (gesture.current) return;
+    if (event.type === 'pointerenter' ? event.pointerType !== 'mouse' : !event.target.matches?.(':focus-visible')) return;
+    const { top, left, right, bottom } = event.currentTarget.getBoundingClientRect();
+    setHover({ activity, rect: { top, left, right, bottom } });
+  }
   function moveGesture(event) { if (gesture.current) setPreview({ id: gesture.current.activity.id, mode: gesture.current.mode, x: event.clientX - gesture.current.x, delta: (event.clientY - gesture.current.y) / HOUR_HEIGHT * 60 }); }
 
   return <section className="trip-calendar" aria-labelledby="calendar-title">
-    <div className="calendar-heading"><div><h2 id="calendar-title">Calendar</h2><p>Drag an event to change its day or time, or drag its bottom edge to change its duration. Use Edit for precise or keyboard changes.</p></div><button className="primary-button" type="button" disabled={disabled || busy} onClick={() => onAdd(day.date)}>Add activity</button></div>
-    <div className="calendar-days" aria-label="Choose calendar day">{trip.days.map((item) => <button key={item.date} data-calendar-date={item.date} type="button" aria-pressed={day.date === item.date} aria-current={today === item.date ? 'date' : undefined} onClick={() => setDate(item.date)}>{today === item.date ? 'Today · ' : ''}{formatDayHeading(item.date)}</button>)}</div>
+    <div className="calendar-heading"><div><h2 id="calendar-title">Calendar</h2><p>Drag an event to change its day or time, or drag its bottom edge to change its duration. Use the activity button for precise or keyboard changes.</p></div><button className="primary-button" type="button" disabled={disabled || busy} onClick={() => onAdd(day.date)}>Add activity</button></div>
     {error && <p className="form-error" role="alert">{error}</p>}
     {busy && <p role="status">Saving calendar changes…</p>}
     <div className="calendar-navigation"><button type="button" disabled={startIndex === 0} onClick={() => setDate(trip.days[startIndex - 1].date)}>Previous</button><button type="button" disabled={startIndex + visibleDays.length >= trip.days.length} onClick={() => setDate(trip.days[startIndex + visibleDays.length].date)}>Next</button></div>
-    <div className="calendar-column-headings">{visibleDays.map((item) => <strong key={item.date}>{formatDayHeading(item.date)}</strong>)}</div>
+    <div className="calendar-column-headings">{visibleDays.map((item) => <div key={item.date}><button className="calendar-day-heading" type="button" aria-pressed={day.date === item.date} aria-current={today === item.date ? 'date' : undefined} onClick={() => setDate(item.date)}>{today === item.date ? 'Today · ' : ''}{formatDayHeading(item.date)}</button><label>Weather destination<select aria-label={`Weather destination for ${formatDayHeading(item.date)}`} value={item.destinationId ?? ''} disabled={disabled || busy} onChange={(event) => onDestinationChange(item.date, Number(event.target.value))}>{trip.destinations.map((destination) => <option key={destination.id} value={destination.id}>{destination.name}</option>)}</select></label></div>)}</div>
     <div className="calendar-scroll" ref={scrollRef} aria-label="Calendar schedule">
       <div ref={hoursRef} className="calendar-hours" style={{ height: 24 * HOUR_HEIGHT }}>
         {Array.from({ length: 24 }, (_, hour) => <div className="calendar-hour" key={hour} style={{ top: hour * HOUR_HEIGHT }}><span>{String(hour).padStart(2, '0')}:00</span></div>)}
@@ -95,16 +134,25 @@ export default function TripCalendar({ trip, getToken, onUpdate, onEdit, onAdd, 
           const end = start + duration;
           const { lane, columns } = lanes.get(activity.id);
           const width = 100 / columns;
-          return <div key={activity.id} className="calendar-event" style={{ top: start / 60 * HOUR_HEIGHT, height: Math.max(32, Math.min(duration, 1440 - start) / 60 * HOUR_HEIGHT), left: `${lane / columns * 100}%`, width: `calc(${width}% - 3px)`, transform: change?.mode === 'move' ? `translateX(${change.x}px)` : undefined, pointerEvents: change ? 'none' : undefined, zIndex: change ? 100 : index + 1 }}>
-            <div className="calendar-event-drag" onPointerDown={(event) => startGesture(event, activity, 'move')} onPointerMove={moveGesture} onPointerUp={finishGesture} onPointerCancel={cancelGesture} onLostPointerCapture={cancelGesture}><strong>{activity.title}</strong><span>{time} · {activity.durationMinutes ? `${duration} min` : 'Duration not set'}{end > 1440 ? ' · continues next day' : ''}</span></div>
-            <button type="button" className="calendar-edit" onClick={() => onEdit(activity)} disabled={busy || disabled} aria-label={`Edit ${activity.title}`}>Edit</button>
-            <div className="calendar-resize" aria-hidden="true" onPointerDown={(event) => startGesture(event, activity, 'resize')} onPointerMove={moveGesture} onPointerUp={finishGesture} onPointerCancel={cancelGesture} onLostPointerCapture={cancelGesture} />
+          const forecast = calendarWeather(weatherByDestination[column.destinationId], weatherByDestination[column.destinationId]?.location?.timeZone, column.date);
+          const rain = forecast && /rain|drizzle|thunder|snow/i.test(forecast.description);
+          const clear = forecast && /clear/i.test(forecast.description);
+          const active = change || (pressed?.id === activity.id ? pressed : null);
+          const showRange = Boolean(activity.durationMinutes) || change?.mode === 'resize';
+          return <div key={activity.id} className={`calendar-event event-cat-${activity.category}${active ? (active.mode === 'resize' ? ' is-resizing' : ' is-moving') : ''}`} onPointerEnter={(event) => showTip(event, activity)} onPointerLeave={() => setHover(null)} onFocus={(event) => showTip(event, activity)} onBlur={() => setHover(null)} style={{ top: start / 60 * HOUR_HEIGHT, height: Math.max(32, Math.min(duration, 1440 - start) / 60 * HOUR_HEIGHT), left: `${lane / columns * 100}%`, width: `calc(${width}% - 3px)`, transform: change?.mode === 'move' ? `translateX(${change.x}px)` : undefined, pointerEvents: change ? 'none' : undefined, zIndex: change ? 100 : index + 1 }}>
+            <div className="calendar-event-drag" onPointerDown={(event) => startGesture(event, activity, 'move')} onPointerMove={moveGesture} onPointerUp={finishGesture} onPointerCancel={cancelGesture} onLostPointerCapture={cancelGesture}><strong>{activity.title}</strong>{forecast && <span className="calendar-event-weather" title={`Daily forecast for ${weatherByDestination[column.destinationId].location.destinationName}: ${forecast.description}, ${Math.round(forecast.temperature)}°C`} aria-label={`Daily forecast for ${weatherByDestination[column.destinationId].location.destinationName}: ${forecast.description}, ${Math.round(forecast.temperature)} degrees Celsius`}><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{clear ? <><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M19 5l-1.5 1.5m-11 11L5 19"/></> : <><path d="M6 17a4 4 0 0 1-.3-8 6.5 6.5 0 0 1 12.6 1A3.5 3.5 0 0 1 18 17H6Z"/>{rain && <path d="m9 19-1 2m5-2-1 2m5-2-1 2"/>}</>}</svg>{Math.round(forecast.temperature)}°</span>}<span>{showRange ? `${timeRange(time, duration)} · ${duration} min` : `${time} · Duration not set`}{end > 1440 ? ' · continues next day' : ''}</span></div>
+            <button type="button" className="calendar-edit" onClick={() => onEdit(activity)} disabled={busy || disabled} aria-label={`Edit ${activity.title}`} title={`Edit ${activity.title}`} aria-describedby={hover?.activity.id === activity.id ? `calendar-tip-${activity.id}` : undefined}><svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>
+            <div className="calendar-resize" aria-hidden="true" title="Drag to change duration" onPointerDown={(event) => startGesture(event, activity, 'resize')} onPointerMove={moveGesture} onPointerUp={finishGesture} onPointerCancel={cancelGesture} onLostPointerCapture={cancelGesture}><span /></div>
           </div>;
         })}</div>;
         })}</div>
       </div>
     </div>
-    <div className="calendar-unscheduled-columns">{visibleDays.map((column) => <section key={column.date} className="calendar-unscheduled" data-calendar-date={column.date} data-calendar-unscheduled><h3>{formatDayHeading(column.date)} · Not scheduled</h3>{column.activities.some((activity) => !activity.time) ? <ul>{column.activities.filter((activity) => !activity.time).map((activity) => <li key={activity.id}><span className="calendar-unscheduled-drag" onPointerDown={(event) => startGesture(event, activity, 'unscheduled')} onPointerMove={moveGesture} onPointerUp={finishGesture} onPointerCancel={cancelGesture} onLostPointerCapture={cancelGesture}>{activity.title}</span><button className="text-button" type="button" disabled={busy || disabled} onClick={() => onEdit(activity)}>Set time</button></li>)}</ul> : <p>All activities have a time.</p>}</section>)}</div>
-    <WeatherPanel trip={trip} getToken={getToken} date={day.date} onEditingChange={onWeatherEditingChange} />
+    <div className="calendar-unscheduled-columns">{visibleDays.map((column) => <section key={column.date} className="calendar-unscheduled" data-calendar-date={column.date} data-calendar-unscheduled><h3>{formatDayHeading(column.date)} · Not scheduled</h3>{column.activities.some((activity) => !activity.time) ? <ul>{column.activities.filter((activity) => !activity.time).map((activity) => <li key={activity.id}><span className="calendar-unscheduled-drag" title="Drag onto the calendar to set a time" onPointerDown={(event) => startGesture(event, activity, 'unscheduled')} onPointerMove={moveGesture} onPointerUp={finishGesture} onPointerCancel={cancelGesture} onLostPointerCapture={cancelGesture}>{activity.title}</span><button className="text-button" type="button" disabled={busy || disabled} onClick={() => onEdit(activity)}>Set time</button></li>)}</ul> : <p>All activities have a time.</p>}</section>)}</div>
+    {hover && !pressed && !preview && <EventTip hover={hover} currencyCode={trip.currencyCode} />}
+    {weatherDestinations.map((destinationId) => {
+      const matchingDay = visibleDays.find((item) => String(item.destinationId) === String(destinationId));
+      return <WeatherPanel key={`${trip.id}-${destinationId}`} trip={trip} getToken={getToken} date={matchingDay.date} destinationId={destinationId} hidden={String(day.destinationId) !== String(destinationId)} onWeatherChange={updateWeather} />;
+    })}
   </section>;
 }

@@ -102,6 +102,7 @@ async function loadTripDetail(tripId, userId, db = pool) {
      WHERE a.trip_id = ? ORDER BY a.activity_date, a.start_time IS NULL, a.start_time, a.id`,
     [trip.id],
   );
+  const [plannedRows] = await db.execute('SELECT CAST(COALESCE(SUM(planned_cost), 0) AS CHAR) AS plannedTotal FROM activities WHERE trip_id = ?', [trip.id]);
   const activitiesByDate = new Map();
   for (const row of activityRows) {
     activitiesByDate.set(row.date, [...(activitiesByDate.get(row.date) || []), shapeActivity(row)]);
@@ -111,9 +112,23 @@ async function loadTripDetail(tripId, userId, db = pool) {
   const days = listDates(trip.startDate, trip.endDate).map((date, index) => ({
     dayNumber: index + 1,
     date,
+    destinationId: null,
     activities: activitiesByDate.get(date) || [],
   }));
-  return { ...trip, destinations, days, budgetSummary: summarizeBudget(trip.budget, activityRows) };
+  let dayDestinations = [];
+  try {
+    [dayDestinations] = await db.execute(
+      'SELECT DATE_FORMAT(activity_date, \'%Y-%m-%d\') AS date, destination_id AS destinationId FROM trip_day_destinations WHERE trip_id = ?',
+      [trip.id],
+    );
+  } catch (error) {
+    if (!/no such table|doesn't exist/i.test(error.message)) throw error;
+    // shortcut: before migration 015, every day uses the trip's first destination; apply 015 before enabling assignment writes.
+  }
+  const firstDestinationId = destinations[0]?.id ?? null;
+  const destinationByDate = new Map(dayDestinations.map(({ date, destinationId }) => [date, Number(destinationId)]));
+  for (const day of days) day.destinationId = destinationByDate.get(day.date) ?? firstDestinationId;
+  return { ...trip, destinations, days, budgetSummary: { ...summarizeBudget(trip.budget, activityRows), plannedTotal: plannedRows[0].plannedTotal } };
 }
 
 router.get('/', signedIn, async (req, res, next) => {
@@ -267,6 +282,33 @@ router.get('/:tripId/version', signedIn, async (req, res, next) => {
     }
   } catch (error) { if (!controller.signal.aborted) next(error); }
   finally { res.off('close', cancel); }
+});
+
+router.put('/:tripId/days/:date/destination', signedIn, async (req, res, next) => {
+  const tripId = parseId(req.params.tripId);
+  const destinationId = parseId(req.body?.destinationId);
+  const date = req.params.date;
+  if (!tripId || !destinationId || !parseDate(date)) return sendError(res, { status: 400, code: 'INVALID_DAY_DESTINATION', message: 'Choose a valid trip day and destination.' });
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const trip = await findEditableTrip(connection, tripId, req.userId, true);
+    if (!trip) { await connection.rollback(); return sendError(res, TRIP_NOT_FOUND); }
+    if (date < trip.startDate || date > trip.endDate) {
+      await connection.rollback();
+      return sendError(res, { status: 400, code: 'DATE_OUTSIDE_TRIP', message: 'Choose a date within the trip.' });
+    }
+    const [destinations] = await connection.execute('SELECT destination_id FROM trip_destinations WHERE trip_id = ? AND destination_id = ?', [tripId, destinationId]);
+    if (!destinations.length) {
+      await connection.rollback();
+      return sendError(res, { status: 400, code: 'DESTINATION_NOT_IN_TRIP', message: 'Choose a destination from this trip.' });
+    }
+    await connection.execute('INSERT INTO trip_day_destinations (trip_id, activity_date, destination_id) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE destination_id = VALUES(destination_id)', [tripId, date, destinationId]);
+    await connection.execute('UPDATE trips SET revision = revision + 1 WHERE id = ?', [tripId]);
+    await connection.commit();
+    res.json({ data: { date, destinationId } });
+  } catch (error) { await connection.rollback().catch(() => {}); next(error); }
+  finally { connection.release(); }
 });
 
 router.get('/:tripId', signedIn, async (req, res, next) => {

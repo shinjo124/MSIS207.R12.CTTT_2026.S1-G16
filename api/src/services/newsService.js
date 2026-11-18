@@ -42,7 +42,11 @@ export async function getNews() {
     return parseFeed(Buffer.concat(chunks).toString('utf8'), source);
   }));
   const articles = results.flatMap((result) => result.status === 'fulfilled' ? result.value : []).sort((a, b) => (b.publishedAt || '').localeCompare(a.publishedAt || '')).slice(0, 10);
-  if (!articles.length) return { status: 'sample', articles: [{ title: 'Khám phá điểm đến Việt Nam', summary: 'Dữ liệu minh họa: tin du lịch sẽ xuất hiện khi nguồn RSS khả dụng.', url: 'https://vnexpress.net/du-lich', source: 'Dữ liệu mẫu', publishedAt: null }] };
+  if (!articles.length) {
+    cached = { status: 'unavailable', articles: [] };
+    expiresAt = Date.now() + 600000;
+    return cached;
+  }
   cached = { status: 'live', articles };
   expiresAt = Date.now() + 600000;
   return cached;

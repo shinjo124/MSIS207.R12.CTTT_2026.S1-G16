@@ -94,7 +94,7 @@ export default function DestinationPicker({
 
   function choose(destination) {
     if (!destination || full) return;
-    onChange([...selected, { id: destination.id, name: displayName(destination) }]);
+    onChange([...selected, { id: destination.id, name: displayName(destination), country: destination.country, timeZone: destination.timeZone }]);
     setQuery('');
     setActive(0);
     setOpen(!single);

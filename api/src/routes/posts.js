@@ -131,6 +131,10 @@ router.post('/', requireAuth, requireLocalProfile, postWriteLimit, (req, res, ne
     });
   }
 
+  if (/([^\p{L}\p{N}\s])\1{2,}/u.test(body)) {
+    return res.status(400).json({ error: { code: 'INVALID_POST_TEXT', message: 'Please remove repeated punctuation from the story text.' } });
+  }
+
   if (req.file) {
     const fileType = await fileTypeFromBuffer(req.file.buffer);
     if (!fileType || !ALLOWED_TYPES.has(fileType.mime)) {

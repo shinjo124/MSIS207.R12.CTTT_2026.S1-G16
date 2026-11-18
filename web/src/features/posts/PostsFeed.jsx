@@ -3,6 +3,7 @@ import { apiRequest } from '../../lib/api.js';
 import { feedImageSources } from '../../lib/cloudinary-image.js';
 import DestinationPicker from '../trips/DestinationPicker.jsx';
 import { displayName } from '../trips/destination-search.js';
+import { formatDateTime } from '../trips/trip-format.js';
 import '../trips/trips.css';
 
 export function StoryImage({ photo, priority }) {
@@ -325,7 +326,7 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
       {status === 'ready' && <div className="story-grid">
         {posts.map((post, index) => (
           <article className="story-card" key={post.id}>
-            <div className="story-author"><span className="story-avatar" aria-hidden="true">{post.author?.trim().charAt(0).toUpperCase() || '?'}</span><p className="story-byline">{post.author} <span>{new Date(post.createdAt).toLocaleDateString()}</span></p></div>
+            <div className="story-author"><span className="story-avatar" aria-hidden="true">{post.author?.trim().charAt(0).toUpperCase() || '?'}</span><p className="story-byline">{post.author} <span>{formatDateTime(post.createdAt, { dateStyle: 'medium' })}</span></p></div>
             <StoryGallery photos={post.photos} priority={index === 0} />
             <p className="story-body">{post.body}</p>
             <div className="story-actions">

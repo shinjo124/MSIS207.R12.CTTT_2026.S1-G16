@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import DestinationPicker from './DestinationPicker.jsx';
-import { CURRENCIES, countDays } from './trip-format.js';
+import { CURRENCIES, countDays, destinationTimeZone } from './trip-format.js';
 
-function initialValues(trip) {
+const TIME_ZONES = [['Asia/Ho_Chi_Minh', 'Vietnam'], ['Asia/Bangkok', 'Thailand'], ['Asia/Singapore', 'Singapore'], ['Asia/Tokyo', 'Japan'], ['Asia/Seoul', 'South Korea'], ['Europe/London', 'United Kingdom'], ['Europe/Paris', 'Central Europe'], ['America/Los_Angeles', 'US Pacific'], ['America/New_York', 'US Eastern']];
+
+function initialValues(trip, initialDestination) {
   if (trip) {
     return {
       title: trip.title,
-      destinations: trip.destinations.map(({ id, name }) => ({ id, name })),
+      destinations: trip.destinations.map(({ id, name, country, timeZone }) => ({ id, name, country, timeZone })),
       startDate: trip.startDate,
       endDate: trip.endDate,
       groupSize: String(trip.groupSize),
@@ -15,7 +17,7 @@ function initialValues(trip) {
       timeZone: trip.timeZone || '',
     };
   }
-  return { title: '', destinations: [], startDate: '', endDate: '', groupSize: '2', currencyCode: 'VND', budget: '', timeZone: '' };
+  return { title: '', destinations: initialDestination ? [initialDestination] : [], startDate: '', endDate: '', groupSize: '2', currencyCode: 'VND', budget: '', timeZone: destinationTimeZone(initialDestination) || 'Asia/Ho_Chi_Minh' };
 }
 
 // Same rules as the API; the server still validates every request.
@@ -31,8 +33,8 @@ function validate(values) {
   return '';
 }
 
-export default function TripForm({ trip = null, submitLabel, onSubmit, onCancel }) {
-  const [values, setValues] = useState(() => initialValues(trip));
+export default function TripForm({ trip = null, initialDestination = null, submitLabel, onSubmit, onCancel }) {
+  const [values, setValues] = useState(() => initialValues(trip, initialDestination));
   const [revision] = useState(() => trip?.revision);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -41,13 +43,15 @@ export default function TripForm({ trip = null, submitLabel, onSubmit, onCancel 
   const destinationsChanged = Boolean(trip) && values.destinations.map((item) => item.id).join(',') !== trip.destinations.map((item) => item.id).join(',');
   const zone = values.timeZone.trim();
   const zoneChanged = zone !== (trip?.timeZone || '') || Boolean(zone && destinationsChanged);
+  const automaticZone = zone && zone === destinationTimeZone(values.destinations[0]);
 
   const update = (field) => (event) => setValues((current) => ({ ...current, [field]: event.target.value }));
 
   async function handleSubmit(event) {
     event.preventDefault();
     let problem = validate(values);
-    if (!problem && zoneChanged && zone && !zoneConfirmed) problem = 'Confirm that the time zone matches the trip destinations.';
+    if (!problem && !zone) problem = 'Set a time zone for the first destination.';
+    if (!problem && zoneChanged && zone && !zoneConfirmed && !automaticZone) problem = 'Confirm that the time zone matches the trip destinations.';
     setError(problem);
     if (problem) return;
 
@@ -62,7 +66,7 @@ export default function TripForm({ trip = null, submitLabel, onSubmit, onCancel 
         groupSize: Number(values.groupSize),
         currencyCode: values.currencyCode,
         budget: values.budget.trim(),
-        ...(zoneChanged ? { timeZone: zone || null, timeZoneConfirmed: zoneConfirmed } : {}),
+        ...(zoneChanged ? { timeZone: zone || null, timeZoneConfirmed: Boolean(zoneConfirmed || automaticZone) } : {}),
       });
     } catch (submitError) {
       setError(submitError.message);
@@ -80,15 +84,17 @@ export default function TripForm({ trip = null, submitLabel, onSubmit, onCancel 
         <legend>Destinations <span>(type to search, pick in visiting order)</span></legend>
         <DestinationPicker
           selected={values.destinations}
-          onChange={(destinations) => { setZoneConfirmed(false); setValues((current) => ({ ...current, destinations })); }}
+          onChange={(destinations) => { setZoneConfirmed(false); setValues((current) => ({ ...current, destinations, timeZone: current.destinations[0]?.id !== destinations[0]?.id ? (destinations.length ? destinationTimeZone(destinations[0]) || '' : 'Asia/Ho_Chi_Minh') : current.timeZone })); }}
         />
       </fieldset>
 
-      <label className="field field-wide">Trip time zone (IANA)
-        <input value={values.timeZone} onChange={(event) => { setZoneConfirmed(false); update('timeZone')(event); }} placeholder="Asia/Ho_Chi_Minh" />
-        <span>Use the destination time zone. Leave blank if you are unsure; activity times will not be converted.</span>
+      <label className="field field-wide">Trip time zone
+        <select value={values.timeZone} onChange={(event) => { setZoneConfirmed(false); update('timeZone')(event); }}>
+          {[...new Set([...TIME_ZONES.map(([zone]) => zone), values.timeZone])].filter(Boolean).map((zone) => <option key={zone} value={zone}>{TIME_ZONES.find(([value]) => value === zone)?.[1] || zone.replaceAll('_', ' ')}</option>)}
+        </select>
+        <span>Starts with the first destination's time zone. You can change it manually.</span>
       </label>
-      {zoneChanged && zone && <label className="field-wide"><input type="checkbox" checked={zoneConfirmed} onChange={(event) => setZoneConfirmed(event.target.checked)} /> I confirm this time zone matches the trip destinations.</label>}
+      {zoneChanged && zone && !automaticZone && <label className="field-wide"><input type="checkbox" checked={zoneConfirmed} onChange={(event) => setZoneConfirmed(event.target.checked)} /> I confirm this time zone matches the trip destinations.</label>}
 
       <label className="field">Start date
         <input type="date" value={values.startDate} onChange={update('startDate')} required />
