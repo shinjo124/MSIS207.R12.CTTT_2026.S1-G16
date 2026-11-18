@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../../lib/api.js';
-import { categoryLabel, formatDate, formatDayHeading, formatMoney } from './trip-format.js';
+import { categoryLabel, formatDate, formatDayHeading, formatMoney, timeZoneLabel, withDefaultTimeZone } from './trip-format.js';
 
 export default function SharedTrip({ token }) {
   const [trip, setTrip] = useState(null);
@@ -10,7 +10,7 @@ export default function SharedTrip({ token }) {
     const controller = new AbortController();
     apiRequest(`/share/${encodeURIComponent(token)}`, { signal: controller.signal })
       .then((result) => {
-        setTrip(result.data);
+        setTrip(withDefaultTimeZone(result.data));
         setStatus('ready');
       })
       .catch(() => {
@@ -34,8 +34,7 @@ export default function SharedTrip({ token }) {
     <article className="shared-trip">
       <p className="eyebrow">A TRIPO SHARED TRIP</p>
       <h1>{trip.title}</h1>
-      <p>{formatDate(trip.startDate)} – {formatDate(trip.endDate)}{dayCount ? <> <span>·</span> {dayCount} {dayCount === 1 ? 'day' : 'days'}</> : null} <span>·</span> {trip.groupSize} {trip.groupSize === 1 ? 'traveler' : 'travelers'}</p>
-      <p>{trip.timeZone ? `Trip times use ${trip.timeZone}.` : 'Trip time zone is not set; activity times are shown without conversion.'}</p>
+      <p>{formatDate(trip.startDate)} – {formatDate(trip.endDate)}{dayCount ? <> <span>·</span> {dayCount} {dayCount === 1 ? 'day' : 'days'}</> : null} <span>·</span> {trip.groupSize} {trip.groupSize === 1 ? 'traveler' : 'travelers'} <span>·</span> {timeZoneLabel(trip.timeZone)}</p>
       <p className="shared-budget">Budget {formatMoney(trip.budget, trip.currencyCode)}</p>
       <h2>Destinations</h2>
       <ul>{trip.destinations.map((place) => (

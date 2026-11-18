@@ -9,6 +9,11 @@ servers:
   - url: http://localhost:4000
     description: Local development
 paths:
+  /api/news:
+    get:
+      summary: Read cached travel headlines from the configured RSS sources
+      responses:
+        '200': { description: Articles with source metadata, or an unavailable status when feeds fail }
   /api/health:
     get:
       summary: Check API and database availability
@@ -151,19 +156,53 @@ paths:
         '404': { description: Trip unavailable or caller has no access }
   /api/trips/{tripId}/weather:
     get:
-      summary: Read configured trip weather from OpenWeather
-      description: Requires trip access. Forecasts are 3-hour samples selected near noon on each destination-local date, not daily highs or lows.
+      summary: Read weather for a trip day or destination from OpenWeather
+      description: Requires trip access. Forecasts are 3-hour samples selected near noon on each destination-local date, not daily highs or lows. If destinationId is supplied it must belong to the trip; otherwise date selects that day's destination assignment.
       security: [{ bearerAuth: [] }]
       parameters:
         - in: path
           name: tripId
           required: true
           schema: { type: integer, minimum: 1 }
+        - in: query
+          name: date
+          schema: { type: string, format: date }
+          description: Trip day whose assigned destination supplies the forecast; defaults to the trip start date.
+        - in: query
+          name: destinationId
+          schema: { type: integer, minimum: 1 }
+          description: Optional trip destination to use when one forecast covers multiple visible days.
       responses:
         '200': { description: Status is not-configured, missing-location, or available with current conditions and dated forecast samples }
         '404': { description: Trip unavailable or caller has no access }
         '429': { description: Weather rate limit reached }
         '503': { description: Weather provider unavailable }
+  /api/trips/{tripId}/days/{date}/destination:
+    put:
+      summary: Assign one of the trip destinations to a trip day
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: tripId
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - in: path
+          name: date
+          required: true
+          schema: { type: string, format: date }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [destinationId]
+              properties:
+                destinationId: { type: integer, minimum: 1 }
+      responses:
+        '200': { description: Day destination updated; trip revision advances }
+        '400': { description: Invalid date or destination is not part of the trip }
+        '404': { description: Trip unavailable or caller has no access }
   /api/trips/{tripId}/version:
     get:
       summary: Get the current revision of an accessible trip
@@ -902,6 +941,7 @@ components:
               type: object
               properties:
                 budget: { $ref: '#/components/schemas/Money' }
+                plannedTotal: { $ref: '#/components/schemas/MoneySummary' }
                 totalActualSpend: { $ref: '#/components/schemas/MoneySummary' }
                 remainingBudget:
                   allOf: [{ $ref: '#/components/schemas/MoneySummary' }]
@@ -923,6 +963,7 @@ components:
                 properties:
                   dayNumber: { type: integer }
                   date: { type: string, format: date }
+                  destinationId: { type: integer, format: int64, nullable: true }
                   activities: { type: array, items: { $ref: '#/components/schemas/Activity' } }
     ActivityInput:
       type: object

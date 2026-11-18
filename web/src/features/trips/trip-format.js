@@ -11,6 +11,22 @@ export const CURRENCIES = ['VND', 'USD', 'EUR', 'JPY', 'KRW', 'THB', 'SGD'];
 
 export const categoryLabel = (value) => CATEGORIES.find((item) => item.value === value)?.label || value;
 
+// shortcut: only Vietnam has a reliable country-wide zone; use destination zone metadata when available.
+export function destinationTimeZone(destination) {
+  return destination?.timeZone || (destination?.country?.trim().toLowerCase() === 'vietnam' ? 'Asia/Ho_Chi_Minh' : null);
+}
+
+export function timeZoneLabel(timeZone) {
+  if (!timeZone) return 'Time zone not set';
+  try { return new Intl.DateTimeFormat('en', { timeZone, timeZoneName: 'longGeneric' }).formatToParts(new Date()).find(({ type }) => type === 'timeZoneName')?.value || 'Local time'; }
+  catch { return 'Local time'; }
+}
+
+export function withDefaultTimeZone(trip) {
+  const fallback = destinationTimeZone(trip.destinations?.[0]);
+  return trip.timeZone || !fallback ? trip : { ...trip, timeZone: fallback, timeZoneDefaulted: true };
+}
+
 // Treat YYYY-MM-DD as a calendar date in UTC so the browser's time zone never shifts it.
 const toUtc = (date) => new Date(`${date}T00:00:00Z`);
 
@@ -22,6 +38,16 @@ export function countDays(startDate, endDate) {
 
 export function formatDate(date, options = { day: 'numeric', month: 'short', year: 'numeric' }) {
   return new Intl.DateTimeFormat('en-GB', { ...options, timeZone: 'UTC' }).format(toUtc(date));
+}
+
+export function formatDateTime(value, options = { dateStyle: 'medium', timeStyle: 'short' }, timeZone) {
+  return new Intl.DateTimeFormat('en-GB', { ...options, ...(timeZone ? { timeZone } : {}) }).format(new Date(value));
+}
+
+export function addDays(date, days) {
+  const value = toUtc(date);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
 }
 
 export function formatDayHeading(date) {

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { shiftedTime, resizedDuration, calendarLanes, calendarDrop } from '../src/features/trips/calendar-math.js';
+import { shiftedTime, resizedDuration, calendarLanes, calendarDrop, calendarWeather, timeRange } from '../src/features/trips/calendar-math.js';
 
 test('moving across days changes both date and time', () => {
   assert.deepEqual(calendarDrop({ date: '2026-01-01', time: '09:00' }, '2026-01-02', 75), { date: '2026-01-02', time: '10:15' });
@@ -33,4 +33,16 @@ test('overlapping events keep separate lanes even across chained overlaps', () =
   assert.notEqual(layout.get(1).lane, layout.get(2).lane);
   assert.notEqual(layout.get(1).lane, layout.get(3).lane);
   assert.equal(layout.get(1).columns, 2);
+});
+test('calendar weather follows the event date and only uses matching, available forecasts', () => {
+  const weather = { status: 'available', location: { timeZone: 'Asia/Ho_Chi_Minh', destinationName: 'Hoi An' }, forecast: [{ date: '2026-11-18', description: 'clear sky', temperature: 25 }, { date: '2026-11-19', description: 'light rain', temperature: 23 }] };
+  assert.equal(calendarWeather(weather, 'Asia/Ho_Chi_Minh', '2026-11-19').description, 'light rain');
+  assert.equal(calendarWeather(weather, 'Asia/Ho_Chi_Minh', '2026-11-20'), null);
+  assert.equal(calendarWeather(weather, 'Asia/Tokyo', '2026-11-19'), null);
+  assert.equal(calendarWeather({ ...weather, status: 'missing-location' }, 'Asia/Ho_Chi_Minh', '2026-11-19'), null);
+});
+
+test('time range shows the end time and stops at midnight', () => {
+  assert.equal(timeRange('09:00', 75), '09:00–10:15');
+  assert.equal(timeRange('23:30', 120), '23:30–24:00');
 });

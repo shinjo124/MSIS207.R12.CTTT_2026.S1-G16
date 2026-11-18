@@ -17,10 +17,11 @@ export function summarizeBudget(budget, activities) {
   const categoryCents = new Map();
 
   for (const activity of activities) {
-    if (activity.actualSpend == null) continue;
-    const cents = toCents(activity.actualSpend);
-    totalCents += cents;
-    categoryCents.set(activity.category, (categoryCents.get(activity.category) || 0n) + cents);
+    if (activity.actualSpend != null) {
+      const cents = toCents(activity.actualSpend);
+      totalCents += cents;
+      categoryCents.set(activity.category, (categoryCents.get(activity.category) || 0n) + cents);
+    }
   }
 
   return {

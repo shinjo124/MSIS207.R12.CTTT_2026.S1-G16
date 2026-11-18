@@ -14,6 +14,7 @@ import photosRouter from './routes/photos.js';
 import tripsRouter from './routes/trips.js';
 import activitiesRouter from './routes/activities.js';
 import weatherRouter from './routes/weather.js';
+import newsRouter from './routes/news.js';
 import { isTripSyncRequest, tripSyncKey } from './services/trip-sync-limit.js';
 
 const app = express();
@@ -101,6 +102,7 @@ app.get('/api/health', async (_req, res) => {
 });
 
 app.use('/api/destinations', destinationsRouter);
+app.use('/api/news', newsRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/trips', tripsRouter);
 app.use('/api', activitiesRouter);

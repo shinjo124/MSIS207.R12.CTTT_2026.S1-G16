@@ -18,7 +18,8 @@ router.get('/', async (req, res, next) => {
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const [rows] = await pool.execute(
       `SELECT id, name, local_name AS localName, aliases, is_featured AS featured, country, region, category,
-              summary, best_season AS bestSeason, map_query AS mapQuery, image_url AS imageUrl
+              summary, best_season AS bestSeason, map_query AS mapQuery, image_url AS imageUrl,
+              latitude, longitude, time_zone AS timeZone
        FROM destinations ${where} ORDER BY name`,
       params,
     );

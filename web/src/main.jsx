@@ -2,13 +2,32 @@ import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ClerkProvider, SignIn, SignUp, useAuth } from '@clerk/react';
 import App from './App.jsx';
+import '@fontsource-variable/dm-sans';
 import { apiRequest } from './lib/api.js';
 import { INVITATION_RETURN_KEY, INVITATION_STORAGE_KEY } from './features/trips/invitation.js';
 import './styles.css';
 
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
-function AuthenticatedApp({ path }) {
+const TAB_PATHS = ['/', '/trips', '/explore', '/stories'];
+
+function AuthenticatedPages({ path, search, ...props }) {
+  const [visitedPaths, setVisitedPaths] = useState(() => TAB_PATHS.includes(path) ? [path] : []);
+  const paths = TAB_PATHS.includes(path) && !visitedPaths.includes(path) ? [...visitedPaths, path] : visitedPaths;
+
+  useEffect(() => {
+    if (TAB_PATHS.includes(path)) setVisitedPaths((current) => current.includes(path) ? current : [...current, path]);
+  }, [path]);
+
+  return <>
+    {paths.map((tabPath) => <div key={tabPath} hidden={tabPath !== path}>
+      <App path={tabPath} search={tabPath === path ? search : ''} active={tabPath === path} {...props} />
+    </div>)}
+    {!TAB_PATHS.includes(path) && <App path={path} search={search} active {...props} />}
+  </>;
+}
+
+function AuthenticatedApp({ path, search }) {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const [profileStatus, setProfileStatus] = useState('signed-out');
   const [profileError, setProfileError] = useState('');
@@ -46,7 +65,7 @@ function AuthenticatedApp({ path }) {
     return () => controller.abort();
   }, [getToken, isLoaded, isSignedIn, userId]);
 
-  return <App path={path} key={userId || 'guest'} getToken={getToken} isSignedIn={isLoaded && Boolean(isSignedIn)} profileStatus={isLoaded ? profileStatus : 'loading'} profileError={profileError} />;
+  return <AuthenticatedPages key={userId || 'guest'} path={path} search={search} getToken={getToken} isSignedIn={isLoaded && Boolean(isSignedIn)} profileStatus={isLoaded ? profileStatus : 'loading'} profileError={profileError} />;
 }
 
 function AuthPage({ signUp }) {
@@ -64,9 +83,9 @@ function AuthPage({ signUp }) {
 }
 
 function AppRoot() {
-  const [path, setPath] = useState(window.location.pathname);
+  const [path, setPath] = useState(() => `${window.location.pathname}${window.location.search}`);
   useEffect(() => {
-    const updatePath = () => setPath(window.location.pathname);
+    const updatePath = () => setPath(`${window.location.pathname}${window.location.search}`);
     const followLink = (event) => {
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       const link = event.target.closest('a[href]');
@@ -82,9 +101,11 @@ function AppRoot() {
     document.addEventListener('click', followLink);
     return () => { window.removeEventListener('popstate', updatePath); document.removeEventListener('click', followLink); };
   }, []);
-  if (path === '/sign-up' || path.startsWith('/sign-up/')) return <AuthPage signUp />;
-  if (path === '/sign-in' || path.startsWith('/sign-in/')) return <AuthPage />;
-  return <AuthenticatedApp path={path} />;
+  const url = new URL(path, window.location.origin);
+  const pathname = url.pathname.replace(/\/+$/, '') || '/';
+  if (pathname === '/sign-up' || pathname.startsWith('/sign-up/')) return <AuthPage signUp />;
+  if (pathname === '/sign-in' || pathname.startsWith('/sign-in/')) return <AuthPage />;
+  return <AuthenticatedApp path={pathname} search={url.search} />;
 }
 
 createRoot(document.getElementById('root')).render(

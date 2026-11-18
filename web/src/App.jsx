@@ -29,7 +29,7 @@ export function Topbar({ getToken, active, isSignedIn }) {
   );
 }
 
-// Each route is chosen once per page load (links do full navigations), so the hook order stays stable.
+// Keep the URL route separate from its query string so cached tabs can retain their state.
 export default function App(props) {
   const path = (props.path || window.location.pathname).replace(/\/+$/, '') || '/';
   const shareToken = path.match(/^\/share\/([a-f0-9]{64})$/)?.[1];
@@ -51,10 +51,11 @@ export default function App(props) {
   if (tripId) {
     return <main className="page-shell"><Topbar getToken={props.getToken} isSignedIn={props.isSignedIn} active="trip-detail" /><Suspense fallback={<p role="status">Loading…</p>}><TripDetail key={tripId} tripId={tripId} {...props} /></Suspense></main>;
   }
-  return <HomePage {...props} page={path === '/explore' ? 'explore' : path === '/stories' ? 'stories' : 'home'} />;
+  if (path === '/' || path === '/explore' || path === '/stories') return <HomePage {...props} page={path === '/explore' ? 'explore' : path === '/stories' ? 'stories' : 'home'} />;
+  return <main className="page-shell"><Topbar getToken={props.getToken} isSignedIn={props.isSignedIn} /><section className="panel empty-panel"><h1>Page not found</h1><p>This page may have moved or the address may be incomplete.</p><a className="primary-button" href="/">Go home</a></section></main>;
 }
 
-function HomePage({ getToken, isSignedIn = false, profileStatus = 'signed-out', profileError = '', page }) {
+function HomePage({ getToken, isSignedIn = false, profileStatus = 'signed-out', profileError = '', page, active = true }) {
   const [destinations, setDestinations] = useState([]);
   const [category, setCategory] = useState('');
   const [destinationStatus, setDestinationStatus] = useState('loading');
@@ -62,10 +63,9 @@ function HomePage({ getToken, isSignedIn = false, profileStatus = 'signed-out', 
   const [categories, setCategories] = useState([]);
 
   useEffect(() => {
-    if (page !== 'explore') return undefined;
+    if (page !== 'explore' || !active) return undefined;
     const controller = new AbortController();
     const query = category ? `?category=${encodeURIComponent(category)}` : '';
-    setDestinationStatus('loading');
     setDestinationError('');
 
     fetch(`${apiBaseUrl}/api/destinations${query}`, { signal: controller.signal })
@@ -86,13 +86,13 @@ function HomePage({ getToken, isSignedIn = false, profileStatus = 'signed-out', 
       });
 
     return () => controller.abort();
-  }, [category, page]);
+  }, [active, category, page]);
 
   return (
     <main className="page-shell">
       <Topbar getToken={getToken} isSignedIn={isSignedIn} active={page} />
 
-      {page === 'home' && isSignedIn && <Suspense fallback={<p role="status">Loading…</p>}><Dashboard getToken={getToken} isSignedIn={isSignedIn} profileStatus={profileStatus} profileError={profileError} /></Suspense>}
+      {page === 'home' && isSignedIn && <Suspense fallback={<p role="status">Loading…</p>}><Dashboard getToken={getToken} isSignedIn={isSignedIn} profileStatus={profileStatus} profileError={profileError} active={active} /></Suspense>}
 
       {page === 'home' && !isSignedIn && <section className="hero" id="top">
         <div className="hero-copy">
@@ -127,11 +127,13 @@ function HomePage({ getToken, isSignedIn = false, profileStatus = 'signed-out', 
         {destinationStatus === 'empty' && <p className="empty-state">No destination ideas in this category yet.</p>}
         {destinationStatus === 'ready' && <div className="destination-grid">
           {destinations.length ? destinations.map((place) => (
-            <a className="destination-card" key={place.id} href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.mapQuery)}`} target="_blank" rel="noreferrer">
-              <div className={`destination-art destination-${place.category.toLowerCase()}`}><span>{place.category}</span><b aria-hidden="true">↗</b></div>
+            <article className="destination-card" key={place.id}>
+              <div className={`destination-art destination-${place.category.toLowerCase()}`}>{place.imageUrl && <img src={place.imageUrl} alt={`${place.name}, ${place.country}`} loading="lazy" />}<span>{place.category}</span></div>
               <div className="destination-meta"><h3>{place.name}</h3><span>{place.country}</span></div>
               <p>{place.summary}</p>
-            </a>
+              {place.bestSeason && <p className="destination-season">Best season · {place.bestSeason}</p>}
+              <a className="text-button" href={`/trips?new=1&destination=${encodeURIComponent(place.id)}`}>Plan a trip here</a>
+            </article>
           )) : null}
         </div>}
       </section>}

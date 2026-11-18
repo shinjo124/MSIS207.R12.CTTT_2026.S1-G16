@@ -30,3 +30,14 @@ export function calendarLanes(activities) {
   finishGroup();
   return layout;
 }
+
+export function calendarWeather(weather, timeZone, date) {
+  if (weather?.status !== 'available' || !timeZone || weather.location?.timeZone !== timeZone) return null;
+  return weather.forecast?.find((item) => item.date === date) || null;
+}
+
+const clock = (minutes) => minutes >= 1440 ? '24:00' : `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+export function timeRange(time, duration) {
+  const start = minutesOfDay(time);
+  return `${clock(start)}–${clock(Math.min(1440, start + duration))}`;
+}

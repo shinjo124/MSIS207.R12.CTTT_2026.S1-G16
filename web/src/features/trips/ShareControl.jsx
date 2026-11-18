@@ -56,7 +56,7 @@ export default function ShareControl({ tripId, getToken }) {
       await navigator.clipboard.writeText(shareUrl);
       setMessage('Share link copied. Anyone with it can view this trip.');
     } catch {
-      setMessage('Copy was unavailable. Select and copy the link below.');
+      setMessage('Copy is unavailable in this browser. Try the copy button on another device.');
     }
   }
 
@@ -68,7 +68,7 @@ export default function ShareControl({ tripId, getToken }) {
       <h3>Read-only share link</h3>
       <p>Anyone with the link can view this trip. You can replace or revoke it at any time.</p>
       {sharePath && <div className="share-link-row">
-        <input aria-label="Active share link" readOnly value={shareUrl} />
+        <input aria-label="Active share link (token hidden)" readOnly value={`${new URL(shareUrl).origin}/share/••••••••`} />
         <button type="button" onClick={copyShare}>Copy</button>
       </div>}
       <div className="share-actions">

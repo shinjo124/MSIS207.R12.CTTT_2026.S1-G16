@@ -5,15 +5,16 @@ import TripForm from './TripForm.jsx';
 import { formatDate, formatMoney } from './trip-format.js';
 import './trips.css';
 
-export default function TripsPage({ getToken, isSignedIn, profileStatus, profileError }) {
+export default function TripsPage({ getToken, isSignedIn, profileStatus, profileError, active = true, search = window.location.search }) {
   const [trips, setTrips] = useState([]);
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState('');
-  const [showForm, setShowForm] = useState(() => new URLSearchParams(window.location.search).has('new'));
+  const [showForm, setShowForm] = useState(() => new URLSearchParams(search).has('new'));
+  const [suggestedDestination, setSuggestedDestination] = useState(null);
   const ready = isSignedIn && profileStatus === 'ready';
 
   const loadTrips = useCallback(async (signal) => {
-    setStatus('loading');
+    setStatus((current) => current === 'ready' || current === 'empty' ? current : 'loading');
     setError('');
     try {
       const result = await apiRequest('/trips', { getToken, signal });
@@ -22,16 +23,30 @@ export default function TripsPage({ getToken, isSignedIn, profileStatus, profile
     } catch (loadError) {
       if (loadError.name === 'AbortError') return;
       setError(loadError.message);
-      setStatus('error');
+      setStatus((current) => current === 'ready' || current === 'empty' ? current : 'error');
     }
   }, [getToken]);
 
   useEffect(() => {
-    if (!ready) return undefined;
+    setShowForm(new URLSearchParams(search).has('new'));
+  }, [search]);
+
+  useEffect(() => {
+    const destinationId = new URLSearchParams(search).get('destination');
+    if (!destinationId) { setSuggestedDestination(null); return undefined; }
+    const controller = new AbortController();
+    apiRequest('/destinations?scope=all', { getToken, signal: controller.signal })
+      .then((result) => setSuggestedDestination(result.data.find((destination) => String(destination.id) === destinationId) || null))
+      .catch((error) => { if (error.name !== 'AbortError') setSuggestedDestination(null); });
+    return () => controller.abort();
+  }, [getToken, search]);
+
+  useEffect(() => {
+    if (!ready || !active) return undefined;
     const controller = new AbortController();
     loadTrips(controller.signal);
     return () => controller.abort();
-  }, [ready, loadTrips]);
+  }, [active, ready, loadTrips]);
 
   async function createTrip(values) {
     const result = await apiRequest('/trips', { method: 'POST', body: values, getToken });
@@ -49,7 +64,7 @@ export default function TripsPage({ getToken, isSignedIn, profileStatus, profile
       <ProfileGate isSignedIn={isSignedIn} profileStatus={profileStatus} profileError={profileError} action="plan a trip">
         {showForm && <div className="panel">
           <h2>Plan a new trip</h2>
-          <TripForm submitLabel="Create trip" onSubmit={createTrip} onCancel={() => setShowForm(false)} />
+          <TripForm key={suggestedDestination?.id || 'new'} initialDestination={suggestedDestination} submitLabel="Create trip" onSubmit={createTrip} onCancel={() => setShowForm(false)} />
         </div>}
 
         {status === 'loading' && <p className="empty-state" role="status">Loading your trips…</p>}
