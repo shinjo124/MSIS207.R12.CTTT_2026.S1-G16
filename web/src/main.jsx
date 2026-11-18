@@ -4,6 +4,7 @@ import { ClerkProvider, SignIn, SignUp, useAuth } from '@clerk/react';
 import App from './App.jsx';
 import '@fontsource-variable/dm-sans';
 import { apiRequest } from './lib/api.js';
+import { runViewTransition } from './lib/view-transition.js';
 import { INVITATION_RETURN_KEY, INVITATION_STORAGE_KEY } from './features/trips/invitation.js';
 import './styles.css';
 
@@ -20,10 +21,10 @@ function AuthenticatedPages({ path, search, ...props }) {
   }, [path]);
 
   return <>
-    {paths.map((tabPath) => <div key={tabPath} hidden={tabPath !== path}>
+    {paths.map((tabPath) => <div key={tabPath} className={`route-page${tabPath === path ? ' is-active' : ''}`} hidden={tabPath !== path}>
       <App path={tabPath} search={tabPath === path ? search : ''} active={tabPath === path} {...props} />
     </div>)}
-    {!TAB_PATHS.includes(path) && <App path={path} search={search} active {...props} />}
+    {!TAB_PATHS.includes(path) && <div className="route-page is-active"><App path={path} search={search} active {...props} /></div>}
   </>;
 }
 
@@ -93,9 +94,11 @@ function AppRoot() {
       const url = new URL(link.href, window.location.href);
       if (url.origin !== window.location.origin || url.hash || url.pathname.startsWith('/sign-in') || url.pathname.startsWith('/sign-up')) return;
       event.preventDefault();
-      window.history.pushState(null, '', url.pathname + url.search);
-      window.dispatchEvent(new PopStateEvent('popstate'));
-      window.scrollTo(0, 0);
+      runViewTransition(() => {
+        window.history.pushState(null, '', url.pathname + url.search);
+        window.dispatchEvent(new PopStateEvent('popstate'));
+        window.scrollTo(0, 0);
+      });
     };
     window.addEventListener('popstate', updatePath);
     document.addEventListener('click', followLink);

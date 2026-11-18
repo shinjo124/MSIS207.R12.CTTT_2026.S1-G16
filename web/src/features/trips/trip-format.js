@@ -9,6 +9,10 @@ export const CATEGORIES = [
 
 export const CURRENCIES = ['VND', 'USD', 'EUR', 'JPY', 'KRW', 'THB', 'SGD'];
 
+export function formatTripTitle(title) {
+  return title.normalize('NFC').replace(/\s+([,.;!?])/g, '$1');
+}
+
 export const categoryLabel = (value) => CATEGORIES.find((item) => item.value === value)?.label || value;
 
 // shortcut: only Vietnam has a reliable country-wide zone; use destination zone metadata when available.
@@ -57,7 +61,9 @@ export function formatDayHeading(date) {
 export function formatMoney(amount, currencyCode) {
   const value = Number(amount);
   try {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: currencyCode, maximumFractionDigits: 2 }).format(value);
+    const parts = new Intl.NumberFormat('en-US', { style: 'currency', currency: currencyCode, maximumFractionDigits: 2 }).formatToParts(value);
+    const amountText = parts.filter(({ type }) => type !== 'currency' && type !== 'literal').map(({ value: part }) => part).join('');
+    return `${amountText} ${parts.find(({ type }) => type === 'currency').value}`;
   } catch {
     return `${value.toLocaleString('en-US')} ${currencyCode}`;
   }

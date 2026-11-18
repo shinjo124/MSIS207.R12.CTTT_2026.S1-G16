@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../../lib/api.js';
-import { categoryLabel, formatDate, formatDayHeading, timeZoneLabel, withDefaultTimeZone } from './trip-format.js';
+import { categoryLabel, formatDate, formatDayHeading, formatTripTitle, timeZoneLabel, withDefaultTimeZone } from './trip-format.js';
 
 export default function SharedTrip({ token }) {
   const [trip, setTrip] = useState(null);
   const [status, setStatus] = useState('loading');
+  const [view, setView] = useState('calendar');
 
   useEffect(() => {
     const controller = new AbortController();
@@ -33,7 +34,7 @@ export default function SharedTrip({ token }) {
   return (
     <article className="shared-trip">
       <p className="eyebrow">A TRIPO SHARED TRIP</p>
-      <h1>{trip.title}</h1>
+      <h1>{formatTripTitle(trip.title)}</h1>
       <p>{formatDate(trip.startDate)} – {formatDate(trip.endDate)}{dayCount ? <> <span>·</span> {dayCount} {dayCount === 1 ? 'day' : 'days'}</> : null} <span>·</span> {trip.groupSize} {trip.groupSize === 1 ? 'traveler' : 'travelers'} <span>·</span> {timeZoneLabel(trip.timeZone)}</p>
       <h2>Destinations</h2>
       <ul>{trip.destinations.map((place) => (
@@ -43,9 +44,12 @@ export default function SharedTrip({ token }) {
           </a>
         </li>
       ))}</ul>
-      <h2>Itinerary</h2>
+      <nav className="shared-trip-views" aria-label="Trip views">
+        <button type="button" aria-pressed={view === 'calendar'} onClick={() => setView('calendar')}>Calendar</button>
+        <button type="button" aria-pressed={view === 'day-board'} onClick={() => setView('day-board')}>Day board</button>
+      </nav>
       {days ? <ol className="day-list">
-        {days.map((day) => (
+        {view === 'day-board' && days.map((day) => (
           <li key={day.date} className="day-card">
             <div className="day-heading">
               <h3><span>Day {day.dayNumber}</span> {formatDayHeading(day.date)}</h3>
@@ -72,7 +76,14 @@ export default function SharedTrip({ token }) {
                 </ul>}
           </li>
         ))}
-      </ol> : <p className="day-empty">Itinerary is not available on this shared link yet.</p>}
+      </ol> : null}
+      {days && view === 'calendar' && <div className="shared-calendar" aria-label="Read-only trip calendar">
+        {days.map((day) => <section className="shared-calendar-day" key={day.date}>
+          <h2><span>Day {day.dayNumber}</span>{formatDayHeading(day.date)}</h2>
+          {day.activities.length ? <ul>{day.activities.map((activity) => <li key={activity.id}><time>{activity.time || '—'}</time><strong>{formatTripTitle(activity.title)}</strong>{activity.durationMinutes != null && <span>{activity.durationMinutes} min</span>}</li>)}</ul> : <p>Nothing planned yet.</p>}
+        </section>)}
+      </div>}
+      {!days && <p className="day-empty">Calendar and day board are not available on this shared link yet.</p>}
       <p className="read-only-note">This is a read-only trip link.</p>
     </article>
   );

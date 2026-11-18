@@ -98,8 +98,8 @@ router.get('/', async (req, res, next) => {
               (SELECT COUNT(*) FROM post_comments c WHERE c.post_id = p.id) AS commentsCount
        FROM posts p JOIN users u ON u.id = p.author_user_id
        WHERE p.visibility = 'public'
-       ORDER BY p.created_at DESC, p.id DESC LIMIT ? OFFSET ?`,
-      [viewer ?? null, limit + 1, offset],
+       ORDER BY p.created_at DESC, p.id DESC LIMIT ${limit + 1} OFFSET ${offset}`,
+      [viewer ?? null],
     );
 
     const data = posts.slice(0, limit).map((post) => ({ ...post, liked: Boolean(post.liked) }));
@@ -257,8 +257,8 @@ router.get('/:id/comments', async (req, res, next) => {
     const [comments] = await pool.execute(
       `SELECT c.id, c.body, c.created_at AS createdAt, u.display_name AS author
        FROM post_comments c JOIN users u ON u.id = c.author_user_id
-       WHERE c.post_id = ? ORDER BY c.created_at, c.id LIMIT ? OFFSET ?`,
-      [req.params.id, limit + 1, offset],
+       WHERE c.post_id = ? ORDER BY c.created_at, c.id LIMIT ${limit + 1} OFFSET ${offset}`,
+      [req.params.id],
     );
     res.json({ data: comments.slice(0, limit), nextOffset: comments.length > limit ? offset + limit : null });
   } catch (error) {

@@ -36,8 +36,14 @@ export default function WeatherPanel({ trip, getToken, date, destinationId, onWe
     {status === 'ready' && data?.status === 'not-configured' && <p>Weather is not configured on the server yet.</p>}
     {status === 'ready' && data?.status === 'missing-location' && <p>Add a destination with weather coordinates to see the forecast.</p>}
     {status === 'ready' && data?.status === 'available' && <>
-      <p><strong>{data.location.destinationName}</strong></p>
-      {forecast ? <p><strong>{Math.round(forecast.temperature)}°C</strong> · {forecast.description}<br /><small>Forecast for {formatDate(date)}, {forecast.time} local time</small></p> : <p>No forecast is available for {formatDate(date)}.</p>}
+      <p className="weather-location">{data.location.destinationName}</p>
+      {forecast ? <>
+        <div className="weather-current">
+          <strong className="weather-temperature">{Math.round(forecast.temperature)}°C</strong>
+          <span className="weather-condition">{forecast.description}</span>
+        </div>
+        <p className="weather-forecast-time">Forecast for {formatDate(date)}, {forecast.time} local time</p>
+      </> : <p>No forecast is available for {formatDate(date)}.</p>}
       <p className="weather-attribution">Weather: <a href="https://openweathermap.org/" target="_blank" rel="noreferrer">OpenWeather</a> · Location data: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors (ODbL)</a></p>
     </>}
   </section>;

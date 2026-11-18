@@ -8,7 +8,8 @@ import TripCalendar from './TripCalendar.jsx';
 import MemberControl from './MemberControl.jsx';
 import { createMutationLock, updateSchedule } from './schedule-update.js';
 import { createTripPoller, fetchChangedTrip } from './trip-polling.js';
-import { categoryLabel, formatDate, formatDayHeading, formatMoney, mapsUrl, timeZoneLabel, todayInTimeZone, withDefaultTimeZone } from './trip-format.js';
+import { categoryLabel, formatDate, formatDayHeading, formatMoney, formatTripTitle, mapsUrl, timeZoneLabel, todayInTimeZone, withDefaultTimeZone } from './trip-format.js';
+import { runViewTransition } from '../../lib/view-transition.js';
 import './trips.css';
 
 function ActivityItem({ activity, trip, onEdit, onDelete, onToggleVisited, onMove, onDragStart, onDragEnd }) {
@@ -32,7 +33,7 @@ function ActivityItem({ activity, trip, onEdit, onDelete, onToggleVisited, onMov
   const place = [activity.address, activity.city].filter(Boolean).join(', ');
   return (
     <li draggable={!busy} onDragStart={onDragStart} onDragEnd={onDragEnd} className={`activity board-activity${activity.visited ? ' visited' : ''}`}>
-      <label className="check-in board-check-in"><input type="checkbox" checked={activity.visited} disabled={busy} onChange={() => run(() => onToggleVisited(!activity.visited))} /><span>{activity.visited ? '✓' : 'Check in'}</span></label>
+      <label className="board-check-in"><input type="checkbox" aria-label={activity.visited ? 'Mark activity as not visited' : 'Mark activity as visited'} checked={activity.visited} disabled={busy} onChange={() => run(() => onToggleVisited(!activity.visited))} /></label>
       <details>
         <summary>
           <span className={`category-badge category-${activity.category}`}>{categoryLabel(activity.category)}</span>
@@ -85,10 +86,10 @@ function BudgetSummary({ summary, trip, onRecordSpend }) {
     <section className="budget-summary" aria-labelledby="budget-summary-title">
       <h2 id="budget-summary-title">Budget summary</h2>
       <dl className="budget-totals">
-        <div><dt>Budget</dt><dd>{formatMoney(summary.budget, currencyCode)}</dd></div>
-        <div><dt>Planned total</dt><dd>{formatMoney(summary.plannedTotal, currencyCode)}</dd></div>
-        <div><dt>Actual spent</dt><dd>{formatMoney(summary.totalActualSpend, currencyCode)}</dd></div>
-        <div><dt>Remaining</dt><dd>{formatMoney(summary.remainingBudget, currencyCode)}</dd></div>
+        <div className="is-budget"><dt>Budget</dt><dd>{formatMoney(summary.budget, currencyCode)}</dd></div>
+        <div className="is-planned"><dt>Planned total</dt><dd>{formatMoney(summary.plannedTotal, currencyCode)}</dd></div>
+        <div className="is-spent"><dt>Actual spent</dt><dd>{formatMoney(summary.totalActualSpend, currencyCode)}</dd></div>
+        <div className={Number(summary.remainingBudget) > 0 ? 'is-remaining is-positive' : Number(summary.remainingBudget) < 0 ? 'is-remaining is-negative' : 'is-remaining'}><dt>Remaining</dt><dd>{formatMoney(summary.remainingBudget, currencyCode)}</dd></div>
         <div className={Number(summary.overBudget) > 0 ? 'is-over-budget' : ''}><dt>Over budget</dt><dd>{formatMoney(summary.overBudget, currencyCode)}</dd></div>
       </dl>
       <h3>Actual spend by category</h3>
@@ -138,6 +139,17 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
   const runMutation = useRef(createMutationLock()).current;
   const pollerRef = useRef(null);
   const paused = Boolean(editingTrip || confirmDelete || addingOn || dragged || moving || writing || calendarInteraction || weatherEditing);
+
+  function changeView(nextView) {
+    if (nextView === view) {
+      if (nextView === 'calendar') setAddingOn(null);
+      return;
+    }
+    runViewTransition(() => {
+      setView(nextView);
+      if (nextView === 'calendar') setAddingOn(null);
+    });
+  }
 
   useEffect(() => { if (addingOn) addActivityFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, [addingOn]);
   useEffect(() => {
@@ -366,7 +378,7 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
             : <header className="trip-header">
                 <div>
                   <p className="eyebrow">{trip.destinations.map((destination) => destination.name.toUpperCase()).join(' → ')}</p>
-                  <h1>{trip.title}</h1>
+                  <h1>{formatTripTitle(trip.title)}</h1>
                   {trip.role && <p className="trip-role">{trip.role === 'owner' ? 'Trip owner' : 'Collaborator'}</p>}
                   <p className="trip-meta">
                     {formatDate(trip.startDate)} – {formatDate(trip.endDate)}
@@ -389,10 +401,10 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
               </header>}
 
           <div className="workspace-controls" role="group" aria-label="Trip sections">
-            <button type="button" aria-pressed={view === 'calendar'} onClick={() => { setView('calendar'); setAddingOn(null); }}>Calendar</button>
-            <button type="button" aria-pressed={view === 'itinerary'} onClick={() => setView('itinerary')}>Day board</button>
-            <button type="button" aria-pressed={view === 'budget'} onClick={() => setView('budget')}>Budget</button>
-            {trip.role === 'owner' && <button type="button" aria-pressed={view === 'share'} onClick={() => setView('share')}>Share &amp; members</button>}
+            <button type="button" aria-pressed={view === 'calendar'} onClick={() => changeView('calendar')}>Calendar</button>
+            <button type="button" aria-pressed={view === 'itinerary'} onClick={() => changeView('itinerary')}>Day board</button>
+            <button type="button" aria-pressed={view === 'budget'} onClick={() => changeView('budget')}>Budget</button>
+            {trip.role === 'owner' && <button type="button" aria-pressed={view === 'share'} onClick={() => changeView('share')}>Share &amp; members</button>}
           </div>
           {editingActivity && <ActivityEditor key={editingActivity.id} activity={editingActivity} trip={trip} onSave={(values) => updateActivity(editingActivity.id, values, true)} onCancel={() => setEditingActivity(null)} />}
           {view === 'calendar' && <><TripCalendar trip={trip} getToken={getToken} disabled={!online || writing} onUpdate={saveSchedule} onInteractionChange={onCalendarInteraction} onEdit={beginEdit} onAdd={beginAdd} onDestinationChange={setDayDestination} />
@@ -420,7 +432,7 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
                 <div className="day-heading">
                   <h2><span>Day {day.dayNumber}</span> {formatDayHeading(day.date)}</h2>
                   <label className="day-destination">Weather destination<select value={day.destinationId ?? ''} disabled={!online || writing} onChange={(event) => setDayDestination(day.date, Number(event.target.value))}>{trip.destinations.map((destination) => <option key={destination.id} value={destination.id}>{destination.name}</option>)}</select></label>
-                  {addingOn !== day.date && <button className="text-button" type="button" onClick={() => beginAdd(day.date)}>+ Add activity</button>}
+                  {addingOn !== day.date && <button className="text-button day-add-activity" type="button" aria-label={`Add activity to Day ${day.dayNumber}`} title={`Add activity to Day ${day.dayNumber}`} onClick={() => beginAdd(day.date)}><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg></button>}
                 </div>
                 <ul className="activity-list board-cards">
                   {day.activities.map((activity) => renderActivity(activity))}

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { apiRequest } from '../../lib/api.js';
 import ProfileGate from './ProfileGate.jsx';
 import TripForm from './TripForm.jsx';
-import { formatDate, formatMoney } from './trip-format.js';
+import { formatDate, formatMoney, formatTripTitle } from './trip-format.js';
 import './trips.css';
 
 export default function TripsPage({ getToken, isSignedIn, profileStatus, profileError, active = true, search = window.location.search }) {
@@ -81,7 +81,7 @@ export default function TripsPage({ getToken, isSignedIn, profileStatus, profile
               <a className="trip-card" href={`/trips/${trip.id}`}>
                 <span className="trip-card-days">{trip.dayCount}<small>{trip.dayCount === 1 ? 'day' : 'days'}</small></span>
                 <span className="trip-card-body">
-                  <strong>{trip.title}</strong>
+                  <strong>{formatTripTitle(trip.title)}</strong>
                   <span>{formatDate(trip.startDate)} – {formatDate(trip.endDate)} · {trip.groupSize} {trip.groupSize === 1 ? 'traveler' : 'travelers'}</span>
                   <span>{trip.destinations.map((destination) => destination.name).join(' → ') || 'No destinations'}</span>
                 </span>

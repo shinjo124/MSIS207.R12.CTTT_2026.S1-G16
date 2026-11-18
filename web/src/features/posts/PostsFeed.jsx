@@ -63,6 +63,8 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
   const [photo, setPhoto] = useState(null);
   const [photoUrl, setPhotoUrl] = useState('');
   const photoInput = useRef(null);
+  const loadMoreSentinel = useRef(null);
+  const loadingMore = useRef(false);
   const [linkedTrips, setLinkedTrips] = useState([]);
   const [destinations, setDestinations] = useState([]);
   const [places, setPlaces] = useState([]);
@@ -136,6 +138,7 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
 
   const loadPosts = useCallback(async (signal, page = 1) => {
     setPostsLoading(true);
+    if (page > 1) setError('');
     try {
       const result = await apiRequest(`/posts?page=${page}`, { signal, getToken: canWrite ? getToken : undefined });
       if (signal?.aborted) return;
@@ -148,6 +151,7 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
         else setError(requestError.message);
       }
     } finally {
+      if (page > 1) loadingMore.current = false;
       if (!signal?.aborted) setPostsLoading(false);
     }
   }, [getToken, canWrite]);
@@ -157,6 +161,19 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
     loadPosts(controller.signal);
     return () => controller.abort();
   }, [loadPosts]);
+
+  useEffect(() => {
+    const sentinel = loadMoreSentinel.current;
+    if (!sentinel || !nextPage || postsLoading || composerBusy || error || typeof IntersectionObserver === 'undefined') return undefined;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting || loadingMore.current) return;
+      loadingMore.current = true;
+      observer.disconnect();
+      loadPosts(undefined, nextPage);
+    }, { rootMargin: '400px 0px' });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [composerBusy, error, loadPosts, nextPage, postsLoading]);
 
   async function createPost(event) {
     event.preventDefault();
@@ -364,7 +381,11 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
           </article>
         ))}
       </div>}
-      {nextPage && <button type="button" disabled={postsLoading || composerBusy} onClick={() => loadPosts(undefined, nextPage)}>Load more stories</button>}
+      {nextPage && <div ref={loadMoreSentinel} className="story-load-sentinel" aria-live="polite">
+        {postsLoading && <span role="status">Loading more stories…</span>}
+        {error && <button type="button" onClick={() => loadPosts(undefined, nextPage)}>Retry loading stories</button>}
+        {typeof IntersectionObserver === 'undefined' && !postsLoading && !error && <button type="button" onClick={() => loadPosts(undefined, nextPage)}>Load more stories</button>}
+      </div>}
     </section>
   );
 }
