@@ -6,17 +6,17 @@ export default function WeatherPanel({ trip, getToken, date, destinationId, onWe
   const [data, setData] = useState(null);
   const [status, setStatus] = useState('loading');
   const [message, setMessage] = useState('');
+  const query = destinationId ? `?destinationId=${encodeURIComponent(destinationId)}` : date ? `?date=${encodeURIComponent(date)}` : '';
   const load = useCallback(async (signal) => {
     setStatus('loading'); setMessage('');
     try {
-      const query = destinationId ? `?destinationId=${encodeURIComponent(destinationId)}` : date ? `?date=${encodeURIComponent(date)}` : '';
       const result = await apiRequest(`/trips/${trip.id}/weather${query}`, { getToken, signal });
       if (signal?.aborted) return;
       setData(result.data); setStatus('ready');
     } catch (error) {
       if (!signal?.aborted) { setMessage(error.message); setStatus('error'); }
     }
-  }, [destinationId, getToken, trip.id, destinationId ? null : date]);
+  }, [getToken, query, trip.id]);
   useEffect(() => {
     const controller = new AbortController();
     load(controller.signal);

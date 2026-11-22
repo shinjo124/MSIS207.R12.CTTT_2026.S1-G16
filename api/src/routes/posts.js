@@ -5,13 +5,12 @@ import { rateLimit } from 'express-rate-limit';
 import { uploadImage } from '../middleware/image-upload.js';
 import { pool } from '../db/pool.js';
 import { requireAuth } from '../middleware/require-auth.js';
-import { requireProfile as requireLocalProfile } from '../middleware/require-profile.js';
+import { requireProfile } from '../middleware/require-profile.js';
 import { sharedWriteLimit } from '../middleware/shared-write-limit.js';
 import { deleteCloudinaryImage, isCloudinaryConfigured, uploadCloudinaryImage } from '../services/cloudinary.js';
-import { findLocalUserId } from '../services/profiles.js';
+import { parseId } from '../services/trip-rules.js';
 
 const router = Router();
-const isPositiveId = (value) => Number.isSafeInteger(Number(value)) && Number(value) > 0;
 const uploadLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
@@ -23,15 +22,20 @@ const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const postWriteLimit = sharedWriteLimit('post', 15, 100);
 const sharedUploadLimit = sharedWriteLimit('upload', 10, 40);
 
-async function requireProfile(req, res) {
-  const userId = await findLocalUserId(req.clerkUserId);
-  if (!userId) {
-    res.status(409).json({
-      error: { code: 'PROFILE_NOT_READY', message: 'Load your profile before continuing.' },
-    });
-    return null;
+function validatePostId(req, res, next) {
+  if (!parseId(req.params.id)) {
+    return res.status(400).json({ error: { code: 'INVALID_POST_ID', message: 'Post ID must be a positive integer.' } });
   }
-  return userId;
+  next();
+}
+
+function validateComment(req, res, next) {
+  const body = typeof req.body?.body === 'string' ? req.body.body.trim() : '';
+  if (!parseId(req.params.id) || !body || body.length > 1000) {
+    return res.status(400).json({ error: { code: 'INVALID_COMMENT', message: 'Post ID or comment text is invalid.' } });
+  }
+  req.commentBody = body;
+  next();
 }
 
 function validatePhoto(photo) {
@@ -63,10 +67,8 @@ async function addPhotos(posts) {
   return posts.map((post) => ({ ...post, photos: photosByPost.get(post.id) || [] }));
 }
 
-router.get('/mine', requireAuth, async (req, res, next) => {
+router.get('/mine', requireAuth, requireProfile, async (req, res, next) => {
   try {
-    const userId = await requireProfile(req, res);
-    if (!userId) return;
     const [posts] = await pool.execute(
       `SELECT p.id, p.body, p.visibility, p.created_at AS createdAt,
               p.trip_id AS tripId, p.place_id AS placeId,
@@ -74,7 +76,7 @@ router.get('/mine', requireAuth, async (req, res, next) => {
               (SELECT COUNT(*) FROM post_comments c WHERE c.post_id = p.id) AS commentsCount
        FROM posts p WHERE p.author_user_id = ?
        ORDER BY p.created_at DESC, p.id DESC LIMIT 50`,
-      [userId],
+      [req.userId],
     );
     res.json({ data: await addPhotos(posts) });
   } catch (error) {
@@ -109,7 +111,7 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-router.post('/', requireAuth, requireLocalProfile, postWriteLimit, (req, res, next) => (
+router.post('/', requireAuth, requireProfile, postWriteLimit, (req, res, next) => (
   req.is('multipart/form-data') ? uploadLimiter(req, res, next) : next()
 ), (req, res, next) => (
   req.is('multipart/form-data') ? sharedUploadLimit(req, res, next) : next()
@@ -124,8 +126,8 @@ router.post('/', requireAuth, requireLocalProfile, postWriteLimit, (req, res, ne
   if (!body || body.length > 2000 || !['public', 'private'].includes(visibility)
       || !Array.isArray(photos) || photos.length > 5 || !photos.every(validatePhoto)
       || (req.file && (!altText || altText.length > 255 || photos.length >= 5))
-      || (tripId !== null && !isPositiveId(tripId))
-      || (placeId !== null && !isPositiveId(placeId))) {
+      || (tripId !== null && !parseId(tripId))
+      || (placeId !== null && !parseId(placeId))) {
     return res.status(400).json({
       error: { code: 'INVALID_POST', message: 'Check the post text, visibility, optional links, and photos.' },
     });
@@ -214,38 +216,28 @@ async function sendLikeResult(req, res, userId) {
   res.set('Cache-Control', 'private, no-store').json({ data: { likesCount: Number(row.likesCount), liked: Boolean(Number(row.liked)) } });
 }
 
-router.post('/:id/likes', requireAuth, async (req, res, next) => {
-  if (!isPositiveId(req.params.id)) {
-    return res.status(400).json({ error: { code: 'INVALID_POST_ID', message: 'Post ID must be a positive integer.' } });
-  }
+router.post('/:id/likes', requireAuth, validatePostId, requireProfile, async (req, res, next) => {
   try {
-    const userId = await requireProfile(req, res);
-    if (!userId) return;
     const [posts] = await pool.execute("SELECT id FROM posts WHERE id = ? AND visibility = 'public'", [req.params.id]);
     if (!posts.length) return res.status(404).json({ error: { code: 'POST_NOT_FOUND', message: 'Post was not found.' } });
-    await pool.execute('INSERT IGNORE INTO post_likes (post_id, user_id) VALUES (?, ?)', [req.params.id, userId]);
-    await sendLikeResult(req, res, userId);
+    await pool.execute('INSERT IGNORE INTO post_likes (post_id, user_id) VALUES (?, ?)', [req.params.id, req.userId]);
+    await sendLikeResult(req, res, req.userId);
   } catch (error) {
     next(error);
   }
 });
 
-router.delete('/:id/likes', requireAuth, async (req, res, next) => {
-  if (!isPositiveId(req.params.id)) {
-    return res.status(400).json({ error: { code: 'INVALID_POST_ID', message: 'Post ID must be a positive integer.' } });
-  }
+router.delete('/:id/likes', requireAuth, validatePostId, requireProfile, async (req, res, next) => {
   try {
-    const userId = await requireProfile(req, res);
-    if (!userId) return;
-    await pool.execute('DELETE FROM post_likes WHERE post_id = ? AND user_id = ?', [req.params.id, userId]);
-    await sendLikeResult(req, res, userId);
+    await pool.execute('DELETE FROM post_likes WHERE post_id = ? AND user_id = ?', [req.params.id, req.userId]);
+    await sendLikeResult(req, res, req.userId);
   } catch (error) {
     next(error);
   }
 });
 
 router.get('/:id/comments', async (req, res, next) => {
-  if (!isPositiveId(req.params.id)) {
+  if (!parseId(req.params.id)) {
     return res.status(400).json({ error: { code: 'INVALID_POST_ID', message: 'Post ID must be a positive integer.' } });
   }
   try {
@@ -266,22 +258,16 @@ router.get('/:id/comments', async (req, res, next) => {
   }
 });
 
-router.post('/:id/comments', requireAuth, async (req, res, next) => {
-  const body = typeof req.body.body === 'string' ? req.body.body.trim() : '';
-  if (!isPositiveId(req.params.id) || !body || body.length > 1000) {
-    return res.status(400).json({ error: { code: 'INVALID_COMMENT', message: 'Post ID or comment text is invalid.' } });
-  }
+router.post('/:id/comments', requireAuth, validateComment, requireProfile, async (req, res, next) => {
   try {
-    const userId = await requireProfile(req, res);
-    if (!userId) return;
     const [posts] = await pool.execute("SELECT id FROM posts WHERE id = ? AND visibility = 'public'", [req.params.id]);
     if (!posts.length) return res.status(404).json({ error: { code: 'POST_NOT_FOUND', message: 'Post was not found.' } });
-    const [[author]] = await pool.execute('SELECT display_name AS author FROM users WHERE id = ?', [userId]);
+    const [[author]] = await pool.execute('SELECT display_name AS author FROM users WHERE id = ?', [req.userId]);
     const [result] = await pool.execute(
       'INSERT INTO post_comments (post_id, author_user_id, body) VALUES (?, ?, ?)',
-      [req.params.id, userId, body],
+      [req.params.id, req.userId, req.commentBody],
     );
-    res.status(201).json({ data: { id: result.insertId, body, author: author.author } });
+    res.status(201).json({ data: { id: result.insertId, body: req.commentBody, author: author.author } });
   } catch (error) {
     next(error);
   }

@@ -14,7 +14,7 @@ export function Topbar({ getToken, active, isSignedIn }) {
     <header className="topbar">
       <a className="brand" href="/" aria-label="Tripo home"><span className="brand-mark">T</span> tripo</a>
       <nav className="app-nav" aria-label="Main navigation">
-        {[['home', '/', isSignedIn ? 'Dashboard' : 'Home'], ['trips', '/trips', 'My trips'], ['explore', '/explore', 'Explore'], ['stories', '/stories', 'Stories']].map(([key, href, label]) => <a key={key} className="nav-link" href={href} aria-current={active === key ? 'page' : key === 'trips' && active === 'trip-detail' ? 'location' : undefined}>{label}</a>)}
+        {[['home', '/', isSignedIn ? 'Dashboard' : 'Home'], ['trips', '/trips', 'My trips'], ['explore', '/explore', 'Explore'], ['stories', '/stories', 'Stories']].map(([key, href, label]) => <a key={key} className="nav-link" href={href} aria-current={active === key ? 'page' : key === 'trips' && active === 'trip-detail' ? 'location' : undefined}><span style={{ viewTransitionName: `main-nav-label-${key}` }}>{label}</span></a>)}
       </nav>
       {getToken ? <>
         <Show when="signed-out">
@@ -23,7 +23,7 @@ export function Topbar({ getToken, active, isSignedIn }) {
             <SignUpButton mode="redirect"><button className="sign-in" type="button">Sign up</button></SignUpButton>
           </div>
         </Show>
-        <Show when="signed-in"><UserButton /></Show>
+        <Show when="signed-in"><div className="account-controls"><UserButton /></div></Show>
       </> : <span className="top-note">Sign in is not configured.</span>}
     </header>
   );

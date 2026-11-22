@@ -3,7 +3,7 @@ import { rateLimit } from 'express-rate-limit';
 import { pool } from '../db/pool.js';
 import { requireAuth } from '../middleware/require-auth.js';
 import { requireProfile } from '../middleware/require-profile.js';
-import { findEditableTrip } from './trips.js';
+import { findEditableTrip } from '../services/trip-data.js';
 import { parseDate, parseId, sendError } from '../services/trip-rules.js';
 import { fetchWeather, validateWeatherLocation, weatherLocalDate } from '../services/weather.js';
 

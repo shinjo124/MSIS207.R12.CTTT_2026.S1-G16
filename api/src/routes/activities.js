@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { pool } from '../db/pool.js';
 import { requireAuth } from '../middleware/require-auth.js';
 import { requireProfile } from '../middleware/require-profile.js';
-import { ACTIVITY_COLUMNS, shapeActivity, findEditableTrip } from './trips.js';
+import { ACTIVITY_COLUMNS, findEditableTrip, shapeActivity } from '../services/trip-data.js';
 import {
   ACTIVITY_CATEGORIES, badRequest, optionalText, parseDate, parseId, parseMoney, parseTime, sendError,
 } from '../services/trip-rules.js';

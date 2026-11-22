@@ -29,8 +29,7 @@ const allowedOrigins = [
   'https://tripo-web.vercel.app',
   ...(process.env.NODE_ENV === 'production' ? [] : ['http://localhost:5173']),
 ];
-// Swagger UI page. Its JS/CSS load from a CDN because swagger-ui-express serves them from
-// node_modules, which Vercel does not bundle into the function: the page rendered blank in production.
+// Load Swagger UI assets from a CDN; bundling the package assets left this page blank in production.
 const SWAGGER_UI = 'https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14';
 const swaggerPage = `<!doctype html>
 <html lang="en">
