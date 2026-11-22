@@ -49,6 +49,11 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState('');
   const [likeBusy, setLikeBusy] = useState(null);
+  const [confirmDeletePostId, setConfirmDeletePostId] = useState(null);
+  const [deletePostBusy, setDeletePostBusy] = useState(null);
+  const [editingPostId, setEditingPostId] = useState(null);
+  const [editDraft, setEditDraft] = useState('');
+  const [editPostBusy, setEditPostBusy] = useState(null);
   const [nextPage, setNextPage] = useState(null);
   const [postsLoading, setPostsLoading] = useState(false);
   const [commentOffsets, setCommentOffsets] = useState({});
@@ -255,6 +260,45 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
     }
   }
 
+  async function deletePost(post) {
+    if (!canWrite || !post.isAuthor || deletePostBusy !== null) return;
+    setDeletePostBusy(post.id);
+    setError('');
+    try {
+      await apiRequest(`/posts/${post.id}`, { method: 'DELETE', getToken });
+      setPosts((current) => current.filter((item) => item.id !== post.id));
+      setOpenComments((current) => {
+        const next = new Set(current);
+        next.delete(post.id);
+        return next;
+      });
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setDeletePostBusy(null);
+      setConfirmDeletePostId(null);
+    }
+  }
+
+  async function savePost(event, post) {
+    event.preventDefault();
+    if (!canWrite || !post.isAuthor || editPostBusy !== null) return;
+    const body = editDraft.trim();
+    if (!body) return setError('A story cannot be empty.');
+    setEditPostBusy(post.id);
+    setError('');
+    try {
+      const result = await apiRequest(`/posts/${post.id}`, { method: 'PATCH', getToken, body: { body } });
+      setPosts((current) => current.map((item) => item.id === post.id ? { ...item, body: result.data.body } : item));
+      setEditingPostId(null);
+      setEditDraft('');
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setEditPostBusy(null);
+    }
+  }
+
   async function toggleComments(postId) {
     const opening = !openComments.has(postId);
     setOpenComments((current) => {
@@ -350,9 +394,25 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
       {status === 'ready' && <div className="story-grid">
         {posts.map((post, index) => (
           <article className="story-card" key={post.id}>
-            <div className="story-author">{post.authorAvatar ? <img className="story-avatar" src={post.authorAvatar} alt="" /> : <span className="story-avatar" aria-hidden="true">{post.author?.trim().charAt(0).toUpperCase() || '?'}</span>}<p className="story-byline">{post.author} <span>{formatDateTime(post.createdAt, { dateStyle: 'medium' })}</span></p></div>
+            <div className="story-author">
+              {post.authorAvatar ? <img className="story-avatar" src={post.authorAvatar} alt="" /> : <span className="story-avatar" aria-hidden="true">{post.author?.trim().charAt(0).toUpperCase() || '?'}</span>}
+              <p className="story-byline">{post.author} <span>{formatDateTime(post.createdAt, { dateStyle: 'medium' })}</span></p>
+              {canWrite && post.isAuthor && <details className="story-post-menu" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false; }}>
+                <summary aria-label={`More options for your post by ${post.author}`} title="Post options"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></summary>
+                <div className="story-post-menu-panel">
+                  <button type="button" onClick={(event) => { event.currentTarget.closest('details').open = false; setEditDraft(post.body); setEditingPostId(post.id); setConfirmDeletePostId(null); }}>Edit post</button>
+                  <button type="button" className="story-post-menu-delete" onClick={(event) => { event.currentTarget.closest('details').open = false; setConfirmDeletePostId(post.id); setEditingPostId(null); }}>Delete post</button>
+                </div>
+              </details>}
+            </div>
             <StoryGallery photos={post.photos} priority={index === 0} />
-            <p className="story-body">{post.body}</p>
+            {editingPostId === post.id
+              ? <form className="story-edit-form" onSubmit={(event) => savePost(event, post)}>
+                <label className="visually-hidden" htmlFor={`edit-story-${post.id}`}>Edit your travel story</label>
+                <textarea id={`edit-story-${post.id}`} value={editDraft} onChange={(event) => setEditDraft(event.target.value)} maxLength="2000" rows="4" required autoFocus />
+                <div><button type="submit" disabled={editPostBusy !== null}>{editPostBusy === post.id ? 'Saving…' : 'Save changes'}</button><button type="button" onClick={() => { setEditingPostId(null); setEditDraft(''); }} disabled={editPostBusy !== null}>Cancel</button></div>
+              </form>
+              : <p className="story-body">{post.body}</p>}
             <div className="story-actions">
               <span className="story-stats">{post.likesCount} likes <span>·</span> {post.commentsCount} comments</span>
               {canWrite && <button type="button" onClick={() => likePost(post)} disabled={likeBusy !== null || postsLoading} aria-pressed={Boolean(post.liked)}>
@@ -362,6 +422,11 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
                 {openComments.has(post.id) ? 'Hide comments' : 'Comments'}
               </button>
             </div>
+            {confirmDeletePostId === post.id && <div className="story-delete-confirmation" role="group" aria-label="Confirm story deletion">
+              <span>Delete this post?</span>
+              <button type="button" className="story-delete-confirm" onClick={() => deletePost(post)} disabled={deletePostBusy !== null}>{deletePostBusy === post.id ? 'Deleting…' : 'Delete'}</button>
+              <button type="button" onClick={() => setConfirmDeletePostId(null)} disabled={deletePostBusy !== null}>Cancel</button>
+            </div>}
             {openComments.has(post.id) && <div className="story-comments">
               {commentsLoading.has(post.id) && <p role="status">Loading comments…</p>}
               {(commentsByPost[post.id] || []).map((comment) => (

@@ -16,6 +16,7 @@ import activitiesRouter from './routes/activities.js';
 import weatherRouter from './routes/weather.js';
 import newsRouter from './routes/news.js';
 import { isTripSyncRequest, tripSyncKey } from './services/trip-sync-limit.js';
+import { apiLimitKey } from './services/api-limit.js';
 
 const app = express();
 const openApiPath = new URL('../../docs/api/openapi.yaml', import.meta.url);
@@ -52,6 +53,11 @@ const apiLimiter = rateLimit({
   limit: 120,
   standardHeaders: 'draft-8',
   legacyHeaders: false,
+  // Isolate authenticated users and unrelated API areas from a shared-IP bucket.
+  keyGenerator: (req) => {
+    const auth = process.env.CLERK_SECRET_KEY ? getAuth(req) : null;
+    return apiLimitKey({ userId: auth?.isAuthenticated ? auth.userId : null, ip: ipKeyGenerator(req.ip), path: req.originalUrl });
+  },
   message: { error: { code: 'RATE_LIMITED', message: 'Too many requests. Try again later.' } },
 });
 const tripSyncLimiter = rateLimit({

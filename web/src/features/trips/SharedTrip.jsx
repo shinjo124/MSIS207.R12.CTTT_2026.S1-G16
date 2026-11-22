@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../../lib/api.js';
 import { categoryLabel, formatDate, formatDayHeading, formatTripTitle, timeZoneLabel, withDefaultTimeZone } from './trip-format.js';
+import './trips.css';
 
 export default function SharedTrip({ token }) {
   const [trip, setTrip] = useState(null);
@@ -64,7 +65,7 @@ export default function SharedTrip({ token }) {
                         <span className="activity-time">{activity.time || '—'}</span>
                         <div className="activity-main">
                           <p className="activity-title">
-                            <span className={`category-badge category-${activity.category}`}>{categoryLabel(activity.category)}</span>
+                            <span className={`category-badge category-${activity.category}`}>{categoryLabel(activity.category)}:</span>
                             <strong>{activity.title}</strong>
                           </p>
                           {activity.durationMinutes != null && <p className="activity-place">Duration: {activity.durationMinutes} min</p>}

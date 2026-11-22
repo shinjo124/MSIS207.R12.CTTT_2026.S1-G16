@@ -76,12 +76,13 @@ export default function TripForm({ trip = null, initialDestination = null, submi
 
   return (
     <form className="trip-form" onSubmit={handleSubmit} noValidate>
+      <p className="trip-form-intro field-wide">Add the places you’ll visit, set your dates, then choose a group size and budget.</p>
       <label className="field field-wide">Trip title
         <input value={values.title} onChange={update('title')} maxLength={160} placeholder="A long weekend in Da Lat" required />
       </label>
 
       <fieldset className="field field-wide">
-        <legend>Destinations <span>(type to search, pick in visiting order)</span></legend>
+        <legend>Where are you going? <span>Add destinations in the order you’ll visit them.</span></legend>
         <DestinationPicker
           selected={values.destinations}
           onChange={(destinations) => { setZoneConfirmed(false); setValues((current) => ({ ...current, destinations, timeZone: current.destinations[0]?.id !== destinations[0]?.id ? (destinations.length ? destinationTimeZone(destinations[0]) || '' : 'Asia/Ho_Chi_Minh') : current.timeZone })); }}
@@ -109,14 +110,17 @@ export default function TripForm({ trip = null, initialDestination = null, submi
       <label className="field">Group size
         <input type="number" min="1" max="100" step="1" value={values.groupSize} onChange={update('groupSize')} required />
       </label>
-      <label className="field">Currency
-        <select value={values.currencyCode} onChange={update('currencyCode')}>
-          {[...new Set([...CURRENCIES, values.currencyCode])].map((code) => <option key={code}>{code}</option>)}
-        </select>
-      </label>
-      <label className="field field-wide">Whole-trip budget ({values.currencyCode})
-        <input inputMode="decimal" value={values.budget} onChange={update('budget')} placeholder="5000000" required />
-      </label>
+      <fieldset className="field field-wide budget-field">
+        <legend>Whole-trip budget</legend>
+        <div className="budget-input-row">
+          <input aria-label="Whole-trip budget" inputMode="decimal" value={values.budget} onChange={update('budget')} placeholder="5,000,000" required />
+          <label>Currency
+            <select value={values.currencyCode} onChange={update('currencyCode')}>
+              {[...new Set([...CURRENCIES, values.currencyCode])].map((code) => <option key={code}>{code}</option>)}
+            </select>
+          </label>
+        </div>
+      </fieldset>
 
       {error && <p className="form-error field-wide" role="alert">{error}</p>}
       <div className="form-actions field-wide">

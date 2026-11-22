@@ -1,7 +1,7 @@
 /* Trip planning and itinerary pages. */
 .trips-page, .trip-detail { padding: 34px 0 76px; }
 .trips-page .section-heading { margin-top: 0; }
-.trips-page h1, .trip-header h1 { margin: 0; color: var(--teal-dark); font-family: Georgia, 'Times New Roman', serif; font-size: clamp(38px, 5vw, 60px); font-weight: 400; letter-spacing: normal; line-height: 1.08; }
+.trips-page h1, .trip-header h1 { margin: 0; color: var(--teal-dark); font-family: 'DM Sans', 'Segoe UI', sans-serif; font-size: clamp(38px, 5vw, 60px); font-weight: 650; letter-spacing: -.025em; line-height: 1.12; }
 .panel { margin: 0 0 22px; padding: clamp(20px, 3vw, 32px); border: 1px solid var(--line); border-radius: 20px; background: var(--white); box-shadow: var(--shadow); }
 .panel h2 { margin: 0 0 22px; color: var(--teal-dark); font-family: Georgia, serif; font-size: 30px; font-weight: 400; letter-spacing: -.04em; }
 .empty-panel { display: grid; justify-items: start; gap: 14px; }
@@ -16,6 +16,10 @@
 .field legend { margin-bottom: 8px; padding: 0; }
 .field legend span { color: var(--muted); font-weight: 400; }
 .field-wide { grid-column: 1 / -1; }
+.trip-form-intro, .activity-form-intro { margin: -4px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.activity-form-intro strong { color: var(--teal-dark); }
+.budget-input-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(130px, 180px); align-items: end; gap: 12px; }
+.budget-input-row > label { display: grid; gap: 8px; color: var(--teal-dark); font-size: 12px; font-weight: 700; }
 .field input, .field select, .field textarea { width: 100%; min-width: 0; min-height: 46px; padding: 11px 13px; border: 1px solid #cddbd5; border-radius: 11px; background: #fbfcfa; color: var(--ink); font: inherit; font-size: 13px; font-weight: 400; }
 .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--teal); outline: 3px solid rgb(11 116 117 / 12%); }
 .field textarea { resize: vertical; }
@@ -33,12 +37,12 @@
 .trip-list { display: grid; gap: 15px; margin: 0; padding: 0; list-style: none; }
 .trip-card { position: relative; display: grid; grid-template-columns: 80px minmax(0, 1fr) auto; align-items: center; gap: 22px; overflow: hidden; padding: 20px 24px; border: 1px solid var(--line); border-radius: 18px; background: var(--white); text-decoration: none; box-shadow: 0 8px 24px rgb(14 49 52 / 4%); transition: transform .18s ease, box-shadow .18s ease; }
 .trip-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
-.trip-card-days { display: grid; place-items: center; min-height: 72px; border-radius: 14px; background: #e7f1ec; color: var(--teal-dark); font-family: Georgia, serif; font-size: 30px; line-height: 1; }
-.trip-card-days small { padding-top: 4px; color: var(--muted); font-family: 'DM Sans', 'Segoe UI', sans-serif; font-size: 12px; }
+.trip-card-days { display: grid; align-content: center; justify-items: center; gap: 2px; min-height: 72px; border-radius: 14px; background: #e7f1ec; color: var(--teal-dark); font-family: 'DM Sans', 'Segoe UI', sans-serif; font-size: 30px; font-weight: 700; line-height: 1; }
+.page-shell .trip-card-days > small { display: block; padding: 0; color: inherit; font-family: inherit; font-size: 15px; font-weight: 650; line-height: 1; }
 .trip-card-budget { display: grid; gap: 4px; color: var(--coral); font-size: 15px; font-weight: 800; text-align: right; }
 .trip-card-budget small { color: var(--muted); font-size: 12px; font-weight: 600; }
 .trip-card-body { display: grid; gap: 6px; min-width: 0; color: var(--muted); font-size: 12px; }
-.trip-card-body strong { overflow: hidden; color: var(--teal-dark); font-family: Georgia, serif; font-size: 23px; font-weight: 400; letter-spacing: normal; text-overflow: ellipsis; white-space: nowrap; }
+.trip-card-body strong { overflow: hidden; color: var(--teal-dark); font-family: 'DM Sans', 'Segoe UI', sans-serif; font-size: 21px; font-weight: 650; letter-spacing: -.015em; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Trip detail */
 .back-link { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 17px; color: var(--muted); font-size: 12px; font-weight: 700; text-decoration: none; }
@@ -60,8 +64,8 @@
 .budget-totals { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin: 0; }
 .budget-totals div { display: grid; gap: 7px; padding: 13px 15px; border-radius: 12px; background: #f1f6f2; }
 .budget-totals .is-over-budget { background: #fff0e9; }
-.budget-totals dt { color: var(--muted); font-size: 12px; font-weight: 700; }
-.budget-totals dd { overflow-wrap: anywhere; margin: 0; color: var(--teal-dark); font-size: 15px; font-weight: 800; }
+.budget-totals dt { color: var(--muted); font-size: 12px; font-weight: 800; }
+.budget-totals dd { overflow-wrap: anywhere; margin: 0; color: var(--teal-dark); font-size: 15px; font-weight: 900; }
 .budget-totals .is-budget :is(dt, dd) { color: var(--teal-dark); }
 .budget-totals .is-planned :is(dt, dd) { color: #315f8b; }
 .budget-totals .is-spent :is(dt, dd) { color: #9a5033; }
@@ -81,7 +85,7 @@
 .day-list { position: relative; display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
 .day-card { padding: 20px 22px; border: 1px solid var(--line); border-radius: 18px; background: var(--white); box-shadow: 0 7px 18px rgb(14 49 52 / 3%); }
 .day-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.day-heading h2, .day-heading h3 { margin: 0; color: var(--teal-dark); font-family: Georgia, serif; font-size: 24px; font-weight: 400; letter-spacing: normal; }
+.day-heading h2, .day-heading h3 { margin: 0; color: var(--teal-dark); font-family: 'DM Sans', 'Segoe UI', sans-serif; font-size: 22px; font-weight: 650; letter-spacing: normal; }
 .day-heading h2 span, .day-heading h3 span { margin-right: 8px; padding: 6px 9px; border-radius: 999px; background: #fce8de; color: #ac523c; font-family: 'DM Sans', 'Segoe UI', sans-serif; font-size: 12px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
 .day-heading .text-button { padding: 9px 13px; border: 1px solid #cddbd5; border-radius: 999px; text-decoration: none; }
 .day-heading .text-button:hover { border-color: var(--teal); background: #edf5f0; }
@@ -130,9 +134,15 @@
 .place-suggestion-list small { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
 .combobox { position: relative; }
 .suggestions { position: absolute; z-index: 10; top: calc(100% + 6px); right: 0; left: 0; max-height: 300px; overflow-y: auto; margin: 0; padding: 5px; border: 1px solid var(--line); border-radius: 13px; background: var(--white); box-shadow: var(--shadow); list-style: none; }
-.suggestions li { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 11px 12px; border-radius: 8px; cursor: pointer; color: var(--ink); font-size: 13px; font-weight: 500; }
-.suggestions li span { color: var(--muted); font-size: 12px; }
-.suggestions li[aria-selected='true'] { background: #edf5f0; }
+.suggestions li { padding: 0; border-radius: 8px; }
+.destination-suggestion { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 11px; border: 0; border-radius: 8px; background: transparent; color: var(--ink); cursor: pointer; font: inherit; text-align: left; }
+.destination-suggestion:hover, .destination-suggestion[aria-selected='true'] { background: #edf5f0; }
+.destination-suggestion-name { display: grid; gap: 2px; min-width: 0; }
+.destination-suggestion-name strong { overflow: hidden; font-size: 13px; font-weight: 700; text-overflow: ellipsis; }
+.destination-suggestion-name small { color: var(--muted); font-size: 12px; }
+.destination-add-label { flex: none; padding: 6px 10px; border: 1px solid #cddbd5; border-radius: 999px; color: var(--teal); font-size: 12px; font-weight: 800; }
+.destination-suggestion:hover .destination-add-label, .destination-suggestion[aria-selected='true'] .destination-add-label { border-color: var(--teal); background: white; }
+.destination-suggestion:focus-visible { outline: 3px solid rgb(11 116 117 / 35%); outline-offset: -2px; }
 .suggestions .no-match { color: var(--muted); cursor: default; }
 
 @media (max-width: 900px) {
@@ -145,6 +155,7 @@
   .trips-page, .trip-detail { padding: 22px 0 52px; }
   .trip-form, .activity-form { grid-template-columns: 1fr; }
   .field-wide { grid-column: auto; }
+  .budget-input-row { grid-template-columns: minmax(0, 1fr) 128px; gap: 9px; }
   .trip-card { grid-template-columns: 58px minmax(0, 1fr); gap: 14px; padding: 15px 15px 15px 18px; }
   .trip-card-days { min-height: 58px; font-size: 24px; }
   .trip-card-body strong { font-size: 19px; }
@@ -166,9 +177,9 @@
 
 /* Itinerary workspace */
 .workspace-controls { position: sticky; top: 0; z-index: 4; display: flex; gap: 8px; padding: 12px; margin-bottom: 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--white); }
-.workspace-controls button { position: relative; isolation: isolate; padding: 10px 18px; border: 0; border-radius: 9px; background: transparent; color: var(--teal-dark); cursor: pointer; font-weight: 700; transition: color .16s ease; }
+.workspace-controls button { position: relative; z-index: 1; flex: 1 1 0; min-width: 0; padding: 10px 12px; border: 0; border-radius: 9px; background: transparent; color: var(--teal-dark); cursor: pointer; font-weight: 700; line-height: 1.2; text-align: center; transition: color .16s ease; }
 .workspace-controls button[aria-pressed='true'] { background: transparent; color: white; }
-.workspace-controls button[aria-pressed='true']::before { position: absolute; z-index: -1; inset: 0; border-radius: inherit; background: var(--teal-dark); content: ''; view-transition-name: trip-tab-indicator; animation: indicator-settle 320ms cubic-bezier(.16, 1, .3, 1) both; }
+.workspace-indicator { position: absolute; z-index: 0; border-right: 1px solid rgb(5 38 44 / 72%); border-bottom: 1px solid rgb(5 38 44 / 72%); border-radius: 9px; background: var(--teal-dark); box-shadow: 2px 2px 0 #082e35; pointer-events: none; transition: left 360ms cubic-bezier(.16, 1, .3, 1); }
 .board-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 24px 0 16px; }
 .board-heading h2 { margin: 0; color: var(--teal-dark); font: 32px Georgia, serif; }
 .board-heading p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
@@ -181,7 +192,7 @@
 
 .day-jump { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; color: var(--teal-dark); font-size: 12px; font-weight: 700; }
 .day-jump select { min-height: 44px; max-width: 100%; padding: 8px 12px; border: 1px solid #cddbd5; border-radius: 10px; background: white; color: var(--teal-dark); font: inherit; }
-@media (max-width: 640px) { .workspace-controls { overflow-x: auto; } .workspace-controls button { flex: 1 0 auto; padding: 12px; } .day-jump { align-items: stretch; flex-direction: column; } .itinerary-board { grid-auto-columns: minmax(260px, 100%); } .itinerary-board .day-card { scroll-margin-top: 90px; } }
+@media (max-width: 640px) { .workspace-controls { overflow-x: visible; } .workspace-controls button { padding: 8px 4px; } .day-jump { align-items: stretch; flex-direction: column; } .itinerary-board { grid-auto-columns: minmax(260px, 100%); } .itinerary-board .day-card { scroll-margin-top: 90px; } }
 
 /* Calendar */
 .itinerary-board { grid-auto-columns: minmax(340px, 1fr); }
@@ -281,14 +292,16 @@
 .trip-header { padding: clamp(22px, 3vw, 32px); }
 .trip-header h1 { font-size: clamp(36px, 4.5vw, 54px); }
 .trip-role { display: inline-block; margin: 12px 0 0; padding: 5px 9px; border: 1px solid rgb(255 249 239 / 40%); border-radius: 6px; color: var(--cream); font-size: 12px; font-weight: 700; }
-.workspace-controls { position: static; }
-@media (max-width: 640px) { .trip-header { padding: 22px; } .workspace-controls { gap: 4px; padding: 6px; } .workspace-controls button { min-height: 44px; } }
+.workspace-controls { position: sticky; top: 86px; }
+@media (max-width: 640px) { .trip-header { padding: 22px; } .workspace-controls { top: 112px; gap: 4px; padding: 6px; } .workspace-controls button { min-height: 44px; } }
 /* Story composer: destination type-ahead (single choice) */
 .composer-destination { display: grid; align-content: start; gap: 8px; color: var(--teal-dark); font-size: 12px; font-weight: 700; }
 .composer-destination .destination-picker { gap: 8px; font-weight: 400; }
 
-.calendar-event-weather { display: inline-flex; align-items: center; gap: 3px; width: fit-content; font-weight: 600; }
+.calendar-event-weather { display: inline-flex; align-items: center; gap: 4px; width: fit-content; max-width: 100%; overflow: hidden; font-weight: 600; white-space: nowrap; }
 .calendar-event-weather svg { width: 14px; height: 14px; flex: none; }
+.calendar-event-weather-description { overflow: hidden; text-overflow: ellipsis; }
+.calendar-event-weather > span:last-child { flex: none; font-variant-numeric: tabular-nums; }
 
 /* Calendar event affordances: hover, press, drag and resize states */
 .calendar-event { --ev-bg: #d9eeea; --ev-accent: #0b7475; position: absolute; overflow: hidden; border: 1px solid transparent; border-radius: 6px; background: var(--ev-bg); color: #103f48; box-shadow: 0 1px 0 rgb(16 63 72 / 10%); transition: box-shadow .14s ease, outline-color .14s ease, opacity .14s ease; }
@@ -317,7 +330,7 @@
 @media (hover: none) { .calendar-resize { height: 18px; } .calendar-resize span { opacity: .6; } }
 .calendar-tip { position: fixed; z-index: 1000; display: grid; gap: 6px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: white; box-shadow: 0 14px 34px rgb(16 63 72 / 22%); color: var(--ink); font-size: 13px; line-height: 1.4; pointer-events: none; }
 .calendar-tip .category-badge { justify-self: start; }
-.calendar-tip strong { font-family: Georgia, 'Times New Roman', serif; font-size: 16px; font-weight: 400; }
+.calendar-tip strong { font-family: 'DM Sans', 'Segoe UI', sans-serif; font-size: 16px; font-weight: 650; }
 .calendar-tip p { margin: 0; color: var(--muted); }
 .calendar-tip .calendar-tip-note { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
 .calendar-tip small { padding-top: 6px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }

@@ -49,6 +49,22 @@ function validatePhoto(photo) {
   }
 }
 
+function postPhotoPublicId(imageUrl) {
+  try {
+    const url = new URL(imageUrl);
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+    const marker = `/${cloudName}/image/upload/`;
+    if (!cloudName || url.hostname !== 'res.cloudinary.com' || !url.pathname.includes(marker)) return null;
+    const folder = '/tripo/post-photos/';
+    const folderIndex = url.pathname.lastIndexOf(folder);
+    if (folderIndex < 0) return null;
+    const asset = decodeURIComponent(url.pathname.slice(folderIndex + folder.length)).replace(/\.[a-z0-9]+$/i, '');
+    return /^[\w.-]+$/.test(asset) ? `tripo/post-photos/${asset}` : null;
+  } catch {
+    return null;
+  }
+}
+
 async function addPhotos(posts) {
   if (!posts.length) return posts;
   const ids = posts.map((post) => post.id);
@@ -94,6 +110,7 @@ router.get('/', async (req, res, next) => {
     const [posts] = await pool.execute(
       `SELECT p.id, p.body, p.created_at AS createdAt, p.trip_id AS tripId,
               p.place_id AS placeId, u.display_name AS author, u.avatar_url AS authorAvatar,
+              (u.clerk_user_id = ?) AS isAuthor,
               EXISTS(SELECT 1 FROM post_likes l JOIN users v ON v.id = l.user_id
                      WHERE l.post_id = p.id AND v.clerk_user_id = ?) AS liked,
               (SELECT COUNT(*) FROM post_likes l WHERE l.post_id = p.id) AS likesCount,
@@ -101,10 +118,10 @@ router.get('/', async (req, res, next) => {
        FROM posts p JOIN users u ON u.id = p.author_user_id
        WHERE p.visibility = 'public'
        ORDER BY p.created_at DESC, p.id DESC LIMIT ${limit + 1} OFFSET ${offset}`,
-      [viewer ?? null],
+      [viewer ?? null, viewer ?? null],
     );
 
-    const data = posts.slice(0, limit).map((post) => ({ ...post, liked: Boolean(post.liked) }));
+    const data = posts.slice(0, limit).map((post) => ({ ...post, isAuthor: Boolean(post.isAuthor), liked: Boolean(post.liked) }));
     res.set('Cache-Control', 'private, no-store').json({ data: await addPhotos(data), page, limit, hasMore: posts.length > limit && page < 1000 });
   } catch (error) {
     next(error);
@@ -201,6 +218,69 @@ router.post('/', requireAuth, requireProfile, postWriteLimit, (req, res, next) =
       await deleteCloudinaryImage(uploadedImage.public_id).catch(() => {});
     }
     next(error);
+  }
+});
+
+router.delete('/:id', requireAuth, validatePostId, requireProfile, async (req, res, next) => {
+  const connection = await pool.getConnection();
+  let photoIds = [];
+  try {
+    await connection.beginTransaction();
+    const [posts] = await connection.execute(
+      'SELECT id FROM posts WHERE id = ? AND author_user_id = ? FOR UPDATE',
+      [req.params.id, req.userId],
+    );
+    if (!posts.length) {
+      await connection.rollback();
+      return res.status(404).json({ error: { code: 'POST_NOT_FOUND', message: 'Post was not found.' } });
+    }
+    const [photos] = await connection.execute('SELECT image_url AS imageUrl FROM post_photos WHERE post_id = ? FOR UPDATE', [req.params.id]);
+    photoIds = [...new Set(photos.map(({ imageUrl }) => postPhotoPublicId(imageUrl)).filter(Boolean))];
+    if (photoIds.length) {
+      const placeholders = photoIds.map(() => '(?)').join(', ');
+      await connection.execute(`INSERT INTO pending_photo_deletes (cloudinary_public_id) VALUES ${placeholders}`, photoIds);
+    }
+    await connection.execute('DELETE FROM posts WHERE id = ? AND author_user_id = ?', [req.params.id, req.userId]);
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback().catch(() => {});
+    return next(error);
+  } finally {
+    connection.release();
+  }
+  await Promise.all(photoIds.map((id) => clearQueuedPhoto(id)
+    .catch(() => console.error('Post deleted; photo cleanup pending:', id))));
+  res.status(204).end();
+});
+
+router.patch('/:id', requireAuth, validatePostId, requireProfile, async (req, res, next) => {
+  const body = typeof req.body?.body === 'string' ? req.body.body.trim() : '';
+  if (!body || body.length > 2000) {
+    return res.status(400).json({ error: { code: 'INVALID_POST', message: 'Story text is required and must be 2000 characters or fewer.' } });
+  }
+  if (/([^\p{L}\p{N}\s])\1{2,}/u.test(body)) {
+    return res.status(400).json({ error: { code: 'INVALID_POST_TEXT', message: 'Please remove repeated punctuation from the story text.' } });
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [posts] = await connection.execute(
+      'SELECT id FROM posts WHERE id = ? AND author_user_id = ? FOR UPDATE',
+      [req.params.id, req.userId],
+    );
+    if (!posts.length) {
+      await connection.rollback();
+      return res.status(404).json({ error: { code: 'POST_NOT_FOUND', message: 'Post was not found.' } });
+    }
+    await connection.execute('UPDATE posts SET body = ? WHERE id = ? AND author_user_id = ?', [body, req.params.id, req.userId]);
+    await connection.commit();
+    res.set('Cache-Control', 'private, no-store').json({ data: { body } });
+  } catch (error) {
+    await connection.rollback().catch(() => {});
+    next(error);
+  } finally {
+    connection.release();
   }
 });
 

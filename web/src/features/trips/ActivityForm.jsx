@@ -59,8 +59,9 @@ export default function ActivityForm({ activity = null, date, days, currencyCode
 
   return (
     <form className="activity-form" onSubmit={handleSubmit} noValidate>
+      <p className="activity-form-intro field-wide">{activity ? 'Editing activity' : 'Adding activity'} for <strong>{formatDayHeading(values.date)}</strong>. Start with a name; the other details are optional.</p>
       <label className="field field-wide">Place or activity
-        <input value={values.title} onChange={update('title')} maxLength={160} placeholder="Xuan Huong Lake" required autoFocus />
+        <input value={values.title} onChange={update('title')} maxLength={160} placeholder="e.g. Bánh khọt Gốc Vú Sữa" required autoFocus />
       </label>
       <label className="field">Category
         <select value={values.category} onChange={update('category')}>
@@ -68,7 +69,7 @@ export default function ActivityForm({ activity = null, date, days, currencyCode
         </select>
       </label>
       <details className="activity-more field-wide" open={activity ? true : undefined}>
-        <summary>Time, location, costs and notes</summary>
+        <summary>Add time, location, cost or notes (optional)</summary>
         <div className="activity-more-fields">
       <label className="field">Time
         <input type="time" value={values.time} onChange={update('time')} />

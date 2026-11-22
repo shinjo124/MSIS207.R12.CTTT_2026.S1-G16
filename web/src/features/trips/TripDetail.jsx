@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { apiRequest } from '../../lib/api.js';
 import ActivityForm from './ActivityForm.jsx';
 import ProfileGate from './ProfileGate.jsx';
@@ -9,7 +9,6 @@ import MemberControl from './MemberControl.jsx';
 import { createMutationLock, updateSchedule } from './schedule-update.js';
 import { createTripPoller, fetchChangedTrip } from './trip-polling.js';
 import { categoryLabel, formatDate, formatDayHeading, formatMoney, formatTripTitle, mapsUrl, timeZoneLabel, todayInTimeZone, withDefaultTimeZone } from './trip-format.js';
-import { runViewTransition } from '../../lib/view-transition.js';
 import './trips.css';
 
 function ActivityItem({ activity, trip, onEdit, onDelete, onToggleVisited, onMove, onDragStart, onDragEnd }) {
@@ -36,7 +35,7 @@ function ActivityItem({ activity, trip, onEdit, onDelete, onToggleVisited, onMov
       <label className="board-check-in"><input type="checkbox" aria-label={activity.visited ? 'Mark activity as not visited' : 'Mark activity as visited'} checked={activity.visited} disabled={busy} onChange={() => run(() => onToggleVisited(!activity.visited))} /></label>
       <details>
         <summary>
-          <span className={`category-badge category-${activity.category}`}>{categoryLabel(activity.category)}</span>
+          <span className={`category-badge category-${activity.category}`}>{categoryLabel(activity.category)}:</span>
           <strong>{activity.title}</strong>
           <span className="board-card-meta">{activity.time || 'No time'}{place ? ` · ${place}` : ''}</span>
         </summary>
@@ -138,6 +137,8 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
   const ready = isSignedIn && profileStatus === 'ready';
   const runMutation = useRef(createMutationLock()).current;
   const pollerRef = useRef(null);
+  const workspaceControlsRef = useRef(null);
+  const [indicator, setIndicator] = useState(null);
   const paused = Boolean(editingTrip || confirmDelete || addingOn || dragged || moving || writing || calendarInteraction || weatherEditing);
 
   function changeView(nextView) {
@@ -145,11 +146,23 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
       if (nextView === 'calendar') setAddingOn(null);
       return;
     }
-    runViewTransition(() => {
-      setView(nextView);
-      if (nextView === 'calendar') setAddingOn(null);
-    });
+    setView(nextView);
+    if (nextView === 'calendar') setAddingOn(null);
   }
+
+  useLayoutEffect(() => {
+    const controls = workspaceControlsRef.current;
+    if (!controls) return undefined;
+    const updateIndicator = () => {
+      const activeButton = controls.querySelector('button[aria-pressed="true"]');
+      if (!activeButton) return;
+      setIndicator({ left: activeButton.offsetLeft, top: activeButton.offsetTop, width: activeButton.offsetWidth, height: activeButton.offsetHeight });
+    };
+    updateIndicator();
+    const observer = new ResizeObserver(updateIndicator);
+    observer.observe(controls);
+    return () => observer.disconnect();
+  }, [view, trip?.role]);
 
   useEffect(() => { if (addingOn) addActivityFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, [addingOn]);
   useEffect(() => {
@@ -400,7 +413,8 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
                 </div>
               </header>}
 
-          <div className="workspace-controls" role="group" aria-label="Trip sections">
+          <div ref={workspaceControlsRef} className="workspace-controls" role="group" aria-label="Trip sections">
+            {indicator && <span className="workspace-indicator" aria-hidden="true" style={{ left: indicator.left, top: indicator.top, width: indicator.width, height: indicator.height }} />}
             <button type="button" aria-pressed={view === 'calendar'} onClick={() => changeView('calendar')}>Calendar</button>
             <button type="button" aria-pressed={view === 'itinerary'} onClick={() => changeView('itinerary')}>Day board</button>
             <button type="button" aria-pressed={view === 'budget'} onClick={() => changeView('budget')}>Budget</button>

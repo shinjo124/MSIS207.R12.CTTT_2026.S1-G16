@@ -1,6 +1,6 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { SignInButton, SignUpButton, Show, UserButton } from '@clerk/react';
-import { apiBaseUrl } from './lib/api.js';
+import { apiRequest } from './lib/api.js';
 
 const PostsFeed = lazy(() => import('./features/posts/PostsFeed.jsx'));
 const Dashboard = lazy(() => import('./features/dashboard/Dashboard.jsx'));
@@ -61,20 +61,19 @@ function HomePage({ getToken, isSignedIn = false, profileStatus = 'signed-out', 
   const [destinationStatus, setDestinationStatus] = useState('loading');
   const [destinationError, setDestinationError] = useState('');
   const [categories, setCategories] = useState([]);
+  const loadedDestinationQuery = useRef(null);
 
   useEffect(() => {
     if (page !== 'explore' || !active) return undefined;
-    const controller = new AbortController();
     const query = category ? `?category=${encodeURIComponent(category)}` : '';
+    if (loadedDestinationQuery.current === query) return undefined;
+    const controller = new AbortController();
     setDestinationError('');
 
-    fetch(`${apiBaseUrl}/api/destinations${query}`, { signal: controller.signal })
-      .then(async (response) => {
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error?.message || 'Could not load destinations.');
-        return result.data || [];
-      })
+    apiRequest(`/destinations${query}`, { getToken, signal: controller.signal })
+      .then((result) => result.data || [])
       .then((data) => {
+        loadedDestinationQuery.current = query;
         setDestinations(data);
         if (!category) setCategories([...new Set(data.map((place) => place.category))].sort());
         setDestinationStatus(data.length ? 'ready' : 'empty');

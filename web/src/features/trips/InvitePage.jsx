@@ -48,6 +48,6 @@ export default function InvitePage({ getToken, isSignedIn, profileStatus, profil
       {isSignedIn && profileStatus === 'ready' && <button className="primary-button" type="button" onClick={accept} disabled={busy}>{busy ? 'Joining…' : 'Accept invitation'}</button>}
       {message && <p className="form-error" role="alert">{message}</p>}
     </>}
-    <button className="text-button" type="button" onClick={cancel} disabled={busy}>Cancel</button>
+    <button className="invite-cancel" type="button" onClick={cancel} disabled={busy}>Cancel</button>
   </section>;
 }

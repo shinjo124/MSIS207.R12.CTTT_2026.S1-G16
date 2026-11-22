@@ -163,15 +163,22 @@ export default function DestinationPicker({
             ? suggestions.map((destination, index) => (
                 <li
                   key={destination.id}
+                  role="presentation"
+                ><button
+                  type="button"
+                  className="destination-suggestion"
                   id={`${listId}-${destination.id}`}
                   role="option"
                   aria-selected={index === active}
-                  // mousedown fires before the input's blur closes the list
-                  onMouseDown={(event) => { event.preventDefault(); choose(destination); }}
+                  aria-label={`Add ${displayName(destination)}, ${destination.region}`}
+                  // Keep the list open until the click handler adds this destination.
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => choose(destination)}
                   onMouseEnter={() => setActive(index)}
                 >
-                  <strong>{displayName(destination)}</strong>
-                  <span>{destination.region}</span>
+                  <span className="destination-suggestion-name"><strong>{displayName(destination)}</strong><small>{destination.region}</small></span>
+                  <span className="destination-add-label">+ Add</span>
+                </button>
                 </li>
               ))
             : <li className="no-match" role="option" aria-disabled="true" aria-selected="false">No destination matches “{query}”.</li>}
