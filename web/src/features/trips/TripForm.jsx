@@ -89,14 +89,6 @@ export default function TripForm({ trip = null, initialDestination = null, submi
         />
       </fieldset>
 
-      <label className="field field-wide">Trip time zone
-        <select value={values.timeZone} onChange={(event) => { setZoneConfirmed(false); update('timeZone')(event); }}>
-          {[...new Set([...TIME_ZONES.map(([zone]) => zone), values.timeZone])].filter(Boolean).map((zone) => <option key={zone} value={zone}>{TIME_ZONES.find(([value]) => value === zone)?.[1] || zone.replaceAll('_', ' ')}</option>)}
-        </select>
-        <span>Starts with the first destination's time zone. You can change it manually.</span>
-      </label>
-      {zoneChanged && zone && !automaticZone && <label className="field-wide"><input type="checkbox" checked={zoneConfirmed} onChange={(event) => setZoneConfirmed(event.target.checked)} /> I confirm this time zone matches the trip destinations.</label>}
-
       <label className="field">Start date
         <input type="date" value={values.startDate} onChange={update('startDate')} required />
       </label>
@@ -110,15 +102,20 @@ export default function TripForm({ trip = null, initialDestination = null, submi
       <label className="field">Group size
         <input type="number" min="1" max="100" step="1" value={values.groupSize} onChange={update('groupSize')} required />
       </label>
+      <label className="field">Trip time zone
+        <select value={values.timeZone} onChange={(event) => { setZoneConfirmed(false); update('timeZone')(event); }}>
+          {[...new Set([...TIME_ZONES.map(([zone]) => zone), values.timeZone])].filter(Boolean).map((zone) => <option key={zone} value={zone}>{TIME_ZONES.find(([value]) => value === zone)?.[1] || zone.replaceAll('_', ' ')}</option>)}
+        </select>
+        <span>Starts with the first destination's time zone. You can change it manually.</span>
+      </label>
+      {zoneChanged && zone && !automaticZone && values.destinations.length > 0 && <label className="field-wide zone-confirm"><input type="checkbox" checked={zoneConfirmed} onChange={(event) => setZoneConfirmed(event.target.checked)} /> I confirm this time zone matches the trip destinations.</label>}
       <fieldset className="field field-wide budget-field">
         <legend>Whole-trip budget</legend>
         <div className="budget-input-row">
           <input aria-label="Whole-trip budget" inputMode="decimal" value={values.budget} onChange={update('budget')} placeholder="5,000,000" required />
-          <label>Currency
-            <select value={values.currencyCode} onChange={update('currencyCode')}>
-              {[...new Set([...CURRENCIES, values.currencyCode])].map((code) => <option key={code}>{code}</option>)}
-            </select>
-          </label>
+          <select aria-label="Currency" value={values.currencyCode} onChange={update('currencyCode')}>
+            {[...new Set([...CURRENCIES, values.currencyCode])].map((code) => <option key={code}>{code}</option>)}
+          </select>
         </div>
       </fieldset>
 
