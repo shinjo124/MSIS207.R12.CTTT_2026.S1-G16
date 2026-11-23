@@ -7,6 +7,7 @@ import { apiRequest } from './lib/api.js';
 import { runViewTransition } from './lib/view-transition.js';
 import { INVITATION_RETURN_KEY, INVITATION_STORAGE_KEY } from './features/trips/invitation.js';
 import './styles.css';
+import './polish.css';
 
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
