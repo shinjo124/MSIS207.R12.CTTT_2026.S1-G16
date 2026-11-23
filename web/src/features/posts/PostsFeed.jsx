@@ -3,7 +3,7 @@ import { apiRequest } from '../../lib/api.js';
 import { feedImageSources } from '../../lib/cloudinary-image.js';
 import DestinationPicker from '../trips/DestinationPicker.jsx';
 import { displayName } from '../trips/destination-search.js';
-import { formatDateTime } from '../trips/trip-format.js';
+import { categoryLabel, formatDateTime } from '../trips/trip-format.js';
 import '../trips/trips.css';
 
 export function StoryImage({ photo, priority }) {
@@ -405,6 +405,7 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
                 </div>
               </details>}
             </div>
+            {post.place && <StoryPlace place={post.place} />}
             <StoryGallery photos={post.photos} priority={index === 0} />
             {editingPostId === post.id
               ? <form className="story-edit-form" onSubmit={(event) => savePost(event, post)}>
@@ -453,4 +454,20 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
       </div>}
     </section>
   );
+}
+
+// Where the story happened: the linked place, its type, address and destination, plus a map link.
+function StoryPlace({ place }) {
+  const destination = place.destination;
+  const area = destination ? [destination.name, destination.region !== destination.name ? destination.region : null].filter(Boolean).join(', ') : '';
+  const details = [categoryLabel(place.category), place.address, area].filter(Boolean);
+  const mapHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.mapQuery || [place.name, area].filter(Boolean).join(', '))}`;
+  return <div className="story-place">
+    <p className="story-place-name">
+      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5Z" /></svg>
+      <span>{place.name}</span>
+    </p>
+    {details.length > 0 && <p className="story-place-details">{details.join(' · ')}</p>}
+    <a className="story-place-map" href={mapHref} target="_blank" rel="noreferrer">Open in Google Maps <span aria-hidden="true">↗</span></a>
+  </div>;
 }
