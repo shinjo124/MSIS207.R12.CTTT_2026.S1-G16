@@ -3,10 +3,18 @@
 /* ---------- Global ---------- */
 body {
   background:
-    radial-gradient(1200px 420px at 85% -120px, rgb(11 116 117 / 9%), transparent 70%),
-    radial-gradient(900px 380px at -10% 0, rgb(233 110 81 / 7%), transparent 70%),
+    url('/vietnam-map.svg') left 2vw top 96px / auto calc(100vh - 120px) no-repeat fixed,
+    radial-gradient(1200px 420px at 85% -120px, rgb(11 116 117 / 9%), transparent 70%) fixed,
+    radial-gradient(900px 380px at -10% 0, rgb(233 110 81 / 7%), transparent 70%) fixed,
     var(--paper);
-  background-attachment: fixed;
+}
+/* Phones: the content covers the map, so keep only the soft gradients. */
+@media (max-width: 900px) {
+  body {
+    background:
+      radial-gradient(900px 420px at 85% -120px, rgb(11 116 117 / 9%), transparent 70%),
+      var(--paper);
+  }
 }
 .topbar { background: rgb(246 247 242 / 88%); }
 .primary-button { box-shadow: 0 8px 18px rgb(183 71 48 / 22%); }
