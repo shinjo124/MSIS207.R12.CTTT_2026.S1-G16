@@ -648,6 +648,21 @@ paths:
                         createdAt: { type: string, format: date-time }
                         tripId: { type: [integer, 'null'], format: int64 }
                         placeId: { type: [integer, 'null'], format: int64 }
+                        place:
+                          type: [object, 'null']
+                          description: Linked place shown on the story card; null when no place is linked
+                          properties:
+                            id: { type: integer }
+                            name: { type: string }
+                            category: { type: string }
+                            address: { type: [string, 'null'] }
+                            mapQuery: { type: string }
+                            destination:
+                              type: [object, 'null']
+                              properties:
+                                id: { type: integer }
+                                name: { type: string, description: Vietnamese display name when available }
+                                region: { type: string }
                         author: { type: string }
                         liked: { type: boolean, description: Whether the signed-in viewer likes the post }
                         likesCount: { type: integer }
@@ -729,6 +744,21 @@ paths:
                         createdAt: { type: string, format: date-time }
                         tripId: { type: [integer, 'null'], format: int64 }
                         placeId: { type: [integer, 'null'], format: int64 }
+                        place:
+                          type: [object, 'null']
+                          description: Linked place shown on the story card; null when no place is linked
+                          properties:
+                            id: { type: integer }
+                            name: { type: string }
+                            category: { type: string }
+                            address: { type: [string, 'null'] }
+                            mapQuery: { type: string }
+                            destination:
+                              type: [object, 'null']
+                              properties:
+                                id: { type: integer }
+                                name: { type: string, description: Vietnamese display name when available }
+                                region: { type: string }
                         likesCount: { type: integer }
                         commentsCount: { type: integer }
                         photos: { type: array, items: { type: object } }

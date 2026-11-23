@@ -26,8 +26,12 @@ test('public feed and comments return all pages and exclude private posts', asyn
     CREATE TABLE post_likes (post_id, user_id);
     CREATE TABLE post_comments (id INTEGER, post_id INTEGER, body, created_at, author_user_id);
     CREATE TABLE post_photos (id, post_id, image_url, alt_text, sort_order);
+    CREATE TABLE destinations (id INTEGER, name, local_name, region);
+    CREATE TABLE places (id INTEGER, destination_id INTEGER, name, category, address, map_query);
+    INSERT INTO destinations VALUES (7, 'Da Lat', 'Đà Lạt', 'Lâm Đồng');
+    INSERT INTO places VALUES (9, 7, 'Hồ Xuân Hương', 'Sightseeing', 'Phường 1, Đà Lạt', 'Ho Xuan Huong Da Lat');
     INSERT INTO users (id, clerk_user_id, display_name) VALUES (1, 'a', 'Test');
-    INSERT INTO posts VALUES (1,'older',1,NULL,NULL,1,'public'),(2,'newer',2,NULL,NULL,1,'public'),(3,'private',3,NULL,NULL,1,'private');
+    INSERT INTO posts VALUES (1,'older',1,NULL,NULL,1,'public'),(2,'newer',2,NULL,9,1,'public'),(3,'private',3,NULL,NULL,1,'private');
     INSERT INTO post_comments VALUES (1,1,'first',1,1),(2,1,'second',2,1);
     INSERT INTO post_likes VALUES (1,1);
   `);
@@ -46,9 +50,13 @@ test('public feed and comments return all pages and exclude private posts', asyn
   assert.deepEqual(first.data.map((p) => p.id), [2]);
   assert.equal(first.hasMore, true);
   assert.equal(calls.mock.callCount(), 2);
+  assert.deepEqual(first.data[0].place, {
+    id: 9, name: 'Hồ Xuân Hương', category: 'Sightseeing', address: 'Phường 1, Đà Lạt', mapQuery: 'Ho Xuan Huong Da Lat',
+    destination: { id: 7, name: 'Đà Lạt', region: 'Lâm Đồng' },
+  });
   const last = await get('?page=2&limit=1');
   assert.equal(last.hasMore, false);
-  assert.deepEqual(last.data.map((p) => [p.id, p.liked, p.likesCount]), [[1, false, 1]]);
+  assert.deepEqual(last.data.map((p) => [p.id, p.liked, p.likesCount, p.place]), [[1, false, 1, null]]);
   const comments = await get('/1/comments?limit=1');
   assert.deepEqual(comments.data.map((c) => c.body), ['first']);
   assert.equal(comments.nextOffset, 1);

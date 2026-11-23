@@ -65,6 +65,25 @@ function postPhotoPublicId(imageUrl) {
   }
 }
 
+// Columns for the place a story links to (and that place's destination); all NULL when no place is linked.
+const PLACE_COLUMNS = `pl.name AS placeName, pl.category AS placeCategory, pl.address AS placeAddress,
+              pl.map_query AS placeMapQuery, d.id AS destinationId, COALESCE(d.local_name, d.name) AS destinationName, d.region AS destinationRegion`;
+const PLACE_JOINS = 'LEFT JOIN places pl ON pl.id = p.place_id LEFT JOIN destinations d ON d.id = pl.destination_id';
+
+function shapePlace({ placeName, placeCategory, placeAddress, placeMapQuery, destinationId, destinationName, destinationRegion, ...post }) {
+  return {
+    ...post,
+    place: post.placeId && placeName ? {
+      id: post.placeId,
+      name: placeName,
+      category: placeCategory,
+      address: placeAddress,
+      mapQuery: placeMapQuery,
+      destination: destinationId ? { id: destinationId, name: destinationName, region: destinationRegion } : null,
+    } : null,
+  };
+}
+
 async function addPhotos(posts) {
   if (!posts.length) return posts;
   const ids = posts.map((post) => post.id);
@@ -89,12 +108,13 @@ router.get('/mine', requireAuth, requireProfile, async (req, res, next) => {
       `SELECT p.id, p.body, p.visibility, p.created_at AS createdAt,
               p.trip_id AS tripId, p.place_id AS placeId,
               (SELECT COUNT(*) FROM post_likes l WHERE l.post_id = p.id) AS likesCount,
-              (SELECT COUNT(*) FROM post_comments c WHERE c.post_id = p.id) AS commentsCount
-       FROM posts p WHERE p.author_user_id = ?
+              (SELECT COUNT(*) FROM post_comments c WHERE c.post_id = p.id) AS commentsCount,
+              ${PLACE_COLUMNS}
+       FROM posts p ${PLACE_JOINS} WHERE p.author_user_id = ?
        ORDER BY p.created_at DESC, p.id DESC LIMIT 50`,
       [req.userId],
     );
-    res.json({ data: await addPhotos(posts) });
+    res.json({ data: await addPhotos(posts.map(shapePlace)) });
   } catch (error) {
     next(error);
   }
@@ -114,14 +134,15 @@ router.get('/', async (req, res, next) => {
               EXISTS(SELECT 1 FROM post_likes l JOIN users v ON v.id = l.user_id
                      WHERE l.post_id = p.id AND v.clerk_user_id = ?) AS liked,
               (SELECT COUNT(*) FROM post_likes l WHERE l.post_id = p.id) AS likesCount,
-              (SELECT COUNT(*) FROM post_comments c WHERE c.post_id = p.id) AS commentsCount
-       FROM posts p JOIN users u ON u.id = p.author_user_id
+              (SELECT COUNT(*) FROM post_comments c WHERE c.post_id = p.id) AS commentsCount,
+              ${PLACE_COLUMNS}
+       FROM posts p JOIN users u ON u.id = p.author_user_id ${PLACE_JOINS}
        WHERE p.visibility = 'public'
        ORDER BY p.created_at DESC, p.id DESC LIMIT ${limit + 1} OFFSET ${offset}`,
       [viewer ?? null, viewer ?? null],
     );
 
-    const data = posts.slice(0, limit).map((post) => ({ ...post, isAuthor: Boolean(post.isAuthor), liked: Boolean(post.liked) }));
+    const data = posts.slice(0, limit).map((post) => shapePlace({ ...post, isAuthor: Boolean(post.isAuthor), liked: Boolean(post.liked) }));
     res.set('Cache-Control', 'private, no-store').json({ data: await addPhotos(data), page, limit, hasMore: posts.length > limit && page < 1000 });
   } catch (error) {
     next(error);
