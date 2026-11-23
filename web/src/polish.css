@@ -3,15 +3,16 @@
 /* ---------- Global ---------- */
 body {
   background:
-    url('/vietnam-map.svg') left 2vw top 96px / auto calc(100vh - 120px) no-repeat fixed,
+    url('/vietnam-map.svg') 32% 96px / auto calc(100vh - 120px) no-repeat fixed,
     radial-gradient(1200px 420px at 85% -120px, rgb(11 116 117 / 9%), transparent 70%) fixed,
     radial-gradient(900px 380px at -10% 0, rgb(233 110 81 / 7%), transparent 70%) fixed,
     var(--paper);
 }
-/* Phones: the content covers the map, so keep only the soft gradients. */
+/* Phones: a smaller map centred behind the content. */
 @media (max-width: 900px) {
   body {
     background:
+      url('/vietnam-map.svg') 30% 120px / auto 78vh no-repeat fixed,
       radial-gradient(900px 420px at 85% -120px, rgb(11 116 117 / 9%), transparent 70%),
       var(--paper);
   }
@@ -106,3 +107,17 @@ body {
 .story-actions button { padding: 8px 14px; font-size: 13px; }
 .story-stats { font-weight: 600; }
 .story-compose-toggle[aria-expanded='true']::before { content: '×'; background: var(--teal-dark); }
+
+/* ---------- See-through cards (map shows behind) ---------- */
+:root { --glass: rgb(255 255 255 / 58%); --glass-soft: rgb(255 255 255 / 40%); --glass-line: rgb(23 51 59 / 10%); }
+:is(.dashboard-selector, .dashboard-budget, .dashboard-agenda, .dashboard-news, .dashboard-empty, .panel, .trip-card,
+  .budget-summary, .day-card, .workspace-controls, .story-card, .story-compose-toggle, .story-composer, .share-control,
+  .destination-card, .shared-trip, .invite-page, .calendar-scroll) {
+  border-color: var(--glass-line); background: var(--glass); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+}
+.dashboard-grid > .weather-panel { border-color: rgb(240 227 208 / 70%); background: rgb(255 249 239 / 62%); backdrop-filter: blur(2px); }
+:is(.dashboard-budget dl div:not(:last-child), .dashboard-news li, .budget-totals div, .budget-record-list li, .itinerary-board .board-activity) { background: var(--glass-soft); }
+.budget-totals .is-remaining.is-positive { background: rgb(230 243 234 / 70%); }
+.budget-totals .is-spent { background: rgb(253 241 234 / 70%); }
+.dashboard-trip { background: linear-gradient(125deg, rgb(16 63 72 / 94%) 0%, rgb(10 106 110 / 90%) 58%, rgb(42 131 124 / 86%) 100%); backdrop-filter: blur(2px); }
+.topbar { background: rgb(246 247 242 / 72%); }
