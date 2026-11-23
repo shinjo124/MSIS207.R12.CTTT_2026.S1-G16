@@ -24,6 +24,8 @@ body {
 .dashboard-header h1 { letter-spacing: -.04em; }
 .dashboard-selector { background: white; box-shadow: 0 6px 18px rgb(14 49 52 / 4%); }
 .dashboard-grid { grid-template-areas: "trip budget" "weather weather" "agenda agenda" "news news"; }
+/* styles.css sets grid-column: auto on these, which kept them in the first column only. */
+.dashboard-grid > :is(.weather-panel, .dashboard-agenda, .dashboard-news) { grid-column: 1 / -1; }
 
 .dashboard-trip {
   min-height: 250px; padding: 30px; border: 0; color: var(--cream);
@@ -60,6 +62,7 @@ body {
 
 @media (max-width: 900px) {
   .dashboard-grid { grid-template-areas: "trip" "budget" "weather" "agenda" "news"; }
+  .dashboard-grid > :is(.weather-panel, .dashboard-agenda, .dashboard-news) { grid-column: auto; }
   .dashboard-news ul { grid-template-columns: 1fr; }
 }
 
