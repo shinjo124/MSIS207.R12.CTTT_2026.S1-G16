@@ -735,6 +735,39 @@ paths:
         '401': { description: Missing or invalid session token }
         '409': { description: Local profile is not available yet }
         '429': { description: Request limit reached }
+  /api/posts/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer, minimum: 1 }
+    patch:
+      summary: Edit the text of the signed-in user's own story
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, minLength: 1, maxLength: 2000 }
+      responses:
+        '200': { description: Updated story text in data.body }
+        '400': { description: Invalid post ID or story text }
+        '401': { description: Missing or invalid session token }
+        '404': { description: Post was not found or is not the user's own }
+    delete:
+      summary: Delete the signed-in user's own story (its photos are queued for cleanup)
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Story deleted }
+        '400': { description: Invalid post ID }
+        '401': { description: Missing or invalid session token }
+        '404': { description: Post was not found or is not the user's own }
   /api/posts/{id}/likes:
     parameters:
       - { in: query, name: summary, schema: { type: integer, enum: [1] }, description: Return the updated count and viewer like state }

@@ -1,63 +1,124 @@
 # Tripo
 
-Tripo helps a group plan a multi-day trip, organize a day-by-day itinerary and budget, share a read-only trip link, and publish travel stories.
+Tripo helps a group plan a multi-day trip together: pick destinations, build a day-by-day itinerary, track the budget against what was actually spent, invite friends to edit, share a read-only link, and publish travel stories.
 
-## Stack
+**Course project** — MSIS207 Web Application Development (MSIS207.R12.CTTT_2026.S1), Group 16, University of Information Technology (UIT – VNU-HCM). Instructor: Nguyễn Thanh Bình, Ph.D.
 
-- `web/`: React + Vite
-- `api/`: Node.js + Express + MySQL
-- `docs/api/openapi.yaml`: API contract, served with Swagger UI at `/api-docs`
+| | Link |
+|---|---|
+| Live web app | <https://www.tripo.website> |
+| Public API base URL | <https://api.tripo.website/api> |
+| API documentation (Swagger UI) | <https://api.tripo.website/api-docs> |
+| OpenAPI document (JSON) | <https://api.tripo.website/api-docs/openapi.json> |
+| Health check | <https://api.tripo.website/api/health> |
 
-## Local setup
+## Team
 
-1. Install Node.js 24 LTS and start MySQL (Laragon is the guide's local setup).
-2. Create a local database named `tripo_dev` (matching `api/.env.example`) using `utf8mb4`:
+| Member | Student ID | Main work |
+|---|---|---|
+| Trần Quốc Kiệt | 24520916 | Authentication (Clerk), trips and activities API, trip form and itinerary UI, destination search, API docs deployment |
+| Cao Phan Lâm | 24520926 | Project setup, database schema and hosting, stories feed and photo uploads, sharing, collaboration and live sync, calendar, dashboard, weather and news |
+
+## Features
+
+- **Accounts** — email sign-in with Clerk; each account gets a Tripo profile.
+- **Trips** — title, one or more destinations (type-ahead search, accent-insensitive: "da lat" finds Đà Lạt), dates (up to 60 days), group size, budget and currency, trip time zone.
+- **Itinerary and calendar** — activities per day with time, duration, category, place, planned cost and actual spend; mark places as visited.
+- **Budget** — planned vs. actual totals per day and per trip, exact decimal arithmetic.
+- **Collaboration** — invite members with a single-use link (24 h); edits from others appear automatically; conflicting edits are detected instead of silently overwritten.
+- **Read-only sharing** — the owner can create and revoke a public share link.
+- **Stories** — a public feed of travel posts with photos, likes and comments; authors can edit or delete their own stories.
+- **Dashboard** — upcoming trip, today's plan, budget, weather forecast (OpenWeather) and travel news.
+
+## Tech stack
+
+| Layer | Technology |
+|---|---|
+| Front end | React 19 + Vite (single-page app), `@clerk/react` |
+| Back end | Node.js + Express 5 (ES modules), RESTful JSON API |
+| Database | MySQL (local) / TiDB Cloud Starter, MySQL-compatible (production), accessed with `mysql2` and parameterized SQL |
+| Auth | Clerk (Bearer session token verified by `@clerk/express`) |
+| Files | Cloudinary (story and trip photos) |
+| API docs | OpenAPI 3 (`docs/api/openapi.yaml`) served with Swagger UI |
+| Hosting | Vercel — two projects (`web/`, `api/`) on custom domains |
+
+```
+Browser (React SPA)  ──HTTPS + JSON──▶  Express REST API  ──SQL/TLS──▶  TiDB (MySQL)
+www.tripo.website        Bearer token      api.tripo.website                │
+        │                                       ├──▶ Clerk (verify user)
+        └──▶ Clerk (sign-in UI)                 ├──▶ Cloudinary (photos)
+                                                └──▶ OpenWeather, RSS news
+```
+
+## API overview
+
+All endpoints are under `/api`, exchange JSON, and return errors as `{ "error": { "code", "message" } }`. Protected endpoints need `Authorization: Bearer <Clerk session token>`. The full contract (25 paths, 37 operations) is in [Swagger UI](https://api.tripo.website/api-docs).
+
+| Resource | Endpoints |
+|---|---|
+| Health, profile | `GET /api/health`, `GET /api/auth/me` |
+| Destinations | `GET /api/destinations?q=`, `GET /api/destinations/{id}/places` |
+| Trips | `GET/POST /api/trips`, `GET/PUT/DELETE /api/trips/{tripId}`, `GET /api/trips/{tripId}/version` (long polling) |
+| Activities | `POST /api/trips/{tripId}/activities`, `PATCH/DELETE /api/activities/{activityId}` |
+| Members | `POST /api/trips/{tripId}/invitations`, `POST /api/trips/invitations/accept`, `GET /api/trips/{tripId}/members`, `DELETE …/members/{userId}` |
+| Sharing | `GET/POST/DELETE /api/trips/{tripId}/share`, `GET /api/share/{token}` (public) |
+| Stories | `GET/POST /api/posts`, `PATCH/DELETE /api/posts/{id}` (own story), `GET /api/posts/mine`, likes and comments |
+| Extras | `GET /api/trips/{tripId}/weather`, `PUT /api/trips/{tripId}/days/{date}/destination`, `GET /api/news`, `POST /api/trip-photos` |
+
+Typical status codes: `200`, `201` created, `204` deleted, `400` validation, `401` not signed in, `404` not found or not allowed, `409` conflicting edit, `429` rate limited.
+
+## Repository structure
+
+```
+api/                 Express API
+  src/routes/        one router per resource (trips, activities, posts, …)
+  src/middleware/    auth, profile, upload and write-limit checks
+  src/services/      validation rules, data shaping, limits
+  database/          migrations/ (001–016, apply in order) and seeds/
+  test/              node:test unit and route tests
+web/                 React + Vite app
+  src/features/      trips (incl. calendar), posts, dashboard
+  src/lib/api.js     fetch wrapper that adds the Clerk token
+  test/
+docs/
+  api/openapi.yaml   API contract
+  spec.md            product specification
+  decisions.md       decision log
+  adr/               architecture decision records
+  deployment.md      Vercel/TiDB setup and migration rollout notes
+  working-on-tripo.md  code map and team workflow
+```
+
+## Run locally
+
+Requirements: Node.js 24 LTS and MySQL 8.
+
+1. Create the database:
 
    ```sql
    CREATE DATABASE tripo_dev CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
    ```
-3. Copy `api/.env.example` to `api/.env` and set the local MySQL values.
-4. Apply every SQL file in `api/database/migrations/` in numeric order, then run every file in `api/database/seeds/` in numeric order. The seed data is fictional and repeatable.
-5. In `api/`, run `npm install` and `npm run dev`.
-6. Copy `web/.env.example` to `web/.env.local`; in `web/`, run `npm install` and `npm run dev`.
 
-The API health endpoint is `http://localhost:4000/api/health`. Swagger UI is at `http://localhost:4000/api-docs`. Clerk email sign-in needs a Clerk app's keys; photo upload needs Cloudinary credentials. The Clerk secret and Cloudinary secret belong only in `api/.env`. The Vite publishable key is public and belongs in `web/.env.local`. `DB_SSL=false` is for local MySQL; set it to `true` for the hosted database.
+2. Apply every file in `api/database/migrations/` in numeric order, then every file in `api/database/seeds/` in numeric order (seed data is fictional and repeatable).
+3. Copy `api/.env.example` to `api/.env` and fill in the MySQL values, `CLERK_SECRET_KEY`, and (optional) Cloudinary and OpenWeather keys. Keep `DB_SSL=false` for local MySQL.
+4. Copy `web/.env.example` to `web/.env.local` and set `VITE_CLERK_PUBLISHABLE_KEY`.
+5. Start both apps:
 
-## Deployment
+   ```bash
+   cd api && npm install && npm run dev    # http://localhost:4000/api/health
+   cd web && npm install && npm run dev    # http://localhost:5173
+   ```
 
-Deploy `web/` and `api/` as separate Vercel projects connected to this Git repository, setting each project's Root Directory to its corresponding folder. For the API project, enable **Include source files outside of the Root Directory** because `/api-docs` loads `docs/api/openapi.yaml` from the repository root. Set `TRUST_PROXY_HOPS` to the verified Vercel proxy hop count in the API project's environment before relying on IP-based rate limits; do not assume the local default is correct for a hosted deployment.
+Swagger UI runs locally at <http://localhost:4000/api-docs>. Run tests with `npm test` in `api/` and in `web/`.
 
-The shared database target is TiDB Cloud Starter in MySQL compatibility mode, using database `tripo`. Historical checks recorded migrations `001` through `006` and destination seeds `001_demo.sql` and `003_vietnam_destinations.sql` as applied, with TLS and TiDB `CHECK` constraint enforcement verified; the current deployed state must be checked again. For a fresh TiDB instance, set `tidb_enable_check_constraint` to `ON` before applying migrations. See the [public production release checklist](docs/working-on-tripo.md#public-production-release-checklist) before launch.
+Secrets (Clerk secret, database password, Cloudinary secret, OpenWeather key) belong only in `api/.env`; never commit `.env` files or put secrets in `VITE_*` variables.
 
-Set the TiDB host, port (`4000`), database (`tripo`), user, password, `DB_SSL=true`, `CLERK_SECRET_KEY`, `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET` in the API project's Vercel environment. Cloudinary credentials are used server-side for story and trip photo uploads; keep the API secret only in the API project. Set `CLIENT_ORIGIN` to the exact web origin (`https://tripo-web.vercel.app` for the current demo). The web code defaults to `https://tripo-api-eta.vercel.app` in production; if `VITE_API_BASE_URL` is set in Vercel, it overrides that default and must contain the API origin. Put Clerk's publishable key in the web project's environment and keep Clerk's secret and database credentials only in the API project's environment. Vite embeds `VITE_*` values at build time, so redeploy the web after changing one. Never commit real `.env` files or put server secrets in Vite variables.
+## Further reading
 
-For a local demo, run the SQL files in `api/database/seeds/` after migrations in numeric order. Seed `002_demo_trip_and_story.sql` creates a non-login fixture user and trip. Seed `004_presentation_demo.sql` adds featured destination photos, sample places, and demo trips/stories for existing non-fixture users; its stories are labelled `Demo`. It is repeatable and does not clear existing user stories. The presentation run cleared current stories once before applying it. Images link to Unsplash photos used under the [Unsplash License](https://unsplash.com/license). The free database quota can pause new connections after it is exceeded; see `docs/decisions.md` for limits and hosting constraints.
+- [Deploying Tripo](docs/deployment.md) — Vercel projects, environment variables, custom domains, migration rollout notes
+- [Working on Tripo](docs/working-on-tripo.md) — code map, verification commands, change workflow
+- [Product direction](PRODUCT.md) and [specification](docs/spec.md)
 
-Before deploying the updated API, apply `api/database/migrations/007_photo_cleanup.sql`. Trip deletion queues Cloudinary public IDs in the same transaction as the database delete. If storage is unavailable, run `npm run photos:retry` from `api/` using the same database and Cloudinary configuration. Failed IDs stay queued for the next run.
+## License
 
-## Team development
-
-See [Working on Tripo](docs/working-on-tripo.md) for the code map, verification commands, current implementation boundaries, and change workflow. `PRODUCT.md` records the agreed product direction; planned features there are not necessarily implemented yet.
-
-Before deploying the calendar API, apply `api/database/migrations/008_activity_duration.sql` to add the nullable activity duration column. Existing activities retain an unset duration. Deploy the migration before the API; the prior API ignores the new column.
-
-Before deploying the collaboration API, back up the database and apply `api/database/migrations/009_trip_members.sql` after migration 008. Existing trips remain owned by their current owners. Apply the migration before deploying the API; the prior API ignores the new tables. Roll back the API first if needed and retain the new tables to preserve memberships; dropping them destroys collaboration data. Owner-created invitation tokens are single-use secrets valid for 24 hours. Collaboration endpoints are documented in OpenAPI; the web app watches shared trip revisions through bounded long polling.
-
-Before deploying activity conflict detection, back up the database and apply `api/database/migrations/010_activity_version.sql` after migration 009. Deploy the new web client before the API; after the API update, older web clients must reload because PATCH and DELETE now require the activity version and reject missing versions. Roll back the API first if necessary and retain the version column. Activity PATCH and DELETE reject stale versions with 409.
-
-
-Before enabling revision-based polling, back up the database and apply `api/database/migrations/011_trip_revision.sql` after migration 010. Quiesce all old API writers during cutover: every writer must run revision-aware code before clients rely on the version endpoint. Direct SQL changes and requests to old deployments bypass the revision and can be missed. Deploy the revision-aware API and reload active clients; do not enable revision polling if old writers cannot be stopped. For rollback, stop revision-polling clients first, roll back the API, and retain the revision column. No production quota measurements are implied.
-
-Trip PUT now requires the revision captured when editing starts and rejects stale writes with 409. Deploy the compatible web client before the API, then reload older clients; they cannot save trip edits against the new API until reloaded. Roll back the API first if necessary. This uses migration 011 and needs no additional schema change.
-
-### Optional weather
-
-Weather is disabled until `OPENWEATHER_API_KEY` is set in the API environment; never put this key in `VITE_*` or source control. Migration 012 retains the earlier manually confirmed weather-location table for compatibility. Migration 015 adds destination coordinates and day assignments used by the current UI. Only destination coordinates and the server key are sent to OpenWeather; trip names and user identities are not sent. Data comes from OpenWeather's [current conditions](https://openweathermap.org/api/current) and [5-day, 3-hour forecast](https://openweathermap.org/api/forecast5). Forecast labels show an actual sample nearest noon on the selected destination-local date, not a daily high or low; dates outside the provider horizon have no forecast.
-
-Responses are cached for 10 minutes in each server process and simultaneous requests in that process are coalesced. The weather endpoint permits 30 requests per 15 minutes per IP in each process. Serverless instances do not share this cache or limiter, so these are not account-wide provider quota guarantees; monitor usage and provider charges/limits before enabling. Provider credentials, subscription and license terms are the deployer's responsibility; the free OpenWeather license can include attribution/share-alike obligations. The interface attributes OpenWeather. Check the [official pricing](https://openweathermap.org/price) and [license explainer](https://openweathermap.org/storage/app/media/documents/License_explainer_25_Feb_25.pdf) for the selected plan. No live provider access is required by automated tests.
-
-Trip time zones are stored separately from weather locations. Back up the database and apply `api/database/migrations/013_trip_time_zone.sql` after 012 before deploying the new API. Existing trips use the first destination's zone when available; users may choose a different zone in the trip form. Older clients may omit the field: an unchanged destination list preserves the zone, while changing destinations without confirming a zone clears it. The dashboard and calendar determine today in the trip zone; if absent, they do not infer the device zone. Weather forecasts use the selected destination's own zone. Activity times remain local wall times; ambiguous or nonexistent DST times are not currently resolved or validated. Roll back the API first if needed and retain the new column to preserve zone settings.
-
-For local per-day weather selection, apply `api/database/migrations/015_day_destinations.sql` after migration 014, then re-run the idempotent `api/database/seeds/003_vietnam_destinations.sql` to refresh destination season hints. The migration adds coordinates/time zones and one destination assignment per trip day; existing days default to the trip's first destination in the API. Coordinates are representative destination or province points, not street-level positions; province points use OpenStreetMap data (© OpenStreetMap contributors, ODbL). Do not deploy this API until migration 015 is applied to its database. No production migration or deployment is part of the current local change.
-
-Before deploying shared write limits, apply `api/database/migrations/014_write_limits.sql` after earlier migrations. Post attempts are limited to 15 per account and 100 globally per 15 minutes; multipart story and trip-photo uploads share a limit of 10 per account and 40 globally. Invalid attempts count. These are fixed windows, not provider quota guarantees; registration and general API traffic still need protection. All API instances must use the new code for shared limits to apply. On rollback, roll back the API first and retain the table. If the database is unavailable, protected writes fail closed.
+[MIT](LICENSE)

@@ -27,6 +27,8 @@ const configuredOrigins = (process.env.CLIENT_ORIGIN || '')
   .filter(Boolean);
 const allowedOrigins = [
   ...configuredOrigins,
+  'https://www.tripo.website',
+  'https://tripo.website',
   'https://tripo-web.vercel.app',
   ...(process.env.NODE_ENV === 'production' ? [] : ['http://localhost:5173']),
 ];
