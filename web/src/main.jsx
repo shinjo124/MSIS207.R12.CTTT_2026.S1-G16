@@ -12,6 +12,44 @@ import './polish.css';
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 const TAB_PATHS = ['/', '/trips', '/explore', '/stories'];
+const defaultDescription = document.querySelector('meta[name="description"]').content;
+
+const PUBLIC_PAGES = {
+  '/': ['Tripo | Group Trip Planner', defaultDescription],
+  '/explore': ['Explore Vietnam Destinations | Tripo', 'Browse destinations across Vietnam and find places to visit on your next trip.'],
+  '/stories': ['Travel Stories | Tripo', 'Browse travel stories and photos shared by the Tripo community.'],
+};
+
+function updatePageMetadata() {
+  const path = window.location.pathname.replace(/\/+$/, '') || '/';
+  const page = Object.hasOwn(PUBLIC_PAGES, path) ? PUBLIC_PAGES[path] : null;
+  const canonical = document.querySelector('link[rel="canonical"]');
+  const robots = document.querySelector('meta[name="robots"]');
+
+  if (page) {
+    const [title, description] = page;
+    const url = `https://www.tripo.website${path}`;
+    const link = canonical || document.createElement('link');
+    link.rel = 'canonical';
+    link.href = url;
+    if (!canonical) document.head.append(link);
+    robots?.remove();
+    document.title = title;
+    document.querySelector('meta[name="description"]').content = description;
+    return;
+  }
+
+  canonical?.remove();
+  // Trip, share, account, and unrecognized URLs should stay out of search results.
+  const meta = robots || document.createElement('meta');
+  meta.name = 'robots';
+  meta.content = 'noindex';
+  if (!robots) document.head.append(meta);
+  document.title = 'Tripo';
+  document.querySelector('meta[name="description"]').content = defaultDescription;
+}
+
+updatePageMetadata();
 
 // Keep visited top-level tabs mounted so switching tabs preserves their local UI state.
 function AuthenticatedPages({ path, search, ...props }) {
@@ -76,7 +114,7 @@ function AuthPage({ signUp }) {
   return (
     <main className="page-shell">
       <header className="topbar">
-        <a className="brand" href="/" aria-label="Tripo home"><span className="brand-mark">T</span> tripo</a>
+        <a className="brand" href="/" aria-label="Tripo home"><span className="brand-mark" aria-hidden="true">T</span> tripo</a>
         <span className="top-note">Make room for the good days.</span>
       </header>
       <section className="auth-page">
@@ -90,7 +128,10 @@ function AuthPage({ signUp }) {
 function AppRoot() {
   const [path, setPath] = useState(() => `${window.location.pathname}${window.location.search}`);
   useEffect(() => {
-    const updatePath = () => setPath(`${window.location.pathname}${window.location.search}`);
+    const updatePath = () => {
+      updatePageMetadata();
+      setPath(`${window.location.pathname}${window.location.search}`);
+    };
     const followLink = (event) => {
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       const link = event.target.closest('a[href]');

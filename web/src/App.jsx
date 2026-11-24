@@ -13,7 +13,7 @@ const InvitePage = lazy(() => import('./features/trips/InvitePage.jsx'));
 export function Topbar({ getToken, active, isSignedIn }) {
   return (
     <header className="topbar">
-      <a className="brand" href="/" aria-label="Tripo home"><span className="brand-mark">T</span> tripo</a>
+      <a className="brand" href="/" aria-label="Tripo home"><span className="brand-mark" aria-hidden="true">T</span> tripo</a>
       <nav className="app-nav" aria-label="Main navigation">
         {[['home', '/', isSignedIn ? 'Dashboard' : 'Home'], ['trips', '/trips', 'My trips'], ['explore', '/explore', 'Explore'], ['stories', '/stories', 'Stories']].map(([key, href, label]) => <a key={key} className="nav-link" href={href} aria-current={active === key ? 'page' : key === 'trips' && active === 'trip-detail' ? 'location' : undefined}><span style={{ viewTransitionName: `main-nav-label-${key}` }}>{label}</span></a>)}
       </nav>
@@ -36,7 +36,7 @@ export default function App(props) {
   const shareToken = path.match(/^\/share\/([a-f0-9]{64})$/)?.[1];
   if (shareToken) return <main className="page-shell">
     <header className="topbar">
-      <a className="brand" href="/" aria-label="Tripo home"><span className="brand-mark">T</span> tripo</a>
+      <a className="brand" href="/" aria-label="Tripo home"><span className="brand-mark" aria-hidden="true">T</span> tripo</a>
       <span className="top-note">A trip to look forward to.</span>
       <a className="nav-link" href="/">Plan your own trip ↗</a>
     </header>

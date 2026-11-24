@@ -39,7 +39,7 @@
 .trip-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
 .trip-card-days { display: grid; align-content: center; justify-items: center; gap: 2px; min-height: 72px; border-radius: 14px; background: #e7f1ec; color: var(--teal-dark); font-family: 'DM Sans', 'Segoe UI', sans-serif; font-size: 30px; font-weight: 700; line-height: 1; }
 .page-shell .trip-card-days > small { display: block; padding: 0; color: inherit; font-family: inherit; font-size: 15px; font-weight: 650; line-height: 1; }
-.trip-card-budget { display: grid; gap: 4px; color: var(--coral); font-size: 15px; font-weight: 800; text-align: right; }
+.trip-card-budget { display: grid; gap: 4px; color: #a63d28; font-size: 15px; font-weight: 800; text-align: right; }
 .trip-card-budget small { color: var(--muted); font-size: 12px; font-weight: 600; }
 .trip-card-body { display: grid; gap: 6px; min-width: 0; color: var(--muted); font-size: 12px; }
 .trip-card-body strong { overflow: hidden; color: var(--teal-dark); font-family: 'DM Sans', 'Segoe UI', sans-serif; font-size: 21px; font-weight: 650; letter-spacing: -.015em; text-overflow: ellipsis; white-space: nowrap; }
