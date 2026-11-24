@@ -8,7 +8,7 @@ import TripCalendar from './TripCalendar.jsx';
 import MemberControl from './MemberControl.jsx';
 import { createMutationLock, updateSchedule } from './schedule-update.js';
 import { createTripPoller, fetchChangedTrip } from './trip-polling.js';
-import { categoryLabel, formatDate, formatDayHeading, formatMoney, formatTripTitle, mapsUrl, timeZoneLabel, todayInTimeZone, withDefaultTimeZone } from './trip-format.js';
+import { MONEY_INPUT_PATTERN, categoryLabel, formatDate, formatDayHeading, formatMoney, formatTripTitle, mapsUrl, moneyInputProps, timeZoneLabel, todayInTimeZone, withDefaultTimeZone } from './trip-format.js';
 import './trips.css';
 
 function ActivityItem({ activity, trip, onEdit, onDelete, onToggleVisited, onMove, onDragStart, onDragEnd }) {
@@ -65,17 +65,21 @@ export function ActivityEditor({ activity, trip, onSave, onCancel }) {
 }
 
 function BudgetSpendRow({ activity, onRecordSpend }) {
+  const [actualSpend, setActualSpend] = useState(() => String(activity.actualSpend ?? ''));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   async function submit(event) {
     event.preventDefault();
+    if (actualSpend && !MONEY_INPUT_PATTERN.test(actualSpend)) {
+      setError('Enter an amount with up to two decimal places.');
+      return;
+    }
     setSaving(true); setError('');
-    const actualSpend = String(new FormData(event.currentTarget).get('actualSpend') || '').trim() || null;
-    try { await onRecordSpend(activity, actualSpend); }
+    try { await onRecordSpend(activity, actualSpend || null); }
     catch (saveError) { setError(saveError.message); }
     finally { setSaving(false); }
   }
-  return <li><span>Day {activity.dayNumber} · {activity.title}</span><form onSubmit={submit}><label className="visually-hidden" htmlFor={`spend-${activity.id}`}>Actual spend for {activity.title}</label><input id={`spend-${activity.id}`} name="actualSpend" inputMode="decimal" pattern="\d{1,10}(\.\d{1,2})?" defaultValue={activity.actualSpend ?? ''} placeholder="Amount" /><button className="text-button" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>{error && <span role="alert" className="form-error">{error}</span>}</form></li>;
+  return <li><span>Day {activity.dayNumber} · {activity.title}</span><form onSubmit={submit}><label className="visually-hidden" htmlFor={`spend-${activity.id}`}>Actual spend for {activity.title}</label><input id={`spend-${activity.id}`} name="actualSpend" {...moneyInputProps(actualSpend, setActualSpend)} placeholder="Amount" /><button className="text-button" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>{error && <span role="alert" className="form-error">{error}</span>}</form></li>;
 }
 
 function BudgetSummary({ summary, trip, onRecordSpend }) {

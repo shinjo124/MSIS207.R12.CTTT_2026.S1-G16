@@ -1,7 +1,5 @@
 import { useState } from 'react';
-import { CATEGORIES, formatDayHeading } from './trip-format.js';
-
-const MONEY = /^\d{1,10}(\.\d{1,2})?$/;
+import { CATEGORIES, MONEY_INPUT_PATTERN, formatDayHeading, moneyInputProps } from './trip-format.js';
 
 function initialValues(activity, date) {
   return {
@@ -31,8 +29,8 @@ export default function ActivityForm({ activity = null, date, days, currencyCode
     let problem = '';
     if (!values.title.trim()) problem = 'Enter a place or activity name.';
     else if (values.durationMinutes && (!/^\d+$/.test(values.durationMinutes) || Number(values.durationMinutes) < 1 || Number(values.durationMinutes) > 1440)) problem = 'Duration must be between 1 and 1440 minutes.';
-    else if (values.plannedCost.trim() && !MONEY.test(values.plannedCost.trim())) problem = 'Planned cost must be zero or a positive amount.';
-    else if (values.actualSpend.trim() && !MONEY.test(values.actualSpend.trim())) problem = 'Actual spend must be empty or a positive amount.';
+    else if (values.plannedCost && !MONEY_INPUT_PATTERN.test(values.plannedCost)) problem = 'Planned cost must be zero or a positive amount.';
+    else if (values.actualSpend && !MONEY_INPUT_PATTERN.test(values.actualSpend)) problem = 'Actual spend must be empty or a positive amount.';
     setError(problem);
     if (problem) return;
 
@@ -89,10 +87,10 @@ export default function ActivityForm({ activity = null, date, days, currencyCode
         <input value={values.address} onChange={update('address')} maxLength={255} placeholder="Tran Quoc Toan, Ward 1" />
       </label>
       <label className="field">Planned cost ({currencyCode})
-        <input inputMode="decimal" value={values.plannedCost} onChange={update('plannedCost')} placeholder="0" />
+        <input {...moneyInputProps(values.plannedCost, (plannedCost) => setValues((current) => ({ ...current, plannedCost })))} placeholder="0" />
       </label>
       <label className="field">Actual spend ({currencyCode})
-        <input inputMode="decimal" value={values.actualSpend} onChange={update('actualSpend')} placeholder="Not recorded yet" />
+        <input {...moneyInputProps(values.actualSpend, (actualSpend) => setValues((current) => ({ ...current, actualSpend })))} placeholder="Not recorded yet" />
       </label>
       <label className="field field-wide">Note
         <textarea value={values.note} onChange={update('note')} maxLength={1000} rows={2} placeholder="Book ahead, bring a jacket…" />

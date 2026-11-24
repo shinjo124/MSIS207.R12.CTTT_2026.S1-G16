@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import DestinationPicker from './DestinationPicker.jsx';
-import { CURRENCIES, countDays, destinationTimeZone } from './trip-format.js';
+import { CURRENCIES, MONEY_INPUT_PATTERN, countDays, destinationTimeZone, moneyInputProps } from './trip-format.js';
 
 const TIME_ZONES = [['Asia/Ho_Chi_Minh', 'Vietnam'], ['Asia/Bangkok', 'Thailand'], ['Asia/Singapore', 'Singapore'], ['Asia/Tokyo', 'Japan'], ['Asia/Seoul', 'South Korea'], ['Europe/London', 'United Kingdom'], ['Europe/Paris', 'Central Europe'], ['America/Los_Angeles', 'US Pacific'], ['America/New_York', 'US Eastern']];
 
@@ -29,7 +29,7 @@ function validate(values) {
   if (countDays(values.startDate, values.endDate) > 60) return 'A trip can be at most 60 days.';
   const groupSize = Number(values.groupSize);
   if (!Number.isInteger(groupSize) || groupSize < 1 || groupSize > 100) return 'Group size must be a whole number from 1 to 100.';
-  if (!/^\d{1,10}(\.\d{1,2})?$/.test(values.budget.trim())) return 'Budget must be zero or a positive amount (no minus sign, at most 2 decimals).';
+  if (!MONEY_INPUT_PATTERN.test(values.budget)) return 'Budget must be zero or a positive amount (no minus sign, at most 2 decimals).';
   return '';
 }
 
@@ -112,7 +112,7 @@ export default function TripForm({ trip = null, initialDestination = null, submi
       <fieldset className="field field-wide budget-field">
         <legend>Whole-trip budget</legend>
         <div className="budget-input-row">
-          <input aria-label="Whole-trip budget" inputMode="decimal" value={values.budget} onChange={update('budget')} placeholder="5,000,000" required />
+          <input aria-label="Whole-trip budget" {...moneyInputProps(values.budget, (budget) => setValues((current) => ({ ...current, budget })))} placeholder="5.000.000" required />
           <select aria-label="Currency" value={values.currencyCode} onChange={update('currencyCode')}>
             {[...new Set([...CURRENCIES, values.currencyCode])].map((code) => <option key={code}>{code}</option>)}
           </select>

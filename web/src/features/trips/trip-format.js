@@ -9,6 +9,58 @@ export const CATEGORIES = [
 
 export const CURRENCIES = ['VND', 'USD', 'EUR', 'JPY', 'KRW', 'THB', 'SGD'];
 
+export const MONEY_INPUT_PATTERN = /^\d{1,10}(\.\d{1,2})?$/;
+
+function formatMoneyInput(value) {
+  const [whole, fraction] = value.split('.');
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return fraction === undefined ? grouped : `${grouped},${fraction}`;
+}
+
+// Keep form state in the API's decimal format. Only the input uses Vietnamese separators.
+export function moneyInputProps(value, onChange) {
+  const formatted = formatMoneyInput(value);
+  return {
+    inputMode: 'decimal',
+    value: formatted,
+    onChange(event) {
+      const input = event.currentTarget;
+      const { data, inputType } = event.nativeEvent;
+      let text = input.value;
+      const caret = input.selectionStart ?? text.length;
+      if (inputType === 'insertText' && data === '.' && text[caret - 1] === '.') {
+        text = text.slice(0, caret - 1) + ',' + text.slice(caret);
+      } else if (inputType === 'insertFromPaste') {
+        // Accept amounts copied from the app's existing currency displays too.
+        if (/^\d{1,3}(,\d{3})+(\.\d{1,2})?$/.test(text)) {
+          text = text.replaceAll(',', '').replace('.', ',');
+        } else if (/^\d+\.\d{1,2}$/.test(text)) {
+          text = text.replace('.', ',');
+        }
+      }
+      const nextValue = text.replaceAll('.', '').replace(',', '.');
+      if (nextValue && !/^\d{1,10}(\.\d{0,2})?$/.test(nextValue)) {
+        input.value = formatted;
+        input.setSelectionRange(Math.min(caret, formatted.length), Math.min(caret, formatted.length));
+        return;
+      }
+      const display = formatMoneyInput(nextValue);
+      if (display !== input.value) {
+        // Count digits and the decimal comma so grouping changes do not move the caret to the end.
+        let remaining = text.slice(0, caret).replaceAll('.', '').length;
+        let position = 0;
+        while (position < display.length && remaining) {
+          if (display[position++] !== '.') remaining--;
+        }
+        if (inputType === 'deleteContentForward' && value === nextValue && display[position] === '.') position++;
+        input.value = display;
+        input.setSelectionRange(position, position);
+      }
+      onChange(nextValue);
+    },
+  };
+}
+
 export function formatTripTitle(title) {
   return title.normalize('NFC').replace(/\s+([,.;!?])/g, '$1');
 }
