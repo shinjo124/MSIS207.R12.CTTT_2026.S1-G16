@@ -4,6 +4,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer } from 'vite';
 
+// Load real React components through Vite for static markup checks without launching a browser.
 test('navigation identifies the current trip area and exposes dashboard', async (t) => {
   const server = await createServer({ configFile: false, appType: 'custom', server: { middlewareMode: true }, logLevel: 'silent' });
   t.after(() => server.close());

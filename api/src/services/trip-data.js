@@ -1,5 +1,6 @@
 import { countDays } from './trip-rules.js';
 
+// Keep SQL aliases consistent across routes and return calendar dates as strings.
 export const TRIP_COLUMNS = `t.id, t.title,
   DATE_FORMAT(t.start_date, '%Y-%m-%d') AS startDate,
   DATE_FORMAT(t.end_date, '%Y-%m-%d') AS endDate,
@@ -29,6 +30,7 @@ export async function findOwnedTrip(db, tripId, userId, lock = false) {
   return rows[0] ? shapeTrip(rows[0]) : null;
 }
 
+// Owners and invited members can edit. Mutation callers pass a transaction and request row locks.
 export async function findEditableTrip(db, tripId, userId, lock = false) {
   const [rows] = await db.execute(
     `SELECT ${TRIP_COLUMNS}, t.owner_user_id AS ownerUserId FROM trips t WHERE t.id = ?${lock ? ' FOR UPDATE' : ''}`,

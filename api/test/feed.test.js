@@ -16,6 +16,7 @@ test('presentation story seed uses public posts without demo labels and avoids d
   assert.match(sql, /AND NOT EXISTS \(SELECT 1 FROM posts x WHERE x\.author_user_id = u\.id AND x\.trip_id = t\.id AND x\.body = demo\.body\)/);
 });
 
+// Exercise the HTTP feed against local rows so page boundaries, visibility, and comments can be checked together.
 test('public feed and comments return all pages and exclude private posts', async (t) => {
   delete process.env.CLERK_SECRET_KEY; // Test process serves anonymous requests.
   const db = new DatabaseSync(':memory:');

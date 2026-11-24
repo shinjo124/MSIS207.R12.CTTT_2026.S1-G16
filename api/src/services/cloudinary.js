@@ -17,6 +17,7 @@ function configure() {
   });
 }
 
+// Stream the in-memory image to Cloudinary and cap its dimensions for display.
 export function uploadCloudinaryImage(buffer, folder) {
   configure();
   return new Promise((resolve, reject) => {
@@ -40,6 +41,7 @@ export async function deleteCloudinaryImage(publicId) {
   if (result !== 'ok' && result !== 'not found') throw new Error('Photo deletion failed');
 }
 
+// Remove the queue row only after Cloudinary confirms the image is gone.
 export async function clearQueuedPhoto(publicId) {
   await deleteCloudinaryImage(publicId);
   await pool.execute('DELETE FROM pending_photo_deletes WHERE cloudinary_public_id = ?', [publicId]);

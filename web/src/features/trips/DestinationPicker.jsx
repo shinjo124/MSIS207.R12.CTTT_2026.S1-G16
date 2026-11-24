@@ -5,6 +5,7 @@ import { displayName, searchDestinations } from './destination-search.js';
 import { filterPlacesByCategory } from './place-filters.js';
 
 
+// Public place suggestions are catalog data. The picker skips this panel for custom destinations.
 function PlaceSuggestions({ destination }) {
   const [places, setPlaces] = useState([]);
   const [status, setStatus] = useState('loading');
@@ -58,7 +59,7 @@ function PlaceSuggestions({ destination }) {
 // Trip form: up to 10 destinations with place suggestions. Story composer: max={1}, showPlaces={false},
 // and `options` reuses the destination list the composer already loaded.
 export default function DestinationPicker({
-  selected, onChange, max = 10, showPlaces = true, options, disabled = false, labelledBy,
+  selected, onChange, max = 10, showPlaces = true, options, disabled = false, labelledBy, allowCustom = false,
   placeholder = 'Type a city or province, e.g. Đà Lạt, da lat, H…',
 }) {
   const [fetched, setFetched] = useState([]);
@@ -68,7 +69,10 @@ export default function DestinationPicker({
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
+  const [customName, setCustomName] = useState('');
+  const [customCountry, setCustomCountry] = useState('');
   const inputRef = useRef(null);
+  const countryRef = useRef(null);
   const listId = useId();
 
   useEffect(() => {
@@ -91,6 +95,36 @@ export default function DestinationPicker({
   }, [all, query, selected]);
   const single = max === 1;
   const full = selected.length >= max;
+  const canAddCustom = allowCustom && Boolean(query.trim());
+  const optionCount = suggestions.length + Number(canAddCustom);
+  const country = customCountry.trim();
+  const duplicate = selected.some((destination) => destination.custom
+    && destination.name.localeCompare(customName, undefined, { sensitivity: 'base' }) === 0
+    && destination.country.localeCompare(country, undefined, { sensitivity: 'base' }) === 0);
+
+  useEffect(() => {
+    if (customName) countryRef.current?.focus();
+  }, [customName]);
+
+  function openCustom() {
+    setCustomName(query.trim());
+    setCustomCountry('');
+    setOpen(false);
+  }
+
+  function closeCustom() {
+    setCustomName('');
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }
+
+  // Use a temporary key until the trip API saves the draft and returns a real destination ID.
+  function addCustom() {
+    if (!customName || !country || duplicate || full || disabled) return;
+    onChange([...selected, { id: JSON.stringify([customName, country]), name: customName, country, custom: true, draft: true }]);
+    setQuery('');
+    setActive(0);
+    closeCustom();
+  }
 
   function choose(destination) {
     if (!destination || full) return;
@@ -105,17 +139,19 @@ export default function DestinationPicker({
     onChange(selected.filter((destination) => destination.id !== id));
   }
 
+  // Arrow keys move through both catalog results and the custom option. Enter selects instead of submitting the trip.
   function handleKeyDown(event) {
     if (event.key === 'ArrowDown') {
       event.preventDefault();
       setOpen(true);
-      setActive((index) => Math.min(index + 1, suggestions.length - 1));
+      setActive((index) => Math.max(0, Math.min(index + 1, optionCount - 1)));
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
       setActive((index) => Math.max(index - 1, 0));
-    } else if (event.key === 'Enter' && open && suggestions.length) {
+    } else if (event.key === 'Enter' && open && optionCount) {
       event.preventDefault(); // pick the suggestion instead of submitting the form
-      choose(suggestions[active]);
+      if (canAddCustom && active >= suggestions.length) openCustom();
+      else choose(suggestions[active]);
     } else if (event.key === 'Escape') {
       setOpen(false);
     } else if (event.key === 'Backspace' && !query && selected.length) {
@@ -123,7 +159,8 @@ export default function DestinationPicker({
     }
   }
 
-  const showList = open && status === 'ready' && !full && !disabled;
+  const showList = open && (status === 'ready' || canAddCustom) && !full && !disabled && !customName;
+  const activeId = suggestions[active] ? suggestions[active].id : canAddCustom ? 'custom' : null;
 
   return (
     <div className="destination-picker">
@@ -136,8 +173,8 @@ export default function DestinationPicker({
         ))}
       </ol>}
 
-      {showPlaces && selected.length > 0 && <div className="place-suggestions-list">
-        {selected.map((destination) => <PlaceSuggestions key={destination.id} destination={destination} />)}
+      {showPlaces && selected.some((destination) => !destination.custom) && <div className="place-suggestions-list">
+        {selected.filter((destination) => !destination.custom).map((destination) => <PlaceSuggestions key={destination.id} destination={destination} />)}
       </div>}
 
       {!(single && full) && <div className="combobox">
@@ -149,9 +186,10 @@ export default function DestinationPicker({
           aria-expanded={showList}
           aria-controls={listId}
           aria-autocomplete="list"
-          aria-activedescendant={showList && suggestions[active] ? `${listId}-${suggestions[active].id}` : undefined}
+          aria-activedescendant={showList && activeId != null ? `${listId}-${activeId}` : undefined}
           value={query}
-          disabled={disabled || full || status === 'error'}
+          disabled={disabled || full || Boolean(customName) || (status === 'error' && !allowCustom)}
+          maxLength={allowCustom ? 120 : undefined}
           placeholder={full ? `Up to ${max} destinations` : placeholder}
           onChange={(event) => { setQuery(event.target.value); setActive(0); setOpen(true); }}
           onFocus={() => setOpen(true)}
@@ -159,8 +197,7 @@ export default function DestinationPicker({
           onKeyDown={handleKeyDown}
         />
         {showList && <ul className="suggestions" id={listId} role="listbox">
-          {suggestions.length
-            ? suggestions.map((destination, index) => (
+          {suggestions.map((destination, index) => (
                 <li
                   key={destination.id}
                   role="presentation"
@@ -180,9 +217,28 @@ export default function DestinationPicker({
                   <span className="destination-add-label">+ Add</span>
                 </button>
                 </li>
-              ))
-            : <li className="no-match" role="option" aria-disabled="true" aria-selected="false">No destination matches “{query}”.</li>}
+              ))}
+          {canAddCustom && <li role="presentation">
+            <button className="destination-suggestion" id={`${listId}-custom`} type="button" role="option"
+              aria-selected={active === suggestions.length} onMouseDown={(event) => event.preventDefault()}
+              onMouseEnter={() => setActive(suggestions.length)} onClick={openCustom}>
+              Use “{query.trim()}” as a custom destination
+            </button>
+          </li>}
+          {!optionCount && <li className="no-match" role="option" aria-disabled="true" aria-selected="false">No destination matches “{query}”.</li>}
         </ul>}
+      </div>}
+
+      {customName && <div className="field">
+        <label className="field">Country for {customName}
+          <input ref={countryRef} value={customCountry} maxLength={120} onChange={(event) => setCustomCountry(event.target.value)}
+            onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addCustom(); } }} />
+        </label>
+        {duplicate && <p className="form-hint" role="status">This custom destination is already selected.</p>}
+        <div className="form-actions">
+          <button className="primary-button" type="button" disabled={!country || duplicate || disabled} onClick={addCustom}>Add destination</button>
+          <button className="text-button" type="button" onClick={closeCustom}>Cancel</button>
+        </div>
       </div>}
 
       {!options && status === 'loading' && <p className="form-hint" role="status">Loading destinations…</p>}

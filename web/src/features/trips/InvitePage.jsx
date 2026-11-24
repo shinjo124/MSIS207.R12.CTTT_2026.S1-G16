@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { apiRequest } from '../../lib/api.js';
 import { invitationFromFragment, INVITATION_RETURN_KEY, INVITATION_STORAGE_KEY } from './invitation.js';
 
+// The first visit can carry a fragment. After sign-in, the token may only be in this tab's session storage.
 function storedInvitation() {
   try { return invitationFromFragment(`#token=${encodeURIComponent(sessionStorage.getItem(INVITATION_STORAGE_KEY) || '')}`); } catch { return null; }
 }
@@ -28,6 +29,7 @@ export default function InvitePage({ getToken, isSignedIn, profileStatus, profil
     window.history.replaceState(null, '', '/');
     window.dispatchEvent(new PopStateEvent('popstate'));
   }
+  // Membership changes only after the user explicitly accepts and the API verifies the invitation.
   async function accept() {
     if (!token || !isSignedIn || profileStatus !== 'ready') return;
     setBusy(true); setMessage('');

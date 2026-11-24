@@ -4,6 +4,7 @@ import { once } from 'node:events';
 import express from 'express';
 import { uploadImage } from '../src/middleware/image-upload.js';
 
+// Exercise the upload middleware over HTTP. Cloudinary is outside this byte-limit test.
 test('multipart uploads accept exactly 4 MiB and reject one extra byte', async (t) => {
   const app = express();
   app.post('/', uploadImage, (req, res) => res.json(req.file.size));

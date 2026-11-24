@@ -6,6 +6,7 @@ import express from 'express';
 import { pool } from '../src/db/pool.js';
 import { sharedWriteLimit } from '../src/middleware/shared-write-limit.js';
 
+// Separate middleware instances use one fixture database to model independent API processes.
 test('write limits are shared between middleware instances and reset after the window', async (t) => {
   const db = new DatabaseSync(':memory:');
   t.after(() => db.close());

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiRequest } from '../../lib/api.js';
 
+// Convert the API's share path into a browser link for the owner to copy, replace, or revoke.
 export default function ShareControl({ tripId, getToken }) {
   const [sharePath, setSharePath] = useState(null);
   const [status, setStatus] = useState('loading');

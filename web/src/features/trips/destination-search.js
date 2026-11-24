@@ -31,6 +31,7 @@ function score(destination, query) {
   return null;
 }
 
+// Search the already-loaded catalog locally. Sort by match quality before featured status and name.
 export function searchDestinations(destinations, rawQuery, limit = 10) {
   const query = normalize(rawQuery);
   if (!query) {

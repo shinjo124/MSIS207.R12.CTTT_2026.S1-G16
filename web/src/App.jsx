@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { SignInButton, SignUpButton, Show, UserButton } from '@clerk/react';
 import { apiRequest } from './lib/api.js';
 
+// Load feature screens when their routes first need them to keep the first bundle smaller.
 const PostsFeed = lazy(() => import('./features/posts/PostsFeed.jsx'));
 const Dashboard = lazy(() => import('./features/dashboard/Dashboard.jsx'));
 const SharedTrip = lazy(() => import('./features/trips/SharedTrip.jsx'));
@@ -55,6 +56,7 @@ export default function App(props) {
   return <main className="page-shell"><Topbar getToken={props.getToken} isSignedIn={props.isSignedIn} /><section className="panel empty-panel"><h1>Page not found</h1><p>This page may have moved or the address may be incomplete.</p><a className="primary-button" href="/">Go home</a></section></main>;
 }
 
+// Signed-in Home uses the dashboard. Explore and Stories reuse this shell and stay public.
 function HomePage({ getToken, isSignedIn = false, profileStatus = 'signed-out', profileError = '', page, active = true }) {
   const [destinations, setDestinations] = useState([]);
   const [category, setCategory] = useState('');

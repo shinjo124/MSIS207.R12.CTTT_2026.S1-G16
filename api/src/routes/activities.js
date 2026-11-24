@@ -12,7 +12,7 @@ const signedIn = [requireAuth, requireProfile];
 const TRIP_NOT_FOUND = { status: 404, code: 'TRIP_NOT_FOUND', message: 'Trip was not found.' };
 const ACTIVITY_NOT_FOUND = { status: 404, code: 'ACTIVITY_NOT_FOUND', message: 'Activity was not found.' };
 
-// Validates only the fields present, so PATCH can send e.g. { "visited": true }.
+// PATCH validates only supplied activity fields. Its required version is checked separately.
 // With `partial = false` (create), date, category and title are required.
 export function validateActivity(body, partial) {
   const input = body && typeof body === 'object' ? body : {};
@@ -87,6 +87,7 @@ async function loadActivity(id, db = pool) {
   return shapeActivity(rows[0]);
 }
 
+// Lock the trip when adding an activity so the date check uses the current trip bounds.
 router.post('/trips/:tripId/activities', signedIn, async (req, res, next) => {
   const tripId = parseId(req.params.tripId);
   if (!tripId) return sendError(res, { status: 400, code: 'INVALID_TRIP_ID', message: 'Trip ID must be a positive integer.' });
@@ -122,6 +123,7 @@ router.post('/trips/:tripId/activities', signedIn, async (req, res, next) => {
   }
 });
 
+// Check membership and the last-read activity version before accepting an edit.
 router.patch('/activities/:activityId', signedIn, async (req, res, next) => {
   const activityId = parseId(req.params.activityId);
   if (!activityId) return sendError(res, { status: 400, code: 'INVALID_ACTIVITY_ID', message: 'Activity ID must be a positive integer.' });
@@ -162,6 +164,7 @@ router.patch('/activities/:activityId', signedIn, async (req, res, next) => {
   }
 });
 
+// Deleting also checks the version, so an old confirmation cannot remove a freshly edited activity.
 router.delete('/activities/:activityId', signedIn, async (req, res, next) => {
   const activityId = parseId(req.params.activityId);
   if (!activityId) return sendError(res, { status: 400, code: 'INVALID_ACTIVITY_ID', message: 'Activity ID must be a positive integer.' });

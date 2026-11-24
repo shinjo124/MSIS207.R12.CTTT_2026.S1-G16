@@ -16,6 +16,7 @@ test('moves an activity without changing budget and restores original schedule o
   assert.deepEqual(restored, trip);
 });
 
+// Keep the first promise pending to check that the lock excludes a second write.
 test('rejects concurrent mutations until the first has settled', async () => {
   const lock = createMutationLock();
   let release;

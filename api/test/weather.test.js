@@ -24,6 +24,7 @@ test('groups forecast samples by destination local date across daylight saving c
   assert.equal(result[0].time, '12:00');
 });
 
+// Inject a clock and fetch implementation to test caching without calling OpenWeather.
 test('weather client coalesces requests and caches normalized results for ten minutes', async () => {
   const { createWeatherClient } = await import('../src/services/weather.js');
   let calls = 0, clock = 0;

@@ -1,3 +1,4 @@
+// Keep one request active at a time. Stopping the poller aborts its request and makes late results obsolete.
 export function createTripPoller({ load, apply, onState, schedule = setTimeout, cancel = clearTimeout, interval = 5000 }) {
   let running = false;
   let generation = 0;
@@ -24,6 +25,7 @@ export function createTripPoller({ load, apply, onState, schedule = setTimeout, 
     stop() { running = false; generation++; controller?.abort(); if (timer != null) cancel(timer); timer = null; },
   };
 }
+// On an unchanged revision, keep the displayed trip and honor the server's next-poll hint.
 export async function fetchChangedTrip(getRevision, getDetail, currentRevision) {
   const result = await getRevision();
   const unchanged = Number.isSafeInteger(result.data?.revision) && result.data.revision === currentRevision;

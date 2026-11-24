@@ -6,6 +6,7 @@ import { buildSharedTripView } from '../services/share-view.js';
 
 const router = Router();
 
+// Only the owner can inspect the current share link through this management route.
 router.get('/trips/:tripId/share', requireAuth, async (req, res, next) => {
   const tripId = Number(req.params.tripId);
   if (!Number.isSafeInteger(tripId) || tripId < 1) {
@@ -30,6 +31,7 @@ router.get('/trips/:tripId/share', requireAuth, async (req, res, next) => {
   }
 });
 
+// A new token replaces the old one, so copies of the previous link stop working.
 router.post('/trips/:tripId/share', requireAuth, async (req, res, next) => {
   const tripId = Number(req.params.tripId);
   if (!Number.isSafeInteger(tripId) || tripId < 1) {
@@ -88,6 +90,7 @@ router.delete('/trips/:tripId/share', requireAuth, async (req, res, next) => {
   }
 });
 
+// Anyone holding an active token can read the public itinerary. Keep private fields out of this response.
 router.get('/share/:token', async (req, res, next) => {
   const { token } = req.params;
   if (!/^[a-f0-9]{64}$/.test(token)) {

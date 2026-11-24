@@ -1,3 +1,4 @@
+// Load local environment variables before importing the app and its database pool.
 import 'dotenv/config';
 
 const { default: app } = await import('./app.js');

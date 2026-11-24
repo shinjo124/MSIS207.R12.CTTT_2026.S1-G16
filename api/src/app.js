@@ -19,6 +19,7 @@ import { isTripSyncRequest, tripSyncKey } from './services/trip-sync-limit.js';
 import { apiLimitKey } from './services/api-limit.js';
 
 const app = express();
+// Swagger serves the same OpenAPI contract that lives in the repo.
 const openApiPath = new URL('../../docs/api/openapi.yaml', import.meta.url);
 const openApiDocument = parse(await readFile(fileURLToPath(openApiPath), 'utf8'));
 const configuredOrigins = (process.env.CLIENT_ORIGIN || '')
@@ -62,6 +63,7 @@ const apiLimiter = rateLimit({
   },
   message: { error: { code: 'RATE_LIMITED', message: 'Too many requests. Try again later.' } },
 });
+// An open trip can poll often. Keep that traffic in a separate rate-limit bucket.
 const tripSyncLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 600,
@@ -88,7 +90,7 @@ if (process.env.CLERK_SECRET_KEY) {
     clockSkewInMs: process.env.VERCEL ? undefined : 120_000,
   }));
 }
-// shortcut: per-process memory only; use a shared store before running multiple API instances.
+// These request counters restart with each API process. The shared write limiter uses the database instead.
 app.use('/api', (req, res, next) => (isTripSyncRequest(req) ? tripSyncLimiter : apiLimiter)(req, res, next));
 app.get('/api-docs/openapi.json', (_req, res) => res.json(openApiDocument));
 app.get(['/api-docs', '/api-docs/'], (_req, res) => res.type('html').send(swaggerPage));

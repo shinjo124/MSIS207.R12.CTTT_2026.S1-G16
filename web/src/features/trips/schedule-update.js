@@ -1,3 +1,4 @@
+// Move an activity between day lists without changing the rest of the trip response.
 export function updateSchedule(trip, id, values) {
   if (!trip) return trip;
   const activity = trip.days.flatMap((day) => day.activities).find((item) => item.id === id);
@@ -12,6 +13,7 @@ export function updateSchedule(trip, id, values) {
   }) };
 }
 
+// Reject overlapping or offline writes before they can change the local schedule.
 export function createMutationLock(isOnline = () => globalThis.navigator?.onLine !== false) {
   let busy = false;
   return async (work) => {

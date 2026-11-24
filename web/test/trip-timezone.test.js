@@ -13,6 +13,7 @@ test('defaults Vietnamese trips without overwriting a saved zone or guessing an 
   assert.equal(withDefaultTimeZone({ timeZone: null, destinations: [{ country: 'Japan' }] }).timeZone, null);
 });
 
+// Use fixed instants so results are independent of the machine clock and time zone.
 test('resolves today at the destination rather than the device, including DST', () => {
   const instant = new Date('2026-03-08T07:30:00Z');
   assert.equal(todayInTimeZone('America/Los_Angeles', instant), '2026-03-07');

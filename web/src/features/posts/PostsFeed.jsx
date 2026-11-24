@@ -40,6 +40,7 @@ export function StoryGallery({ photos, priority }) {
   </div>;
 }
 
+// Use IDs to merge pages without rendering duplicate posts or comments.
 function mergeById(current, incoming) {
   return [...new Map([...current, ...incoming].map((item) => [item.id, item])).values()];
 }
@@ -83,6 +84,7 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
 
   useEffect(() => {
     if (!photo) { setPhotoUrl(''); return undefined; }
+    // The preview lives in the browser until publication. Revoke its URL when the file changes.
     const url = URL.createObjectURL(photo);
     setPhotoUrl(url);
     return () => URL.revokeObjectURL(url);
@@ -141,6 +143,7 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
     return () => controller.abort();
   }, [destinationId]);
 
+  // Page one replaces the feed. Later pages append while retaining already-visible stories.
   const loadPosts = useCallback(async (signal, page = 1) => {
     setPostsLoading(true);
     if (page > 1) setError('');
@@ -170,6 +173,7 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
   useEffect(() => {
     const sentinel = loadMoreSentinel.current;
     if (!sentinel || !nextPage || postsLoading || composerBusy || error || typeof IntersectionObserver === 'undefined') return undefined;
+    // Start the next page before the sentinel is visible and stop duplicate requests while it loads.
     const observer = new IntersectionObserver(([entry]) => {
       if (!entry.isIntersecting || loadingMore.current) return;
       loadingMore.current = true;
@@ -180,6 +184,7 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
     return () => observer.disconnect();
   }, [composerBusy, error, loadPosts, nextPage, postsLoading]);
 
+  // Use multipart only for a story with an image. Both formats reach the same endpoint.
   async function createPost(event) {
     event.preventDefault();
     if (!canWrite) return;
@@ -237,6 +242,7 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
     }
   }
 
+  // Show the like immediately, then use the server count or restore the previous value if saving fails.
   async function likePost(post) {
     if (!canWrite || likeBusy !== null) return;
     const nextLiked = !post.liked;
@@ -299,6 +305,7 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
     }
   }
 
+  // Load comments on first open. Reopening a thread reuses any comments already fetched.
   async function toggleComments(postId) {
     const opening = !openComments.has(postId);
     setOpenComments((current) => {

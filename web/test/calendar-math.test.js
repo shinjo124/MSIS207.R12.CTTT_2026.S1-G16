@@ -24,6 +24,7 @@ test('resizing keeps duration within calendar bounds', () => {
   assert.equal(resizedDuration('09:00', 60, 17), 75);
 });
 
+// A chain of time overlaps should keep a stable lane count across the whole group.
 test('overlapping events keep separate lanes even across chained overlaps', () => {
   const layout = calendarLanes([
     { id: 1, time: '09:00', durationMinutes: 90 },

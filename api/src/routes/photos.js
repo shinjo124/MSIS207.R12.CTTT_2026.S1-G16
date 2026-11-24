@@ -19,6 +19,7 @@ const uploadLimiter = rateLimit({
 const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const sharedUploadLimit = sharedWriteLimit('upload', 10, 40);
 
+// Check identity and quotas before reading the upload body into memory.
 router.post('/', requireAuth, requireProfile, uploadLimiter, sharedUploadLimit, uploadImage, async (req, res, next) => {
   const tripId = Number(req.body.tripId);
   if (!Number.isSafeInteger(tripId) || tripId < 1 || !req.file) {
@@ -49,6 +50,7 @@ router.post('/', requireAuth, requireProfile, uploadLimiter, sharedUploadLimit, 
     );
     if (!owned.length) return res.status(404).json({ error: { code: 'TRIP_NOT_FOUND', message: 'Trip was not found.' } });
     if (owned[0].total >= 25) return res.status(409).json({ error: { code: 'TRIP_PHOTO_LIMIT', message: 'This trip has reached its 25-photo limit.' } });
+    // Upload outside the database transaction, then recheck ownership and limits under a lock.
     uploaded = await uploadCloudinaryImage(req.file.buffer, 'tripo/trip-photos');
     connection = await pool.getConnection();
     await connection.beginTransaction();
@@ -81,6 +83,7 @@ router.post('/', requireAuth, requireProfile, uploadLimiter, sharedUploadLimit, 
     await connection?.rollback().catch(() => {});
     connection?.release();
     connection = null;
+    // If commit had already started, its outcome may be unknown. Leave the image intact in that case.
     if (uploaded && !committing) await deleteCloudinaryImage(uploaded.public_id).catch(() => console.error('Trip photo cleanup failed', uploaded.public_id));
     if (error.code === 'TRIP_PHOTO_LIMIT' || error.code === 'TRIP_NOT_FOUND') {
       return res.status(error.status).json({ error: { code: error.code, message: error.message } });

@@ -1,5 +1,6 @@
 import { getAuth } from '@clerk/express';
 
+// Read the verified Clerk identity from the app middleware. The local profile lookup happens separately.
 export function requireAuth(req, res, next) {
   if (!process.env.CLERK_SECRET_KEY) {
     return res.status(503).json({

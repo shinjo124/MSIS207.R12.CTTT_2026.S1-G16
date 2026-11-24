@@ -12,6 +12,7 @@ function plainText(value) {
   return String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').replace(/\s+([.,!?;:])/g, '$1').trim().slice(0, 240);
 }
 
+// Treat feed content as untrusted. Reject XML declarations that define entities and only keep links to the publisher.
 export function parseFeed(xml, source) {
   if (/<!DOCTYPE|<!ENTITY/i.test(xml) || XMLValidator.validate(xml) !== true) throw new Error('Invalid RSS');
   const items = parser.parse(xml)?.rss?.channel?.item || [];
@@ -24,6 +25,7 @@ export function parseFeed(xml, source) {
   });
 }
 
+// Cache briefly and collect results independently so one publisher can fail without hiding the other.
 export async function getNews() {
   if (cached && Date.now() < expiresAt) return cached;
   const results = await Promise.allSettled(feeds.map(async (source) => {

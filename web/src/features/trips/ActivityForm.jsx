@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CATEGORIES, MONEY_INPUT_PATTERN, formatDayHeading, moneyInputProps } from './trip-format.js';
 
+// Create and edit share this form. Edit mode loads saved values while create mode starts on the requested day.
 function initialValues(activity, date) {
   return {
     date: activity?.date || date,

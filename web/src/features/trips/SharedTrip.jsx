@@ -3,6 +3,7 @@ import { apiRequest } from '../../lib/api.js';
 import { categoryLabel, formatDate, formatDayHeading, formatTripTitle, timeZoneLabel, withDefaultTimeZone } from './trip-format.js';
 import './trips.css';
 
+// Load the public itinerary with the share token. This screen does not use the signed-in trip endpoint.
 export default function SharedTrip({ token }) {
   const [trip, setTrip] = useState(null);
   const [status, setStatus] = useState('loading');

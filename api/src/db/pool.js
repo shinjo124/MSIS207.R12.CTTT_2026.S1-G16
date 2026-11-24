@@ -1,5 +1,6 @@
 import mysql from 'mysql2/promise';
 
+// Routes reuse pooled connections. A transaction borrows one connection until commit or rollback.
 export const pool = mysql.createPool({
   host: process.env.DB_HOST || '127.0.0.1',
   port: Number(process.env.DB_PORT || 3306),

@@ -5,6 +5,7 @@ import { requireAuth } from '../middleware/require-auth.js';
 
 const router = Router();
 
+// Sync the Clerk account into MySQL before the browser opens features that need a local user ID.
 router.get('/me', requireAuth, async (req, res, next) => {
   try {
     const clerkUser = await clerkClient.users.getUser(req.clerkUserId);

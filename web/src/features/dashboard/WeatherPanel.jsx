@@ -2,10 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { apiRequest } from '../../lib/api.js';
 import { formatDate } from '../trips/trip-format.js';
 
+// The dashboard shows this panel. The calendar can use it as a hidden loader for destination forecasts.
 export default function WeatherPanel({ trip, getToken, date, destinationId, onWeatherChange, hidden = false }) {
   const [data, setData] = useState(null);
   const [status, setStatus] = useState('loading');
   const [message, setMessage] = useState('');
+  // Request by destination for the calendar or by date for a single dashboard forecast.
   const query = destinationId ? `?destinationId=${encodeURIComponent(destinationId)}` : date ? `?date=${encodeURIComponent(date)}` : '';
   const load = useCallback(async (signal) => {
     setStatus('loading'); setMessage('');

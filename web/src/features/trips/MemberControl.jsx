@@ -3,6 +3,7 @@ import { apiRequest } from '../../lib/api.js';
 import { invitationUrl } from './invitation.js';
 import { formatDateTime } from './trip-format.js';
 
+// This owner panel manages edit access. The invitation is separate from the public read-only share link.
 export default function MemberControl({ tripId, getToken }) {
   const [members, setMembers] = useState([]);
   const [status, setStatus] = useState('loading');
@@ -17,6 +18,7 @@ export default function MemberControl({ tripId, getToken }) {
   }, [getToken, tripId]);
   useEffect(() => { loadMembers(); }, [loadMembers]);
 
+  // The API returns the raw invitation only when creating it, so this panel holds the copyable link.
   async function createInvite() {
     setStatus('working'); setMessage('');
     try {

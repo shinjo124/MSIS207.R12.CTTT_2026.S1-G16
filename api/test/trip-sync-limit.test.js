@@ -20,6 +20,7 @@ test('only explicitly marked single-trip GETs use the sync limiter', () => {
   assert.equal(isTripSyncRequest({ method: 'GET', path: '/trips/42', query: { sync: ['1', '1'] } }), false);
 });
 
+// Run the actual Express middleware to check how credentials and the caller's IP affect the limit.
 test('Express sync limit separates authenticated users on the same IP', async (t) => {
   const previous = process.env.CLERK_SECRET_KEY;
   process.env.CLERK_SECRET_KEY = 'fixture';

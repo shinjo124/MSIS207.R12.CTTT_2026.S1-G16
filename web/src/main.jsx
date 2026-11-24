@@ -13,6 +13,7 @@ const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 const TAB_PATHS = ['/', '/trips', '/explore', '/stories'];
 
+// Keep visited top-level tabs mounted so switching tabs preserves their local UI state.
 function AuthenticatedPages({ path, search, ...props }) {
   const [visitedPaths, setVisitedPaths] = useState(() => TAB_PATHS.includes(path) ? [path] : []);
   const paths = TAB_PATHS.includes(path) && !visitedPaths.includes(path) ? [...visitedPaths, path] : visitedPaths;
@@ -29,6 +30,7 @@ function AuthenticatedPages({ path, search, ...props }) {
   </>;
 }
 
+// Clerk provides the session. Tripo still needs a matching local profile before protected reads and writes.
 function AuthenticatedApp({ path, search }) {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const [profileStatus, setProfileStatus] = useState('signed-out');
@@ -84,6 +86,7 @@ function AuthPage({ signUp }) {
   );
 }
 
+// Track path and query together so links such as /trips?new=1 can open the right view.
 function AppRoot() {
   const [path, setPath] = useState(() => `${window.location.pathname}${window.location.search}`);
   useEffect(() => {

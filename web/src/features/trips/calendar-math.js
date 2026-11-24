@@ -1,4 +1,5 @@
 export const minutesOfDay = (time) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
+// Drag and resize work in 15-minute increments, with bounds enforced by the helpers below.
 const snap = (value) => Math.round(value / 15) * 15;
 export function shiftedTime(time, delta) {
   const minutes = Math.max(0, Math.min(1425, snap(minutesOfDay(time) + delta)));
@@ -10,6 +11,7 @@ export function calendarDrop(activity, date, delta) {
 export function resizedDuration(time, duration, delta) {
   return Math.min(1440 - minutesOfDay(time), Math.max(15, snap(duration + delta)));
 }
+// Group overlapping events and reuse a lane once its previous event ends.
 export function calendarLanes(activities) {
   const layout = new Map();
   let group = [], ends = [], groupEnd = -1;
@@ -31,6 +33,7 @@ export function calendarLanes(activities) {
   return layout;
 }
 
+// A forecast date is only comparable when the trip and weather location use the same time zone.
 export function calendarWeather(weather, timeZone, date) {
   if (weather?.status !== 'available' || !timeZone || weather.location?.timeZone !== timeZone) return null;
   return weather.forecast?.find((item) => item.date === date) || null;

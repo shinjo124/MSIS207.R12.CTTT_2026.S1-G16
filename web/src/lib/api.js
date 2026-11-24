@@ -1,11 +1,13 @@
 export const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL
   || (import.meta.env.PROD ? 'https://api.tripo.website' : 'http://localhost:4000')).replace(/\/+$/, '');
 
+// Pass paths such as /trips here. This wrapper adds /api, the optional token, and consistent errors.
 export async function apiRequest(path, options = {}) {
   const { getToken, headers: inputHeaders, body: inputBody, ...requestOptions } = options;
   const headers = new Headers(inputHeaders);
   let body = inputBody;
 
+  // Leave FormData alone so the browser supplies the multipart boundary for uploads.
   if (body != null && !(body instanceof FormData) && typeof body !== 'string') {
     headers.set('Content-Type', 'application/json');
     body = JSON.stringify(body);

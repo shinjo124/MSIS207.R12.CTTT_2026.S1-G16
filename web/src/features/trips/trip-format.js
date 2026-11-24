@@ -127,6 +127,7 @@ export function mapsUrl(activity) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }
 
+// Use the destination's clock to derive an itinerary date, even when the viewer is traveling.
 export function todayInTimeZone(timeZone, now = new Date()) {
   if (!timeZone) return null;
   try {

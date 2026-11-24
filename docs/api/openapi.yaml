@@ -355,7 +355,9 @@ paths:
             schema: { $ref: '#/components/schemas/TripInput' }
             example:
               title: A long weekend in Da Lat
-              destinationIds: [1]
+              destinations:
+                - id: 1
+                - { name: Tà Năng, country: Vietnam }
               startDate: '2026-11-13'
               endDate: '2026-11-16'
               groupSize: 3
@@ -960,10 +962,28 @@ components:
       example: '-250.00'
     TripInput:
       type: object
-      required: [title, destinationIds, startDate, endDate, groupSize, currencyCode, budget]
+      required: [title, startDate, endDate, groupSize, currencyCode, budget]
+      oneOf:
+        - required: [destinationIds]
+        - required: [destinations]
       properties:
         title: { type: string, maxLength: 160 }
-        destinationIds: { type: array, minItems: 1, maxItems: 10, items: { type: integer }, description: In visiting order }
+        destinationIds: { type: array, minItems: 1, maxItems: 10, items: { type: integer }, description: Existing destination IDs in visiting order. A custom ID must belong to this trip. }
+        destinations:
+          type: array
+          minItems: 1
+          maxItems: 10
+          description: Catalog IDs, existing custom IDs owned by this trip, or new custom destinations, in visiting order. Custom destinations are excluded from the public catalog.
+          items:
+            type: object
+            oneOf:
+              - required: [id]
+                properties:
+                  id: { type: integer, minimum: 1 }
+              - required: [name, country]
+                properties:
+                  name: { type: string, minLength: 1, maxLength: 120 }
+                  country: { type: string, minLength: 1, maxLength: 120 }
         startDate: { type: string, format: date }
         endDate: { type: string, format: date, description: Inclusive; must not be before startDate; at most 60 days }
         groupSize: { type: integer, minimum: 1, maximum: 100 }
@@ -994,6 +1014,7 @@ components:
               name: { type: string }
               country: { type: string }
               mapQuery: { type: string }
+              custom: { type: boolean, description: True for destinations scoped to this trip }
     TripDetail:
       allOf:
         - $ref: '#/components/schemas/TripSummary'

@@ -5,6 +5,7 @@ import { formatDate, formatMoney, formatTripTitle, todayInTimeZone, withDefaultT
 import { selectDashboardTripForZones, upcomingActivities, budgetBalance } from './dashboard-data.js';
 import WeatherPanel from './WeatherPanel.jsx';
 
+// The dashboard combines a selected trip's itinerary and budget with separate weather and news requests.
 export default function Dashboard({ getToken, isSignedIn, profileStatus, profileError, active = true }) {
   const [trips, setTrips] = useState([]);
   const [selectedId, setSelectedId] = useState('');
@@ -80,6 +81,7 @@ export default function Dashboard({ getToken, isSignedIn, profileStatus, profile
   }, [active, ready, selectedId, getToken, retry]);
 
   const activities = trip && today ? upcomingActivities(trip.days, today).slice(0, 5) : [];
+  // The selected trip's time zone determines which date counts as today.
   const currentDay = trip?.days.find((day) => day.date === today);
   const nextActivity = activities[0];
   const todayDestination = trip?.destinations.find((destination) => String(destination.id) === String(currentDay?.destinationId))?.name || currentDay?.activities.find((activity) => activity.city)?.city;

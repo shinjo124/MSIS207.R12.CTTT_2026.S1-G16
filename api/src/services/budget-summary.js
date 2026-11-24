@@ -1,3 +1,4 @@
+// Convert decimal strings to integer hundredths so summing costs never rounds through a float.
 function toCents(value) {
   const text = String(value ?? '0');
   const match = /^(\d{1,10})(?:\.(\d{1,2}))?$/.exec(text);
@@ -11,6 +12,7 @@ function fromCents(cents) {
   return `${negative ? '-' : ''}${absolute / 100n}.${String(absolute % 100n).padStart(2, '0')}`;
 }
 
+// Planned costs and actual costs are separate totals. A missing actual cost contributes nothing.
 export function summarizeBudget(budget, activities) {
   const budgetCents = toCents(budget);
   let plannedCents = 0n;

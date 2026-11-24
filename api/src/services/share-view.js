@@ -1,5 +1,6 @@
 import { listDates } from './trip-rules.js';
 
+// Group activities into inclusive itinerary days and copy only the activity fields safe to share.
 export function buildSharedTripView(trip, destinations, activities) {
   const activitiesByDate = new Map();
   for (const activity of activities) {

@@ -4,11 +4,11 @@ import { pool } from '../db/pool.js';
 const router = Router();
 
 // Default: featured destinations for the home page.
-// ?scope=all: every destination (provinces and popular spots) for the trip form's search box.
+// Scope all includes the entire public catalog. Custom destinations stay inside their trips.
 router.get('/', async (req, res, next) => {
   try {
     const category = typeof req.query.category === 'string' ? req.query.category.trim() : '';
-    const conditions = [];
+    const conditions = ['custom_trip_id IS NULL'];
     const params = [];
     if (req.query.scope !== 'all') conditions.push('is_featured = 1');
     if (category) {
@@ -30,6 +30,7 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+// Check the public destination first so an empty place list and a missing destination are distinct.
 router.get('/:id/places', async (req, res, next) => {
   const destinationId = Number(req.params.id);
   if (!Number.isSafeInteger(destinationId) || destinationId < 1) {
@@ -40,7 +41,7 @@ router.get('/:id/places', async (req, res, next) => {
 
   try {
     const [destinationRows] = await pool.execute(
-      'SELECT id FROM destinations WHERE id = ?',
+      'SELECT id FROM destinations WHERE id = ? AND custom_trip_id IS NULL',
       [destinationId],
     );
     if (!destinationRows.length) {

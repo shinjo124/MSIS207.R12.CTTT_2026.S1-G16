@@ -55,7 +55,17 @@ The API must handle requests without relying on in-memory state surviving betwee
 
 ## 5. Data model
 
-Core tables: `users` (with unique `clerk_user_id`), `trips`, `trip_destinations`, `trip_days` or an equivalent date-based representation, `activities`, and `share_links` (or a token on `trips`).
+Core tables: `users` (with unique `clerk_user_id`), `trips`, `destinations`, `trip_destinations`, `trip_day_destinations`, and `activities`. The share token is stored on the trip.
+
+Catalog destinations have a null `destinations.custom_trip_id`. A custom destination belongs to exactly one trip through that nullable foreign key, and its ID is linked through `trip_destinations` in visiting order. Custom destinations appear in that trip and its shared itinerary and are excluded from public catalog searches. They have a map search link and need confirmed location data before weather is available.
+
+```mermaid
+erDiagram
+    trips |o--o{ destinations : "owns custom destinations"
+    trips ||--o{ trip_destinations : visits
+    destinations ||--o{ trip_destinations : "is selected by"
+    trip_destinations ||--o{ trip_day_destinations : "is assigned to"
+```
 
 Secondary tables: `destinations`, `places`, `posts`, `post_photos`, `post_comments`, `post_likes` (unique per user and post), `trip_photos`, `pending_photo_deletes`, `trip_members`, `trip_invites`, and `trip_weather_location`. `trips.revision` and `activities.version` serve different purposes: refresh detection and conflicting-write protection respectively. Days are derived from the trip date range, not stored in a `trip_days` table.
 

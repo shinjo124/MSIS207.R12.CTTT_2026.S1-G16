@@ -3,6 +3,7 @@ import { pool } from '../src/db/pool.js';
 import { clearQueuedPhoto } from '../src/services/cloudinary.js';
 
 try {
+  // Retry remote cleanup separately from trip and story deletion. Failed rows stay queued.
   const [photos] = await pool.query('SELECT cloudinary_public_id FROM pending_photo_deletes ORDER BY queued_at');
   for (const photo of photos) {
     try {

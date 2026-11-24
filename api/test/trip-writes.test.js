@@ -16,6 +16,8 @@ test('an owner can create, edit and delete with one connection; another fixture 
   const { default: activities } = await import('../src/routes/activities.js');
   const { default: share } = await import('../src/routes/share.js');
   const { default: weather } = await import('../src/routes/weather.js');
+  const { default: catalogRouter } = await import('../src/routes/destinations.js');
+  // Run the real routes against a temporary SQLite fixture so these tests leave the shared database alone.
   const db = new DatabaseSync(':memory:');
   t.after(() => db.close());
   db.function('DATE_FORMAT', (value, _format) => value);
@@ -24,9 +26,10 @@ test('an owner can create, edit and delete with one connection; another fixture 
     CREATE TABLE users (id INTEGER PRIMARY KEY, clerk_user_id TEXT, display_name TEXT);
     INSERT INTO users VALUES (1,'alice','Alice'),(2,'bob','Bob'),(3,'charlie','Charlie');
     CREATE TABLE trips (id INTEGER PRIMARY KEY, title, start_date, end_date, group_size, budget, currency_code, owner_user_id, share_token, share_enabled, time_zone TEXT, revision INTEGER NOT NULL DEFAULT 1, created_at, updated_at);
-    CREATE TABLE destinations (id INTEGER PRIMARY KEY, local_name, name, country, region, category, map_query);
+    CREATE TABLE destinations (id INTEGER PRIMARY KEY, local_name, name, country, region, category, map_query, summary, best_season, image_url, is_featured, aliases, latitude, longitude, time_zone, custom_trip_id REFERENCES trips(id) ON DELETE CASCADE);
     INSERT INTO destinations(id, name) VALUES (1,'Hue'), (2,'Hanoi');
-    CREATE TABLE trip_destinations (trip_id, destination_id, destination_order);
+    CREATE TABLE trip_destinations (trip_id REFERENCES trips(id) ON DELETE CASCADE, destination_id REFERENCES destinations(id) ON DELETE CASCADE, destination_order, PRIMARY KEY (trip_id, destination_id), UNIQUE (trip_id, destination_order));
+    CREATE TABLE trip_day_destinations (trip_id, activity_date, destination_id, PRIMARY KEY (trip_id, activity_date), FOREIGN KEY (trip_id, destination_id) REFERENCES trip_destinations(trip_id, destination_id) ON DELETE CASCADE);
     CREATE TABLE trip_members (trip_id INTEGER NOT NULL, user_id INTEGER NOT NULL, PRIMARY KEY (trip_id, user_id));
     CREATE TABLE trip_invites (trip_id INTEGER PRIMARY KEY, token_hash TEXT NOT NULL, expires_at TEXT NOT NULL);
     CREATE TABLE trip_weather_location (trip_id INTEGER PRIMARY KEY, destination_id INTEGER NOT NULL, latitude REAL NOT NULL, longitude REAL NOT NULL, time_zone TEXT NOT NULL);
@@ -34,9 +37,13 @@ test('an owner can create, edit and delete with one connection; another fixture 
     CREATE TABLE trip_photos (trip_id, cloudinary_public_id);
   `);
   let failNextBump = false;
+  // Translate the limited MySQL syntax used by these routes while keeping the API and transaction code under test.
   const execute = async (sql, args) => {
     if (failNextBump && sql.startsWith('UPDATE trips SET revision = revision + 1')) { failNextBump = false; throw new Error('fixture revision failure'); }
-    const stmt = db.prepare(sql.replace(/ FOR UPDATE$/, ''));
+    const stmt = db.prepare(sql.replace(/ FOR UPDATE$/, '').replace(
+      'ON DUPLICATE KEY UPDATE destination_id = VALUES(destination_id)',
+      'ON CONFLICT (trip_id, activity_date) DO UPDATE SET destination_id = excluded.destination_id',
+    ));
     if (sql.trimStart().startsWith('SELECT')) return [stmt.all(...args)];
     const result = stmt.run(...args);
     return [{ insertId: result.lastInsertRowid, affectedRows: Number(result.changes) }];
@@ -55,7 +62,9 @@ test('an owner can create, edit and delete with one connection; another fixture 
       rollback: async () => db.exec('ROLLBACK'), release: () => { held = false; } };
   });
   const app = express();
-  app.use(express.json(), trips, activities, share, weather);
+  app.use(express.json());
+  app.use('/catalog', catalogRouter);
+  app.use(trips, activities, share, weather);
   app.use((_error, _req, res, _next) => res.status(500).end());
   const server = app.listen(0, '127.0.0.1');
   await once(server, 'listening');
@@ -72,6 +81,46 @@ test('an owner can create, edit and delete with one connection; another fixture 
   assert.equal(trip.role, 'owner');
   assert.equal(trip.timeZone, null);
   assert.equal(trip.revision, 1);
+  await t.test('custom destinations stay in their trip and day assignments survive edits', async () => {
+    const request = (path, method, body) => fetch(origin + path, {
+      method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    const { destinationIds, ...details } = values;
+    const custom = { name: 'Tà Năng', country: 'Vietnam' };
+    const response = await request('/', 'POST', { ...details, destinations: [{ id: 1 }, custom] });
+    assert.equal(response.status, 201);
+    const { data } = await response.json();
+    const customId = data.destinations[1].id;
+    assert.equal(data.destinations[1].name, custom.name);
+    assert.equal(data.destinations[1].custom, true);
+    const listing = await fetch(origin + '/catalog?scope=all');
+    assert.equal(listing.status, 200);
+    const catalog = await listing.json();
+    assert.ok(!catalog.data.some(({ id }) => id === customId));
+    assert.equal((await fetch(origin + '/catalog/' + customId + '/places')).status, 404);
+    assert.equal((await request('/', 'POST', { ...values, destinationIds: [customId] })).status, 400);
+    const assigned = await request('/' + data.id + '/days/' + details.startDate + '/destination', 'PUT', { destinationId: customId });
+    assert.equal(assigned.status, 200);
+    const { data: { revision } } = await (await fetch(origin + '/' + data.id + '/version')).json();
+    const edit = await request('/' + data.id, 'PUT', { ...details, title: 'Updated', revision, destinations: [{ id: customId }, { id: 1 }] });
+    assert.equal(edit.status, 200);
+    const updated = (await edit.json()).data;
+    assert.equal(updated.days[0].destinationId, customId);
+    assert.equal(updated.destinations[0].id, customId);
+    const shareResult = await request('/trips/' + data.id + '/share', 'POST', {});
+    assert.equal(shareResult.status, 201);
+    const { data: { shareToken } } = await shareResult.json();
+    viewer = null;
+    try {
+      const shared = await fetch(origin + '/share/' + shareToken);
+      assert.equal(shared.status, 200);
+      assert.equal((await shared.json()).data.destinations[0].name, custom.name);
+    } finally {
+      viewer = 'alice';
+    }
+    assert.equal((await fetch(origin + '/' + data.id, { method: 'DELETE' })).status, 204);
+    assert.equal(db.prepare('SELECT id FROM destinations WHERE id = ?').get(customId), undefined);
+  });
   const added = await fetch(origin + '/trips/' + trip.id + '/activities', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date: values.startDate, time: '09:00', durationMinutes: 90, category: 'other', title: 'Walk' }) });
   assert.equal(added.status, 201);
   const activity = (await added.json()).data;

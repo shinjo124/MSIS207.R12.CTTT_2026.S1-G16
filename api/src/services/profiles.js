@@ -8,6 +8,7 @@ export async function findLocalUserId(clerkUserId) {
   return rows[0]?.id ?? null;
 }
 
+// The Clerk ID owns the local profile. An email conflict must never reassign another user's row.
 export async function syncProfile(clerkId, email, displayName, db = pool) {
   let conflict;
   try {

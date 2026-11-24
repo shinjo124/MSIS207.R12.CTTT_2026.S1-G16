@@ -22,7 +22,7 @@ Tripo helps a group plan a multi-day trip together: pick destinations, build a d
 ## Features
 
 - **Accounts** — email sign-in with Clerk; each account gets a Tripo profile.
-- **Trips** — title, one or more destinations (type-ahead search, accent-insensitive: "da lat" finds Đà Lạt), dates (up to 60 days), group size, budget and currency, trip time zone.
+- **Trips** — title, one or more catalog or trip-specific custom destinations, dates (up to 60 days), group size, budget and currency, trip time zone. Catalog search ignores accents ("da lat" finds Đà Lạt).
 - **Itinerary and calendar** — activities per day with time, duration, category, place, planned cost and actual spend; mark places as visited.
 - **Budget** — planned vs. actual totals per day and per trip, exact decimal arithmetic.
 - **Collaboration** — invite members with a single-use link (24 h); edits from others appear automatically; conflicting edits are detected instead of silently overwritten.
@@ -74,7 +74,7 @@ api/                 Express API
   src/routes/        one router per resource (trips, activities, posts, …)
   src/middleware/    auth, profile, upload and write-limit checks
   src/services/      validation rules, data shaping, limits
-  database/          migrations/ (001–016, apply in order) and seeds/
+  database/          migrations/ (001–017, apply in order) and seeds/
   test/              node:test unit and route tests
 web/                 React + Vite app
   src/features/      trips (incl. calendar), posts, dashboard

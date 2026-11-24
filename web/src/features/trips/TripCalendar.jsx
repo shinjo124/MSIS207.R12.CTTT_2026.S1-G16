@@ -50,10 +50,12 @@ export default function TripCalendar({ trip, getToken, onUpdate, onEdit, onAdd, 
   const gesture = useRef(null);
   const day = trip.days.find((item) => item.date === date) || trip.days[0];
   const today = todayInTimeZone(trip.timeZone, now);
+  // Show one day on narrow screens or up to three consecutive days on wider ones.
   const columnCount = wide ? 3 : 1;
   const startIndex = Math.min(Math.max(0, trip.days.findIndex((item) => item.date === day.date)), Math.max(0, trip.days.length - columnCount));
   const visibleDays = trip.days.slice(startIndex, startIndex + columnCount);
   const updateWeather = useCallback((destinationId, value) => setWeatherByDestination((current) => ({ ...current, [destinationId]: value })), []);
+  // Load one forecast per visible destination even when several days use it.
   const weatherDestinations = [...new Set(visibleDays.map((item) => item.destinationId).filter(Boolean).map(String))];
 
   useEffect(() => { const media = window.matchMedia('(min-width: 641px)'); const change = () => setWide(media.matches); media.addEventListener('change', change); return () => media.removeEventListener('change', change); }, []);
@@ -76,6 +78,7 @@ export default function TripCalendar({ trip, getToken, onUpdate, onEdit, onAdd, 
     finally { setBusy(false); }
   }
 
+  // Capture the pointer for the duration of a drag and tell the trip page to pause polling.
   function startGesture(event, activity, mode) {
     if (busy || disabled || event.button !== 0) return;
     event.preventDefault();
@@ -86,6 +89,7 @@ export default function TripCalendar({ trip, getToken, onUpdate, onEdit, onAdd, 
     setHover(null);
   }
 
+  // Use the pointer's final position to distinguish a timed move, an unscheduled drop, and a resize.
   function finishGesture(event) {
     const current = gesture.current;
     gesture.current = null;

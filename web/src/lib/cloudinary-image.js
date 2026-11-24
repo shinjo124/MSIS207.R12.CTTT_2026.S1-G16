@@ -1,3 +1,4 @@
+// Build responsive URLs only for ordinary versioned Cloudinary uploads. Otherwise the caller keeps the original URL.
 export function feedImageSources(original) {
   if (typeof original !== 'string') return null;
   let url;

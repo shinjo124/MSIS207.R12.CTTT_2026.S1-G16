@@ -1,4 +1,4 @@
-// Trip pages need a signed-in user whose local profile exists (GET /api/auth/me ran).
+// Protected screens wait for both Clerk sign-in and the local profile created by /api/auth/me.
 export default function ProfileGate({ isSignedIn, profileStatus, profileError, action, children }) {
   if (profileStatus === 'loading') return <p className="empty-state" role="status">Setting up your profile…</p>;
   if (!isSignedIn) {

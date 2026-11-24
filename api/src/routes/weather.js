@@ -11,6 +11,7 @@ const router = Router();
 const weatherLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false, message: { error: { code: 'WEATHER_RATE_LIMITED', message: 'Too many weather requests. Try again later.' } } });
 const notFound = { status: 404, code: 'TRIP_NOT_FOUND', message: 'Trip was not found.' };
 
+// Store a confirmed location for a destination already on the trip.
 router.put('/trips/:tripId/weather-location', requireAuth, requireProfile, async (req, res, next) => {
   const tripId = parseId(req.params.tripId);
   const parsed = validateWeatherLocation(req.body);
@@ -49,6 +50,7 @@ router.delete('/trips/:tripId/weather-location', requireAuth, requireProfile, as
   finally { connection.release(); }
 });
 
+// Use the requested destination or the day's assignment. Requests without either use the saved trip location.
 router.get('/trips/:tripId/weather', requireAuth, requireProfile, weatherLimiter, async (req, res, next) => {
   const tripId = parseId(req.params.tripId);
   if (!tripId) return res.status(400).json({ error: { code: 'INVALID_TRIP_ID', message: 'Invalid trip ID.' } });
@@ -64,6 +66,7 @@ router.get('/trips/:tripId/weather', requireAuth, requireProfile, weatherLimiter
       const [belongs] = await pool.execute('SELECT destination_id FROM trip_destinations WHERE trip_id = ? AND destination_id = ?', [tripId, destinationId]);
       if (!belongs.length) return res.status(400).json({ error: { code: 'DESTINATION_NOT_IN_TRIP', message: 'Choose a destination from this trip.' } });
     }
+    // In date or destination mode, prefer catalog coordinates and use the saved trip location as a fallback.
     let location;
     if (!date && !destinationId) {
       const [legacyRows] = await pool.execute(`SELECT w.destination_id AS destinationId, w.latitude, w.longitude, w.time_zone AS timeZone, COALESCE(d.local_name, d.name) AS destinationName FROM trip_weather_location w JOIN trip_destinations td ON td.trip_id = w.trip_id AND td.destination_id = w.destination_id JOIN destinations d ON d.id = w.destination_id WHERE w.trip_id = ?`, [tripId]);

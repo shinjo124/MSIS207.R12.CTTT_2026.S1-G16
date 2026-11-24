@@ -21,6 +21,7 @@ test('activity editor retains the original activity when another member deletes 
   assert.match(updatedHtml, /activity changed while you were editing/);
 });
 
+// Control which request resolves first to model a response arriving after a restart.
 test('stopping aborts and ignores a stale response, restarting applies only the fresh response', async () => {
   const pending = [];
   const applied = [];

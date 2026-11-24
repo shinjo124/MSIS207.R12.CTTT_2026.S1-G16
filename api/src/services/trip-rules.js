@@ -75,10 +75,25 @@ export function validateTripInput(body) {
     return { error: badRequest('INVALID_TITLE', 'Title is required and must be 160 characters or fewer.') };
   }
 
-  const destinationIds = Array.isArray(input.destinationIds) ? input.destinationIds.map(parseId) : [];
-  if (!destinationIds.length || destinationIds.length > 10 || destinationIds.includes(null)
-    || new Set(destinationIds).size !== destinationIds.length) {
+  // Normalize the older ID array and the mixed catalog/custom format into one ordered list.
+  const entries = input.destinations ?? (Array.isArray(input.destinationIds) ? input.destinationIds.map((id) => ({ id })) : []);
+  if (!Array.isArray(entries) || !entries.length || entries.length > 10
+    || (Object.hasOwn(input, 'destinations') && Object.hasOwn(input, 'destinationIds'))) {
     return { error: badRequest('INVALID_DESTINATIONS', 'Choose between 1 and 10 different destinations.') };
+  }
+  const destinations = [];
+  const keys = new Set();
+  for (const entry of entries) {
+    const id = entry && Object.hasOwn(entry, 'id') && parseId(entry.id);
+    const name = optionalText(entry?.name, 120).value;
+    const country = optionalText(entry?.country, 120).value;
+    const destination = id ? { id } : name && country && !Object.hasOwn(entry, 'id') ? { name, country } : null;
+    const key = id || (destination && JSON.stringify([name.toLowerCase(), country.toLowerCase()]));
+    if (!destination || keys.has(key)) {
+      return { error: badRequest('INVALID_DESTINATIONS', 'Choose different destinations or enter a name and country for each custom destination.') };
+    }
+    keys.add(key);
+    destinations.push(destination);
   }
 
   const { startDate, endDate } = input;
@@ -107,7 +122,8 @@ export function validateTripInput(body) {
     return { error: badRequest('INVALID_BUDGET', 'Budget must be zero or a positive amount with at most 2 decimals.') };
   }
 
-  const value = { title, destinationIds, startDate, endDate, groupSize, currencyCode, budget };
+  const value = { title, destinations, startDate, endDate, groupSize, currencyCode, budget };
+  // Omitting the time zone leaves that choice to the update route. Null explicitly clears it.
   if (Object.hasOwn(input, 'timeZone')) {
     const timeZone = input.timeZone === '' ? null : input.timeZone;
     if (timeZone !== null && (!isValidTimeZone(timeZone) || input.timeZoneConfirmed !== true)) {

@@ -4,6 +4,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer } from 'vite';
 
+// Render the actual components so the checks cover the attributes delivered to the browser.
 test('feed image preserves alt text and exposes responsive delivery', async (t) => {
   const server = await createServer({ configFile: false, appType: 'custom', server: { middlewareMode: true }, logLevel: 'silent' });
   t.after(() => server.close());

@@ -55,6 +55,7 @@ function ActivityItem({ activity, trip, onEdit, onDelete, onToggleVisited, onMov
   );
 }
 
+// Reset form state when the selected activity changes. The caller keeps the original edit snapshot.
 export function ActivityEditor({ activity, trip, onSave, onCancel }) {
   const current = trip.days.flatMap((day) => day.activities).find((item) => item.id === activity.id);
   return <div className="activity editing">
@@ -109,6 +110,7 @@ function BudgetSummary({ summary, trip, onRecordSpend }) {
   );
 }
 
+// One private trip response drives the calendar, day board, budget, and sharing controls.
 export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus, profileError, search = '' }) {
   const [trip, setTrip] = useState(null);
   const tripRef = useRef(null);
@@ -188,6 +190,7 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
     if (!active) setRefreshGeneration((current) => current + 1);
   }, []);
 
+  // Pause live updates while a local write is running so a poll cannot replace the user's pending change.
   async function withMutation(work) {
     return runMutation(async () => {
       pollerRef.current?.stop();
@@ -198,6 +201,7 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
   }
 
   function beginAdd(date) { pollerRef.current?.stop(); setAddingOn(date); setEditingActivity(null); }
+  // Keep the original activity and version if a poll brings a newer copy while its form is open.
   function beginEdit(activity) { setEditingActivity((current) => current?.id === activity.id ? current : activity); setAddingOn(null); }
 
   const loadTrip = useCallback(async (signal) => {
@@ -231,6 +235,7 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
 
   useEffect(() => {
     if (!ready || status !== 'ready' || paused || !visible || !online) return undefined;
+    // Ask for a small revision response first. Only fetch full trip data when the revision changes.
     const poller = createTripPoller({
       load: (signal) => fetchChangedTrip(
         () => apiRequest(`/trips/${tripId}/version?sync=1&wait=1&since=${tripRef.current?.revision || 0}`, { getToken, signal }),
@@ -295,6 +300,7 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
     });
   }
 
+  // Show a calendar move right away, reconcile it with the saved activity, and roll back if the API rejects it.
   async function saveSchedule(id, values) {
     await withMutation(async () => {
       const activity = trip.days.flatMap((day) => day.activities).find((item) => item.id === id);
@@ -338,6 +344,7 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
     }
   }
 
+  // Undo is another versioned write against the current activity, not a local history rewind.
   async function undoLastMove() {
     if (!undoMove || moving) return;
     setMoving(true);

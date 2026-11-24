@@ -12,6 +12,7 @@ function localParts(unix, timeZone) {
   return { date: `${parts.year}-${parts.month}-${parts.day}`, time: `${parts.hour}:${parts.minute}` };
 }
 
+// Keep the sample closest to noon for each date in the forecast location's time zone.
 export function normalizeForecast(samples, timeZone) {
   const byDate = new Map();
   for (const sample of samples) {
@@ -22,6 +23,7 @@ export function normalizeForecast(samples, timeZone) {
   }
   return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date)).map(({ distance, ...item }) => item);
 }
+// Cache by location and time zone. Requests for the same location can share an in-flight result.
 export function createWeatherClient({ fetchImpl = fetch, now = Date.now } = {}) {
   const cache = new Map();
   return async (location, apiKey) => {

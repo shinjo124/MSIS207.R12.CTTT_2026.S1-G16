@@ -6,25 +6,64 @@ import { pool } from '../db/pool.js';
 import { requireAuth } from '../middleware/require-auth.js';
 import { requireProfile } from '../middleware/require-profile.js';
 import { summarizeBudget } from '../services/budget-summary.js';
-import { listDates, parseId, sendError, validateTripInput } from '../services/trip-rules.js';
+import { listDates, parseDate, parseId, sendError, validateTripInput } from '../services/trip-rules.js';
 import { ACTIVITY_COLUMNS, findEditableTrip, findOwnedTrip, shapeActivity, shapeTrip, TRIP_COLUMNS } from '../services/trip-data.js';
 
 const router = Router();
 const signedIn = [requireAuth, requireProfile];
 const TRIP_NOT_FOUND = { status: 404, code: 'TRIP_NOT_FOUND', message: 'Trip was not found.' };
 
-// Ownership is checked in SQL: another user's trip looks exactly like a missing trip.
-async function findMissingDestinations(db, destinationIds) {
-  const placeholders = destinationIds.map(() => '?').join(', ');
-  const [rows] = await db.execute(`SELECT id FROM destinations WHERE id IN (${placeholders})`, destinationIds);
-  const found = new Set(rows.map((row) => Number(row.id)));
-  return destinationIds.filter((id) => !found.has(id));
+const DESTINATION_NOT_FOUND = { status: 400, code: 'DESTINATION_NOT_FOUND', message: 'One or more destinations do not exist for this trip.' };
+
+// Turn ordered catalog IDs and custom entries into IDs for this trip only.
+async function resolveDestinations(db, tripId, destinations) {
+  const ids = [];
+  for (const destination of destinations) {
+    if (destination.id) {
+      const [rows] = await db.execute(
+        'SELECT id FROM destinations WHERE id = ? AND (custom_trip_id IS NULL OR custom_trip_id = ?)',
+        [destination.id, tripId],
+      );
+      if (!rows.length) return { error: DESTINATION_NOT_FOUND };
+      ids.push(destination.id);
+    } else {
+      const { name, country } = destination;
+      const [rows] = await db.execute('SELECT id FROM destinations WHERE custom_trip_id = ? AND name = ? AND country = ?', [tripId, name, country]);
+      if (rows.length) {
+        ids.push(Number(rows[0].id));
+      } else {
+        const [result] = await db.execute(
+          "INSERT INTO destinations (name, country, region, category, summary, map_query, custom_trip_id) VALUES (?, ?, ?, 'Custom', '', ?, ?)",
+          [name, country, country, `${name}, ${country}`, tripId],
+        );
+        ids.push(Number(result.insertId));
+      }
+    }
+  }
+  if (new Set(ids).size !== ids.length) {
+    return { error: { status: 400, code: 'INVALID_DESTINATIONS', message: 'Choose different destinations.' } };
+  }
+  return { ids };
 }
 
+// Keep links for destinations that remain on the trip. Deleting a link also deletes its day assignments.
 async function replaceDestinations(db, tripId, destinationIds) {
-  await db.execute('DELETE FROM trip_destinations WHERE trip_id = ?', [tripId]);
+  const [current] = await db.execute('SELECT destination_id AS id FROM trip_destinations WHERE trip_id = ? ORDER BY destination_order', [tripId]);
+  const retained = new Set(current.map(({ id }) => Number(id)));
+  for (const id of retained) {
+    if (!destinationIds.includes(id)) {
+      await db.execute('DELETE FROM trip_destinations WHERE trip_id = ? AND destination_id = ?', [tripId, id]);
+      retained.delete(id);
+    }
+  }
+  // Move retained links out of the final order range so reordering can keep day assignments.
+  if (retained.size) {
+    await db.execute('UPDATE trip_destinations SET destination_order = destination_order + 10 WHERE trip_id = ?', [tripId]);
+  }
   for (const [index, destinationId] of destinationIds.entries()) {
-    await db.execute(
+    if (retained.has(destinationId)) {
+      await db.execute('UPDATE trip_destinations SET destination_order = ? WHERE trip_id = ? AND destination_id = ?', [index + 1, tripId, destinationId]);
+    } else await db.execute(
       'INSERT INTO trip_destinations (trip_id, destination_id, destination_order) VALUES (?, ?, ?)',
       [tripId, destinationId, index + 1],
     );
@@ -34,6 +73,10 @@ async function replaceDestinations(db, tripId, destinationIds) {
        (SELECT 1 FROM trip_destinations td WHERE td.trip_id = ? AND td.destination_id = trip_weather_location.destination_id)`,
     [tripId, tripId],
   );
+  await db.execute(
+    'DELETE FROM destinations WHERE custom_trip_id = ? AND NOT EXISTS (SELECT 1 FROM trip_destinations td WHERE td.trip_id = ? AND td.destination_id = destinations.id)',
+    [tripId, tripId],
+  );
 }
 
 async function loadDestinations(db, tripIds) {
@@ -41,18 +84,19 @@ async function loadDestinations(db, tripIds) {
   const placeholders = tripIds.map(() => '?').join(', ');
   const [rows] = await db.execute(
     `SELECT td.trip_id AS tripId, d.id, COALESCE(d.local_name, d.name) AS name, d.country, d.region,
-            d.map_query AS mapQuery
+            d.map_query AS mapQuery, d.custom_trip_id IS NOT NULL AS custom
      FROM trip_destinations td JOIN destinations d ON d.id = td.destination_id
      WHERE td.trip_id IN (${placeholders}) ORDER BY td.trip_id, td.destination_order`,
     tripIds,
   );
   const byTrip = new Map();
   for (const { tripId, ...destination } of rows) {
-    byTrip.set(tripId, [...(byTrip.get(tripId) || []), destination]);
+    byTrip.set(tripId, [...(byTrip.get(tripId) || []), { ...destination, custom: Boolean(destination.custom) }]);
   }
   return byTrip;
 }
 
+// Build the editor response from the trip, ordered destinations, activities, and computed budget.
 async function loadTripDetail(tripId, userId, db = pool) {
   const trip = await findEditableTrip(db, tripId, userId);
   if (!trip) return null;
@@ -112,18 +156,18 @@ router.post('/', signedIn, async (req, res, next) => {
 
   const connection = await pool.getConnection();
   try {
-    const missing = await findMissingDestinations(connection, value.destinationIds);
-    if (missing.length) {
-      return sendError(res, { status: 400, code: 'DESTINATION_NOT_FOUND', message: 'One or more destinations do not exist.' });
-    }
-
     await connection.beginTransaction();
     const [result] = await connection.execute(
       `INSERT INTO trips (owner_user_id, title, start_date, end_date, group_size, budget, currency_code, time_zone)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [req.userId, value.title, value.startDate, value.endDate, value.groupSize, value.budget, value.currencyCode, value.timeZone ?? null],
     );
-    await replaceDestinations(connection, result.insertId, value.destinationIds);
+    const destinations = await resolveDestinations(connection, result.insertId, value.destinations);
+    if (destinations.error) {
+      await connection.rollback();
+      return sendError(res, destinations.error);
+    }
+    await replaceDestinations(connection, result.insertId, destinations.ids);
     const data = await loadTripDetail(result.insertId, req.userId, connection);
     await connection.commit();
     res.status(201).json({ data });
@@ -135,6 +179,7 @@ router.post('/', signedIn, async (req, res, next) => {
   }
 });
 
+// Replace the previous invite and store only a hash. The raw token is returned once to the owner.
 router.post('/:tripId/invitations', signedIn, async (req, res, next) => {
   const tripId = parseId(req.params.tripId);
   if (!tripId) return sendError(res, { status: 400, code: 'INVALID_TRIP_ID', message: 'Invalid trip ID.' });
@@ -167,6 +212,7 @@ router.delete('/:tripId/invitations', signedIn, async (req, res, next) => {
   finally { connection.release(); }
 });
 
+// Lock the trip before rechecking the invite, then add membership and consume the token together.
 router.post('/invitations/accept', signedIn, async (req, res, next) => {
   const token = req.body?.token;
   if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) return res.status(404).json({ error: { code: 'INVITATION_NOT_FOUND', message: 'Invitation is unavailable.' } });
@@ -217,6 +263,7 @@ router.delete('/:tripId/members/:userId', signedIn, async (req, res, next) => {
   finally { connection.release(); }
 });
 
+// Wait briefly for a different trip revision. Recheck access on every database read.
 router.get('/:tripId/version', signedIn, async (req, res, next) => {
   const tripId = parseId(req.params.tripId);
   if (!tripId) return sendError(res, { status: 400, code: 'INVALID_TRIP_ID', message: 'Trip ID must be a positive integer.' });
@@ -244,11 +291,12 @@ router.get('/:tripId/version', signedIn, async (req, res, next) => {
   finally { res.off('close', cancel); }
 });
 
+// A day can use only a destination already attached to this trip.
 router.put('/:tripId/days/:date/destination', signedIn, async (req, res, next) => {
   const tripId = parseId(req.params.tripId);
   const destinationId = parseId(req.body?.destinationId);
   const date = req.params.date;
-  if (!tripId || !destinationId || !parseDate(date)) return sendError(res, { status: 400, code: 'INVALID_DAY_DESTINATION', message: 'Choose a valid trip day and destination.' });
+  if (!tripId || !destinationId || parseDate(date) === null) return sendError(res, { status: 400, code: 'INVALID_DAY_DESTINATION', message: 'Choose a valid trip day and destination.' });
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
@@ -283,7 +331,7 @@ router.get('/:tripId', signedIn, async (req, res, next) => {
   }
 });
 
-// Full update: the client sends every editable field, same shape as POST.
+// A full update sends the editable fields and the last-read revision to catch a stale form.
 router.put('/:tripId', signedIn, async (req, res, next) => {
   const tripId = parseId(req.params.tripId);
   if (!tripId) return sendError(res, { status: 400, code: 'INVALID_TRIP_ID', message: 'Trip ID must be a positive integer.' });
@@ -308,10 +356,10 @@ router.put('/:tripId', signedIn, async (req, res, next) => {
       return sendError(res, { status: 409, code: 'TRIP_CONFLICT', message: 'This trip changed elsewhere. Reload it and review your changes.' });
     }
 
-    const missing = await findMissingDestinations(connection, value.destinationIds);
-    if (missing.length) {
+    const destinations = await resolveDestinations(connection, tripId, value.destinations);
+    if (destinations.error) {
       await connection.rollback();
-      return sendError(res, { status: 400, code: 'DESTINATION_NOT_FOUND', message: 'One or more destinations do not exist.' });
+      return sendError(res, destinations.error);
     }
 
     // Shortening a trip must not silently drop planned activities.
@@ -331,7 +379,7 @@ router.put('/:tripId', signedIn, async (req, res, next) => {
     let timeZone = value.timeZone;
     if (timeZone === undefined && trip.timeZone) {
       const [oldDestinations] = await connection.execute('SELECT destination_id AS id FROM trip_destinations WHERE trip_id = ? ORDER BY destination_order', [tripId]);
-      const unchanged = oldDestinations.length === value.destinationIds.length && oldDestinations.every((destination, index) => Number(destination.id) === value.destinationIds[index]);
+      const unchanged = oldDestinations.length === destinations.ids.length && oldDestinations.every((destination, index) => Number(destination.id) === destinations.ids[index]);
       timeZone = unchanged ? trip.timeZone : null;
     }
     await connection.execute(
@@ -339,7 +387,7 @@ router.put('/:tripId', signedIn, async (req, res, next) => {
        WHERE id = ?`,
       [value.title, value.startDate, value.endDate, value.groupSize, value.budget, value.currencyCode, timeZone ?? null, tripId],
     );
-    await replaceDestinations(connection, tripId, value.destinationIds);
+    await replaceDestinations(connection, tripId, destinations.ids);
     const data = await loadTripDetail(tripId, req.userId, connection);
     await connection.commit();
     res.json({ data });
@@ -351,6 +399,7 @@ router.put('/:tripId', signedIn, async (req, res, next) => {
   }
 });
 
+// Save photo cleanup IDs before deleting the trip. Cloudinary cleanup runs after commit.
 router.delete('/:tripId', signedIn, async (req, res, next) => {
   const tripId = parseId(req.params.tripId);
   if (!tripId) return sendError(res, { status: 400, code: 'INVALID_TRIP_ID', message: 'Trip ID must be a positive integer.' });

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import DestinationPicker from './DestinationPicker.jsx';
 import { CURRENCIES, MONEY_INPUT_PATTERN, countDays, destinationTimeZone, moneyInputProps } from './trip-format.js';
 
@@ -8,7 +8,7 @@ function initialValues(trip, initialDestination) {
   if (trip) {
     return {
       title: trip.title,
-      destinations: trip.destinations.map(({ id, name, country, timeZone }) => ({ id, name, country, timeZone })),
+      destinations: trip.destinations.map(({ id, name, country, timeZone, custom }) => ({ id, name, country, timeZone, custom })),
       startDate: trip.startDate,
       endDate: trip.endDate,
       groupSize: String(trip.groupSize),
@@ -35,14 +35,17 @@ function validate(values) {
 
 export default function TripForm({ trip = null, initialDestination = null, submitLabel, onSubmit, onCancel }) {
   const [values, setValues] = useState(() => initialValues(trip, initialDestination));
+  // Keep the revision from when editing began so the API can detect a newer trip update.
   const [revision] = useState(() => trip?.revision);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [zoneConfirmed, setZoneConfirmed] = useState(false);
+  const zoneListId = useId();
   const dayCount = values.endDate >= values.startDate ? countDays(values.startDate, values.endDate) : 0;
   const destinationsChanged = Boolean(trip) && values.destinations.map((item) => item.id).join(',') !== trip.destinations.map((item) => item.id).join(',');
   const zone = values.timeZone.trim();
   const zoneChanged = zone !== (trip?.timeZone || '') || Boolean(zone && destinationsChanged);
+  // A known destination zone can be accepted automatically. A different selection needs confirmation.
   const automaticZone = zone && zone === destinationTimeZone(values.destinations[0]);
 
   const update = (field) => (event) => setValues((current) => ({ ...current, [field]: event.target.value }));
@@ -60,7 +63,10 @@ export default function TripForm({ trip = null, initialDestination = null, submi
       await onSubmit({
         ...(trip ? { revision } : {}),
         title: values.title.trim(),
-        destinationIds: values.destinations.map((destination) => destination.id),
+        // Use the mixed request only when creating new custom rows. Already-saved destinations can still be sent by ID.
+        ...(values.destinations.some(({ draft }) => draft)
+          ? { destinations: values.destinations.map(({ id, name, country, draft }) => draft ? { name, country } : { id }) }
+          : { destinationIds: values.destinations.map(({ id }) => id) }),
         startDate: values.startDate,
         endDate: values.endDate,
         groupSize: Number(values.groupSize),
@@ -85,6 +91,7 @@ export default function TripForm({ trip = null, initialDestination = null, submi
         <legend>Where are you going? <span>Add destinations in the order you’ll visit them.</span></legend>
         <DestinationPicker
           selected={values.destinations}
+          allowCustom
           onChange={(destinations) => { setZoneConfirmed(false); setValues((current) => ({ ...current, destinations, timeZone: current.destinations[0]?.id !== destinations[0]?.id ? (destinations.length ? destinationTimeZone(destinations[0]) || '' : 'Asia/Ho_Chi_Minh') : current.timeZone })); }}
         />
       </fieldset>
@@ -103,10 +110,12 @@ export default function TripForm({ trip = null, initialDestination = null, submi
         <input type="number" min="1" max="100" step="1" value={values.groupSize} onChange={update('groupSize')} required />
       </label>
       <label className="field">Trip time zone
-        <select value={values.timeZone} onChange={(event) => { setZoneConfirmed(false); update('timeZone')(event); }}>
-          {[...new Set([...TIME_ZONES.map(([zone]) => zone), values.timeZone])].filter(Boolean).map((zone) => <option key={zone} value={zone}>{TIME_ZONES.find(([value]) => value === zone)?.[1] || zone.replaceAll('_', ' ')}</option>)}
-        </select>
-        <span>Starts with the first destination's time zone. You can change it manually.</span>
+        <input list={zoneListId} value={values.timeZone} maxLength={64} placeholder="e.g. Asia/Ho_Chi_Minh"
+          onChange={(event) => { setZoneConfirmed(false); update('timeZone')(event); }} />
+        <datalist id={zoneListId}>
+          {TIME_ZONES.map(([value, label]) => <option key={value} value={value} label={label} />)}
+        </datalist>
+        <span>Choose a time zone or enter one such as Asia/Ho_Chi_Minh.</span>
       </label>
       {zoneChanged && zone && !automaticZone && values.destinations.length > 0 && <label className="field-wide zone-confirm"><input type="checkbox" checked={zoneConfirmed} onChange={(event) => setZoneConfirmed(event.target.checked)} /> I confirm this time zone matches the trip destinations.</label>}
       <fieldset className="field field-wide budget-field">

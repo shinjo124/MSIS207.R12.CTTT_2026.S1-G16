@@ -32,6 +32,7 @@ export default function TripsPage({ getToken, isSignedIn, profileStatus, profile
   }, [search]);
 
   useEffect(() => {
+    // An Explore link can prefill a catalog destination in the new-trip form.
     const destinationId = new URLSearchParams(search).get('destination');
     if (!destinationId) { setSuggestedDestination(null); return undefined; }
     const controller = new AbortController();
@@ -48,6 +49,7 @@ export default function TripsPage({ getToken, isSignedIn, profileStatus, profile
     return () => controller.abort();
   }, [active, ready, loadTrips]);
 
+  // Navigate to the saved trip using the server's ID rather than constructing a draft route.
   async function createTrip(values) {
     const result = await apiRequest('/trips', { method: 'POST', body: values, getToken });
     window.history.pushState(null, '', `/trips/${result.data.id}`);

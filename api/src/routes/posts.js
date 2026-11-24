@@ -84,6 +84,7 @@ function shapePlace({ placeName, placeCategory, placeAddress, placeMapQuery, des
   };
 }
 
+// Fetch photos for the whole page together, then attach them to their stories.
 async function addPhotos(posts) {
   if (!posts.length) return posts;
   const ids = posts.map((post) => post.id);
@@ -120,6 +121,7 @@ router.get('/mine', requireAuth, requireProfile, async (req, res, next) => {
   }
 });
 
+// An extra row tells the browser whether another page exists without a separate count query.
 router.get('/', async (req, res, next) => {
   const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 12, 1), 20);
   const page = Math.min(Math.max(Number.parseInt(req.query.page, 10) || 1, 1), 1000);
@@ -149,6 +151,7 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+// Text-only stories can use JSON. Multipart requests also go through upload limits and parsing.
 router.post('/', requireAuth, requireProfile, postWriteLimit, (req, res, next) => (
   req.is('multipart/form-data') ? uploadLimiter(req, res, next) : next()
 ), (req, res, next) => (
@@ -242,6 +245,7 @@ router.post('/', requireAuth, requireProfile, postWriteLimit, (req, res, next) =
   }
 });
 
+// Remove an author's story and queue its Cloudinary cleanup in the same transaction.
 router.delete('/:id', requireAuth, validatePostId, requireProfile, async (req, res, next) => {
   const connection = await pool.getConnection();
   let photoIds = [];
@@ -337,6 +341,7 @@ router.delete('/:id/likes', requireAuth, validatePostId, requireProfile, async (
   }
 });
 
+// Load comments separately from the feed so collapsed threads do not add to the initial response.
 router.get('/:id/comments', async (req, res, next) => {
   if (!parseId(req.params.id)) {
     return res.status(400).json({ error: { code: 'INVALID_POST_ID', message: 'Post ID must be a positive integer.' } });
