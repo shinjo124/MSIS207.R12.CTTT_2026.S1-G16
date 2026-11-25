@@ -34,7 +34,6 @@ test('an owner can create, edit and delete with one connection; another fixture 
     CREATE TABLE trip_invites (trip_id INTEGER PRIMARY KEY, token_hash TEXT NOT NULL, expires_at TEXT NOT NULL);
     CREATE TABLE trip_weather_location (trip_id INTEGER PRIMARY KEY, destination_id INTEGER NOT NULL, latitude REAL NOT NULL, longitude REAL NOT NULL, time_zone TEXT NOT NULL);
     CREATE TABLE activities (id INTEGER PRIMARY KEY, trip_id, activity_date, start_time, duration_minutes, version INTEGER NOT NULL DEFAULT 1, category, title, city, address, planned_cost, actual_spend, note, visited);
-    CREATE TABLE trip_photos (trip_id, cloudinary_public_id);
   `);
   let failNextBump = false;
   // Translate the limited MySQL syntax used by these routes while keeping the API and transaction code under test.

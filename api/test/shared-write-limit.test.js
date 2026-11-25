@@ -49,13 +49,12 @@ test('write limiter fails closed when the shared database is unavailable', async
   assert.equal(failure?.message, 'database unavailable');
 });
 
-test('post and photo routes enforce shared limits before handling uploads', async (t) => {
+test('post routes enforce shared write and upload limits', async (t) => {
   const previous = process.env.CLERK_SECRET_KEY;
   process.env.CLERK_SECRET_KEY = 'fixture';
   t.after(() => { if (previous === undefined) delete process.env.CLERK_SECRET_KEY; else process.env.CLERK_SECRET_KEY = previous; });
   t.mock.module('@clerk/express', { namedExports: { getAuth: () => ({ userId: 'fixture', isAuthenticated: true }) } });
   const { default: posts } = await import('../src/routes/posts.js');
-  const { default: photos } = await import('../src/routes/photos.js');
   const db = new DatabaseSync(':memory:');
   t.after(() => db.close());
   db.function('UNIX_TIMESTAMP', () => 1000);
@@ -73,18 +72,17 @@ test('post and photo routes enforce shared limits before handling uploads', asyn
   const app = express();
   app.use(express.json());
   app.use('/posts', posts);
-  app.use('/photos', photos);
   const server = app.listen(0, '127.0.0.1');
   await once(server, 'listening');
   t.after(() => server.close());
   const origin = `http://127.0.0.1:${server.address().port}`;
   assert.equal((await fetch(origin + '/posts', { method: 'POST', body: new FormData() })).status, 400);
-  for (let i = 0; i < 15; i++) {
-    const response = await fetch(origin + '/posts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-    assert.equal(response.status, i < 14 ? 400 : 429);
+  for (let i = 0; i < 9; i++) {
+    assert.equal((await fetch(origin + '/posts', { method: 'POST', body: new FormData() })).status, 400);
   }
-  for (let i = 0; i < 10; i++) {
-    const response = await fetch(origin + '/photos', { method: 'POST', body: new FormData() });
-    assert.equal(response.status, i < 9 ? 400 : 429);
+  assert.equal((await fetch(origin + '/posts', { method: 'POST', body: new FormData() })).status, 429);
+  for (let i = 0; i < 5; i++) {
+    const response = await fetch(origin + '/posts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    assert.equal(response.status, i < 4 ? 400 : 429);
   }
 });

@@ -35,7 +35,7 @@ The API must handle requests without relying on in-memory state surviving betwee
 ### Community and supporting features
 
 - **Travel-story feed**: visitors browse public posts with a scrollable photo gallery; signed-in users publish with an optional photo preview, like a post once, and comment. Feed and comments are paginated; comments load when opened. Stories are persistent posts, not ephemeral 24-hour stories.
-- **Trip photos** (Cloudinary) and **weather** (OpenWeather through the API): target release features; hide or clearly mark any feature that has not passed its release checks.
+- **Weather** (OpenWeather through the API): target release feature; hide or clearly mark any feature that has not passed its release checks.
 
 ## 4. Rules and invariants
 
@@ -44,7 +44,7 @@ The API must handle requests without relying on in-memory state surviving betwee
 - **Actual spend**: `NULL` means not recorded, not zero. Totals treat `NULL` as zero and label the sum “recorded spend.”
 - **Budget**: remaining = trip budget − sum of recorded actual spend. Clearly show the over-budget amount when remaining is negative.
 - **Categories**: sightseeing/check-in, food/drink, accommodation, transport, shopping, other.
-- **Permissions**: enforce authorization on the server for every write. The owner and accepted members may edit a trip and its activities. Only the owner deletes a trip, manages invitations/members/share links, or uploads trip photos. Public share links grant read access only. Hiding a UI control is not authorization.
+- **Permissions**: enforce authorization on the server for every write. The owner and accepted members may edit a trip and its activities. Only the owner deletes a trip or manages invitations/members/share links. Public share links grant read access only. Hiding a UI control is not authorization.
 - **Conflicts and synchronization**: activity PATCH/DELETE require the version last read and return 409 `ACTIVITY_CONFLICT` for stale writes. Trip PUT requires the revision last read and returns 409 `TRIP_CONFLICT` if it changed. Trip revision increments in the same transaction as detail/activity changes. The visible online trip watches for revisions, refreshes only on change, and pauses while editing or saving. Schedule changes appear optimistically and are restored on failure.
 - **Time and offline behavior**: a trip uses an explicitly confirmed IANA destination zone. Activity dates and times are local wall times; do not infer a missing zone from the device. Loaded trip data stays readable in memory when offline. Calendar writes are disabled and trip mutations reject before changing local state; there is no offline write queue or persistence across reloads. DST gaps and ambiguous wall times remain unresolved.
 - **Share token**: generate a random high-entropy token on the server; never expose a sequential trip ID as the token. Revoked or replaced tokens stop working. The public endpoint returns only reader-safe fields and excludes private posts, credentials, and internal identifiers not needed by the viewer.
@@ -67,7 +67,7 @@ erDiagram
     trip_destinations ||--o{ trip_day_destinations : "is assigned to"
 ```
 
-Secondary tables: `destinations`, `places`, `posts`, `post_photos`, `post_comments`, `post_likes` (unique per user and post), `trip_photos`, `pending_photo_deletes`, `trip_members`, `trip_invites`, and `trip_weather_location`. `trips.revision` and `activities.version` serve different purposes: refresh detection and conflicting-write protection respectively. Days are derived from the trip date range, not stored in a `trip_days` table.
+Secondary tables: `destinations`, `places`, `posts`, `post_photos`, `post_comments`, `post_likes` (unique per user and post), `pending_photo_deletes`, `trip_members`, `trip_invites`, and `trip_weather_location`. `trips.revision` and `activities.version` serve different purposes: refresh detection and conflicting-write protection respectively. Days are derived from the trip date range, not stored in a `trip_days` table.
 
 Use foreign keys and database constraints for invariants that can be safely enforced in MySQL. Keep migrations repeatable where practical and seeds fictional and safe to rerun.
 

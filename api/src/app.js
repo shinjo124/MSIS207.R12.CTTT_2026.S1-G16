@@ -10,7 +10,6 @@ import destinationsRouter from './routes/destinations.js';
 import authRouter from './routes/auth.js';
 import shareRouter from './routes/share.js';
 import postsRouter from './routes/posts.js';
-import photosRouter from './routes/photos.js';
 import tripsRouter from './routes/trips.js';
 import activitiesRouter from './routes/activities.js';
 import weatherRouter from './routes/weather.js';
@@ -123,7 +122,6 @@ app.use('/api', activitiesRouter);
 app.use('/api', weatherRouter);
 app.use('/api', shareRouter);
 app.use('/api/posts', postsRouter);
-app.use('/api/trip-photos', photosRouter);
 
 // Unknown API routes answer in the spec's JSON error shape instead of Express's HTML page.
 app.use('/api', (_req, res) => {

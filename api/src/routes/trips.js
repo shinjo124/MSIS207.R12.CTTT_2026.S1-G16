@@ -1,7 +1,6 @@
 import { randomBytes, createHash } from 'node:crypto';
 import { Router } from 'express';
 import { setTimeout as delay } from 'node:timers/promises';
-import { clearQueuedPhoto } from '../services/cloudinary.js';
 import { pool } from '../db/pool.js';
 import { requireAuth } from '../middleware/require-auth.js';
 import { requireProfile } from '../middleware/require-profile.js';
@@ -399,23 +398,15 @@ router.put('/:tripId', signedIn, async (req, res, next) => {
   }
 });
 
-// Save photo cleanup IDs before deleting the trip. Cloudinary cleanup runs after commit.
 router.delete('/:tripId', signedIn, async (req, res, next) => {
   const tripId = parseId(req.params.tripId);
   if (!tripId) return sendError(res, { status: 400, code: 'INVALID_TRIP_ID', message: 'Trip ID must be a positive integer.' });
   const connection = await pool.getConnection();
-  let photos;
   try {
     await connection.beginTransaction();
     if (!await findOwnedTrip(connection, tripId, req.userId, true)) {
       await connection.rollback();
       return sendError(res, TRIP_NOT_FOUND);
-    }
-    [photos] = await connection.execute('SELECT cloudinary_public_id FROM trip_photos WHERE trip_id = ? FOR UPDATE', [tripId]);
-    if (photos.length) {
-      const placeholders = photos.map(() => '(?)').join(', ');
-      await connection.execute(`INSERT INTO pending_photo_deletes (cloudinary_public_id) VALUES ${placeholders}`,
-        photos.map((photo) => photo.cloudinary_public_id));
     }
     await connection.execute('DELETE FROM trips WHERE id = ? AND owner_user_id = ?', [tripId, req.userId]);
     await connection.commit();
@@ -425,8 +416,6 @@ router.delete('/:tripId', signedIn, async (req, res, next) => {
   } finally {
     connection.release();
   }
-  await Promise.all(photos.map(({ cloudinary_public_id: id }) => clearQueuedPhoto(id)
-    .catch(() => console.error('Trip deleted; photo cleanup pending:', id))));
   res.status(204).end();
 });
 

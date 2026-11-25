@@ -27,7 +27,7 @@ npm run build
 npm run dev
 ```
 
-The web runs on port 5173; the API on 4000. `/api/health` reports database connectivity, and `/api-docs` serves Swagger UI. Clerk sign-in requires a configured app and allowed redirect origins. Cloudinary is required for photo uploads; OpenWeather is optional. Neither provider is required by the automated tests. If Vite reports `Outdated Optimize Dep` after SSR tests, restart the development server with `npm run dev -- --force`.
+The web runs on port 5173; the API on 4000. `/api/health` reports database connectivity, and `/api-docs` serves Swagger UI. Clerk sign-in requires a configured app and allowed redirect origins. Cloudinary is required for story photo uploads; OpenWeather is optional. Neither provider is required by the automated tests. If Vite reports `Outdated Optimize Dep` after SSR tests, restart the development server with `npm run dev -- --force`.
 
 ## Architecture and ownership boundaries
 
@@ -71,7 +71,7 @@ The mobile calendar shows one day, desktop up to three consecutive days. Events 
 
 ## Collaboration, offline and failure handling
 
-Owners create single-use invitation tokens valid for 24 hours. The API stores only token hashes. Recipients sign in and explicitly accept; a public share link never grants edit permission. Owners alone manage membership, delete trips, change share links and upload trip photos.
+Owners create single-use invitation tokens valid for 24 hours. The API stores only token hashes. Recipients sign in and explicitly accept; a public share link never grants edit permission. Owners alone manage membership, delete trips, and change share links.
 
 The visible, online trip uses `GET /api/trips/:id/version?sync=1&wait=1&since=<revision>`. The server checks the authorized database revision about once per second and holds an unchanged request for up to eight seconds of waiting, excluding database/auth latency. The completed response signals immediate renewal. Full detail loads only when the revision differs. This is bounded long polling; it does not guarantee instantaneous delivery. See [ADR-0001](adr/0001-bounded-trip-long-polling.md).
 

@@ -38,7 +38,7 @@ Tripo helps a group plan a multi-day trip together: pick destinations, build a d
 | Back end | Node.js + Express 5 (ES modules), RESTful JSON API |
 | Database | MySQL (local) / TiDB Cloud Starter, MySQL-compatible (production), accessed with `mysql2` and parameterized SQL |
 | Auth | Clerk (Bearer session token verified by `@clerk/express`) |
-| Files | Cloudinary (story and trip photos) |
+| Files | Cloudinary (story photos) |
 | API docs | OpenAPI 3 (`docs/api/openapi.yaml`) served with Swagger UI |
 | Hosting | Vercel — two projects (`web/`, `api/`) on custom domains |
 
@@ -52,7 +52,7 @@ www.tripo.website        Bearer token      api.tripo.website                │
 
 ## API overview
 
-All endpoints are under `/api`, exchange JSON, and return errors as `{ "error": { "code", "message" } }`. Protected endpoints need `Authorization: Bearer <Clerk session token>`. The full contract (25 paths, 37 operations) is in [Swagger UI](https://api.tripo.website/api-docs).
+All endpoints are under `/api`, exchange JSON, and return errors as `{ "error": { "code", "message" } }`. Protected endpoints need `Authorization: Bearer <Clerk session token>`. The full contract (24 paths, 36 operations) is in [Swagger UI](https://api.tripo.website/api-docs).
 
 | Resource | Endpoints |
 |---|---|
@@ -63,7 +63,7 @@ All endpoints are under `/api`, exchange JSON, and return errors as `{ "error": 
 | Members | `POST /api/trips/{tripId}/invitations`, `POST /api/trips/invitations/accept`, `GET /api/trips/{tripId}/members`, `DELETE …/members/{userId}` |
 | Sharing | `GET/POST/DELETE /api/trips/{tripId}/share`, `GET /api/share/{token}` (public) |
 | Stories | `GET/POST /api/posts`, `PATCH/DELETE /api/posts/{id}` (own story), `GET /api/posts/mine`, likes and comments |
-| Extras | `GET /api/trips/{tripId}/weather`, `PUT /api/trips/{tripId}/days/{date}/destination`, `GET /api/news`, `POST /api/trip-photos` |
+| Extras | `GET /api/trips/{tripId}/weather`, `PUT /api/trips/{tripId}/days/{date}/destination`, `GET /api/news` |
 
 Typical status codes: `200`, `201` created, `204` deleted, `400` validation, `401` not signed in, `404` not found or not allowed, `409` conflicting edit, `429` rate limited.
 
@@ -74,7 +74,7 @@ api/                 Express API
   src/routes/        one router per resource (trips, activities, posts, …)
   src/middleware/    auth, profile, upload and write-limit checks
   src/services/      validation rules, data shaping, limits
-  database/          migrations/ (001–017, apply in order) and seeds/
+  database/          migrations/ (001–018, apply in order) and seeds/
   test/              node:test unit and route tests
 web/                 React + Vite app
   src/features/      trips (incl. calendar), posts, dashboard
