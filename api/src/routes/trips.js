@@ -96,7 +96,7 @@ async function loadDestinations(db, tripIds) {
 }
 
 // Build the editor response from the trip, ordered destinations, activities, and computed budget.
-async function loadTripDetail(tripId, userId, db = pool) {
+export async function loadTripDetail(tripId, userId, db = pool) {
   const trip = await findEditableTrip(db, tripId, userId);
   if (!trip) return null;
 

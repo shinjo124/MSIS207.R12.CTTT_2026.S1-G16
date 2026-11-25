@@ -177,6 +177,68 @@ paths:
         '404': { description: Trip unavailable or caller has no access }
         '429': { description: Weather rate limit reached }
         '503': { description: Weather provider unavailable }
+  /api/trips/{tripId}/assistant:
+    post:
+      summary: Ask the trip assistant (Google Gemini) about this trip or about travel
+      description: Requires trip access. The API sends the trip plan, budget and catalogue places for the trip's destinations to Gemini. Answers are not stored. Suggestions are proposals only; add one with POST /api/trips/{tripId}/activities.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: tripId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [messages]
+              properties:
+                messages:
+                  type: array
+                  minItems: 1
+                  maxItems: 12
+                  description: Conversation so far, oldest first; the last message must be from the user.
+                  items:
+                    type: object
+                    required: [role, text]
+                    properties:
+                      role: { type: string, enum: [user, assistant] }
+                      text: { type: string, minLength: 1, maxLength: 2000 }
+      responses:
+        '200':
+          description: The assistant's reply and up to five suggested activities inside the trip dates
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      reply: { type: string }
+                      suggestions:
+                        type: array
+                        maxItems: 5
+                        items:
+                          type: object
+                          required: [title, date, category]
+                          properties:
+                            title: { type: string }
+                            date: { type: string, format: date }
+                            time: { type: string, example: '19:00' }
+                            durationMinutes: { type: integer }
+                            category: { type: string, enum: [sightseeing, food_drink, accommodation, transport, shopping, other] }
+                            city: { type: string }
+                            address: { type: string }
+                            plannedCost: { type: string, example: '150000' }
+                            note: { type: string }
+        '400': { description: INVALID_TRIP_ID or INVALID_MESSAGES }
+        '401': { description: Not signed in }
+        '404': { description: Trip unavailable or caller has no access }
+        '429': { description: Assistant rate limit reached (20 questions per 15 minutes per user) }
+        '503': { description: ASSISTANT_NOT_CONFIGURED (no GEMINI_API_KEY) or ASSISTANT_UNAVAILABLE }
   /api/trips/{tripId}/days/{date}/destination:
     put:
       summary: Assign one of the trip destinations to a trip day

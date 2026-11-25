@@ -29,6 +29,7 @@ Tripo helps a group plan a multi-day trip together: pick destinations, build a d
 - **Read-only sharing** — the owner can create and revoke a public share link.
 - **Stories** — a public feed of travel posts with photos, likes and comments; authors can edit or delete their own stories.
 - **Dashboard** — upcoming trip, today's plan, budget, weather forecast (OpenWeather) and travel news.
+- **Trip assistant** — a chat tab on each trip (Google Gemini) that answers questions about the trip's schedule and budget, suggests activities that can be added to the plan with one click, and answers general travel questions.
 
 ## Tech stack
 
@@ -52,7 +53,7 @@ www.tripo.website        Bearer token      api.tripo.website                │
 
 ## API overview
 
-All endpoints are under `/api`, exchange JSON, and return errors as `{ "error": { "code", "message" } }`. Protected endpoints need `Authorization: Bearer <Clerk session token>`. The full contract (24 paths, 36 operations) is in [Swagger UI](https://api.tripo.website/api-docs).
+All endpoints are under `/api`, exchange JSON, and return errors as `{ "error": { "code", "message" } }`. Protected endpoints need `Authorization: Bearer <Clerk session token>`. The full contract (25 paths, 37 operations) is in [Swagger UI](https://api.tripo.website/api-docs).
 
 | Resource | Endpoints |
 |---|---|
@@ -63,7 +64,7 @@ All endpoints are under `/api`, exchange JSON, and return errors as `{ "error": 
 | Members | `POST /api/trips/{tripId}/invitations`, `POST /api/trips/invitations/accept`, `GET /api/trips/{tripId}/members`, `DELETE …/members/{userId}` |
 | Sharing | `GET/POST/DELETE /api/trips/{tripId}/share`, `GET /api/share/{token}` (public) |
 | Stories | `GET/POST /api/posts`, `PATCH/DELETE /api/posts/{id}` (own story), `GET /api/posts/mine`, likes and comments |
-| Extras | `GET /api/trips/{tripId}/weather`, `PUT /api/trips/{tripId}/days/{date}/destination`, `GET /api/news` |
+| Extras | `POST /api/trips/{tripId}/assistant`, `GET /api/trips/{tripId}/weather`, `PUT /api/trips/{tripId}/days/{date}/destination`, `GET /api/news` |
 
 Typical status codes: `200`, `201` created, `204` deleted, `400` validation, `401` not signed in, `404` not found or not allowed, `409` conflicting edit, `429` rate limited.
 
@@ -100,7 +101,7 @@ Requirements: Node.js 24 LTS and MySQL 8.
    ```
 
 2. Apply every file in `api/database/migrations/` in numeric order, then every file in `api/database/seeds/` in numeric order (seed data is fictional and repeatable).
-3. Copy `api/.env.example` to `api/.env` and fill in the MySQL values, `CLERK_SECRET_KEY`, and (optional) Cloudinary and OpenWeather keys. Keep `DB_SSL=false` for local MySQL.
+3. Copy `api/.env.example` to `api/.env` and fill in the MySQL values, `CLERK_SECRET_KEY`, and (optional) Cloudinary, OpenWeather and Gemini (`GEMINI_API_KEY`) keys. Keep `DB_SSL=false` for local MySQL.
 4. Copy `web/.env.example` to `web/.env.local` and set `VITE_CLERK_PUBLISHABLE_KEY`.
 5. Start both apps:
 
@@ -111,7 +112,7 @@ Requirements: Node.js 24 LTS and MySQL 8.
 
 Swagger UI runs locally at <http://localhost:4000/api-docs>. Run tests with `npm test` in `api/` and in `web/`.
 
-Secrets (Clerk secret, database password, Cloudinary secret, OpenWeather key) belong only in `api/.env`; never commit `.env` files or put secrets in `VITE_*` variables.
+Secrets (Clerk secret, database password, Cloudinary secret, OpenWeather key, Gemini key) belong only in `api/.env`; never commit `.env` files or put secrets in `VITE_*` variables.
 
 ## Further reading
 

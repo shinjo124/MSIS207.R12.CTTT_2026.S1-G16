@@ -335,3 +335,30 @@
 .calendar-tip .calendar-tip-note { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
 .calendar-tip small { padding-top: 6px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
 @media (hover: none) { .calendar-tip { display: none; } }
+
+/* ---------- Trip assistant ---------- */
+.assistant-panel { display: grid; gap: 14px; }
+.assistant-empty p { margin: 0 0 8px; color: var(--muted); font-size: 13px; }
+.assistant-prompts { display: flex; flex-wrap: wrap; gap: 8px; }
+.assistant-prompts .text-button { padding: 8px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--white); color: var(--teal-dark); font-size: 13px; text-align: left; }
+.assistant-prompts .text-button:hover { border-color: var(--teal); }
+.assistant-messages { display: grid; gap: 10px; max-height: 60vh; margin: 0; padding: 0; overflow-y: auto; list-style: none; }
+.assistant-message { max-width: min(680px, 88%); padding: 12px 14px; border-radius: 14px; font-size: 14px; line-height: 1.55; }
+.assistant-message p { margin: 0; white-space: pre-wrap; }
+.assistant-message.is-user { justify-self: end; background: var(--teal-dark); color: var(--cream); border-bottom-right-radius: 4px; }
+.assistant-message.is-assistant { justify-self: start; border: 1px solid var(--line); background: var(--white); color: var(--ink); border-bottom-left-radius: 4px; }
+.assistant-message.is-typing p { color: var(--muted); font-style: italic; }
+.assistant-suggestions { display: grid; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
+.assistant-suggestion { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 12px; background: #f4f7f3; }
+.assistant-suggestion div { display: grid; gap: 2px; min-width: 0; }
+.assistant-suggestion span { color: var(--muted); font-size: 12px; }
+.assistant-suggestion p { color: var(--ink); font-size: 12px; }
+.assistant-suggestion button { flex: 0 0 auto; }
+.assistant-form { display: flex; align-items: flex-end; gap: 10px; }
+.assistant-form textarea { flex: 1; min-height: 48px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; font: inherit; resize: vertical; }
+.assistant-disclaimer { margin: 0; color: var(--muted); font-size: 11px; }
+@media (max-width: 640px) {
+  .assistant-message { max-width: 100%; }
+  .assistant-suggestion { flex-direction: column; align-items: stretch; }
+  .assistant-form { flex-direction: column; align-items: stretch; }
+}
