@@ -36,7 +36,8 @@ async function answer(res, { context, messages, trip }) {
   let text;
   try {
     text = await askGemini({ apiKey: process.env.GEMINI_API_KEY, model: process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL, context, messages });
-  } catch {
+  } catch (error) {
+    console.error(`[tribot] ${error.name === 'TimeoutError' ? 'Gemini did not answer in time' : error.message}`);
     return sendError(res, { status: 503, code: 'ASSISTANT_UNAVAILABLE', message: 'Tribot is unavailable right now. Try again later.' });
   }
   return res.json({ data: parseModelReply(text, trip) });

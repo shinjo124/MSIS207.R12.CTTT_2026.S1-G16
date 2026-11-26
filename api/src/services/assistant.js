@@ -135,13 +135,13 @@ export function parseModelReply(text, trip) {
   }
 }
 
-export function createAssistantClient({ fetchImpl = fetch, timeoutMs = 20000 } = {}) {
+export function createAssistantClient({ fetchImpl = fetch, timeoutMs = 45000 } = {}) {
   return async ({ apiKey, model = DEFAULT_GEMINI_MODEL, context, messages }) => {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
     const body = {
       systemInstruction: { parts: [{ text: `${SYSTEM_PROMPT}\n\n${context}` }] },
       contents: messages.map((m) => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.text }] })),
-      generationConfig: { responseMimeType: 'application/json', responseSchema: RESPONSE_SCHEMA, temperature: 0.6, maxOutputTokens: 2048 },
+      generationConfig: { responseMimeType: 'application/json', responseSchema: RESPONSE_SCHEMA, temperature: 0.6, maxOutputTokens: 8192 },
     };
     const response = await fetchImpl(url, {
       method: 'POST',
@@ -149,10 +149,17 @@ export function createAssistantClient({ fetchImpl = fetch, timeoutMs = 20000 } =
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(timeoutMs),
     });
-    if (!response.ok) throw new Error(`Gemini request failed with status ${response.status}.`);
+    if (!response.ok) {
+      // Google explains the problem in the body (bad key, unknown model, quota). Keep it for the server log.
+      let detail = '';
+      try { detail = (await response.json())?.error?.message || ''; } catch { /* no JSON body */ }
+      throw new Error(`Gemini request failed with status ${response.status}${detail ? `: ${detail}` : ''}`);
+    }
     const data = await response.json();
-    const text = (data.candidates?.[0]?.content?.parts || []).map((part) => part.text || '').join('');
-    if (!text) throw new Error('Gemini returned no text.');
+    const candidate = data.candidates?.[0];
+    // Thinking parts are skipped; only the visible answer is returned.
+    const text = (candidate?.content?.parts || []).filter((part) => !part.thought).map((part) => part.text || '').join('');
+    if (!text) throw new Error(`Gemini returned no text (finish reason: ${candidate?.finishReason || data.promptFeedback?.blockReason || 'unknown'}).`);
     return text;
   };
 }
