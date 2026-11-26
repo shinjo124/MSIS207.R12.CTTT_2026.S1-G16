@@ -5,12 +5,13 @@ import { ACTIVITY_CATEGORIES, optionalText, parseDate, parseMoney, parseTime } f
 export const MAX_MESSAGES = 12;
 export const MAX_MESSAGE_LENGTH = 2000;
 export const MAX_SUGGESTIONS = 5;
-export const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash';
+// Flash-Lite with minimal thinking answers fastest; set GEMINI_MODEL for a stronger model.
+export const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite';
 
 const SYSTEM_PROMPT = `You are Tribot, the travel-planning helper inside the Tripo web app.
 You help one traveller with the trip described in TRIP DATA (when there is one), and with general travel questions.
 Rules:
-- Answer in the same language as the user's last message (Vietnamese or English). Be short and concrete.
+- Answer in the same language as the user's last message (Vietnamese or English). Be short and concrete: at most about 120 words unless the user asks for detail.
 - For questions about this trip (free time, schedule, budget, spending), use only TRIP DATA. If the data does not say, say so. Never invent activities or amounts.
 - Money uses the trip currency. "Not recorded" spending is unknown, not zero.
 - When the user asks for ideas or a plan, you may propose up to ${MAX_SUGGESTIONS} activities in "suggestions". Each must fall on a date inside the trip, should fit free time on that day, and should prefer places from KNOWN PLACES. Use category one of: ${ACTIVITY_CATEGORIES.join(', ')}. Times are 24-hour HH:MM in the trip's local time. Costs are plain numbers in the trip currency, or omit them.
@@ -141,7 +142,7 @@ export function createAssistantClient({ fetchImpl = fetch, timeoutMs = 45000 } =
     const body = {
       systemInstruction: { parts: [{ text: `${SYSTEM_PROMPT}\n\n${context}` }] },
       contents: messages.map((m) => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.text }] })),
-      generationConfig: { responseMimeType: 'application/json', responseSchema: RESPONSE_SCHEMA, temperature: 0.6, maxOutputTokens: 8192 },
+      generationConfig: { responseMimeType: 'application/json', responseSchema: RESPONSE_SCHEMA, temperature: 0.6, maxOutputTokens: 8192, thinkingConfig: { thinkingLevel: 'minimal' } },
     };
     const response = await fetchImpl(url, {
       method: 'POST',
