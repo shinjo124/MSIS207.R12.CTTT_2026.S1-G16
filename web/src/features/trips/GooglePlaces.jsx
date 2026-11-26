@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { apiRequest } from '../../lib/api.js';
 import { getLanguage, t } from '../../lib/i18n.js';
+import './trips.css';
 
 const TYPES = [
   ['sights', 'Top sights'],

@@ -54,7 +54,7 @@ paths:
         '503': { description: Clerk authentication is not configured }
   /api/destinations:
     get:
-      summary: List curated destinations (featured only), or every destination with scope=all
+      summary: List curated destinations (featured only), every destination (scope=all) or the 34 provinces and cities (scope=provinces)
       parameters:
         - in: query
           name: category
@@ -62,8 +62,8 @@ paths:
           description: Optional exact category filter
         - in: query
           name: scope
-          schema: { type: string, enum: [all] }
-          description: all = every province and popular spot, used by the trip form's type-ahead search
+          schema: { type: string, enum: [all, provinces] }
+          description: all = every province and popular spot, used by the trip form's type-ahead search; provinces = the 34 provincial-level units for the Explore page
       responses:
         '200':
           description: Destination list
@@ -91,6 +91,18 @@ paths:
                         bestSeason: { type: [string, 'null'] }
                         mapQuery: { type: string }
                         imageUrl: { type: [string, 'null'], format: uri }
+  /api/destinations/{id}:
+    get:
+      summary: One public catalogue destination (used by the Explore province page)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200': { description: The destination, including adminLevel, mergedFrom, summary and summaryVi }
+        '400': { description: INVALID_DESTINATION_ID }
+        '404': { description: DESTINATION_NOT_FOUND }
   /api/destinations/{id}/google-places:
     get:
       summary: Live place ideas from Google Maps (Places API Text Search) for a catalogue destination
