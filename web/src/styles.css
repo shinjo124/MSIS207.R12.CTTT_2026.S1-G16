@@ -8,6 +8,8 @@
   -moz-osx-font-smoothing: grayscale;
   font-optical-sizing: auto;
   font-weight: 400;
+  /* Georgia has no Vietnamese letters such as ề or ố, so headings use serif fonts that do. */
+  --font-serif: Cambria, 'Times New Roman', 'Noto Serif', serif;
   --ink: #17333b;
   --muted: #4d6265;
   --teal: #0b7475;
@@ -39,7 +41,7 @@ a { color: inherit; text-underline-offset: 3px; }
   background: rgb(242 243 238 / 92%); backdrop-filter: blur(16px);
 }
 .brand { display: inline-flex; align-items: center; gap: 10px; color: var(--teal-dark); text-decoration: none; font-size: 22px; font-weight: 800; letter-spacing: -.06em; }
-.brand-mark { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 12px 12px 12px 4px; transform: rotate(-4deg); background: var(--coral); color: var(--white); font-family: Georgia, serif; font-size: 19px; font-weight: 700; }
+.brand-mark { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 12px 12px 12px 4px; transform: rotate(-4deg); background: var(--coral); color: var(--white); font-family: var(--font-serif); font-size: 19px; font-weight: 700; }
 .top-note { color: var(--muted); font-size: 12px; }
 .nav-link { margin-left: auto; color: var(--teal-dark); font-size: 13px; font-weight: 700; text-decoration: none; }
 .nav-link:hover { color: var(--coral); }
@@ -61,7 +63,7 @@ a { color: inherit; text-underline-offset: 3px; }
 .hero-copy, .hero-art { position: relative; z-index: 1; }
 .hero-copy { max-width: 600px; }
 .hero .eyebrow { color: var(--lime); }
-.hero h1 { margin: 0; color: var(--cream); font-family: Georgia, 'Times New Roman', serif; font-size: clamp(56px, 7.6vw, 96px); font-weight: 400; letter-spacing: -.07em; line-height: .92; }
+.hero h1 { margin: 0; color: var(--cream); font-family: var(--font-serif); font-size: clamp(56px, 7.6vw, 96px); font-weight: 400; letter-spacing: -.07em; line-height: .92; }
 .hero h1 em { color: #ffad85; font-weight: 400; }
 .hero-text { max-width: 45ch; margin: 24px 0 30px; color: rgb(255 249 239 / 82%); font-size: 15px; line-height: 1.75; }
 .primary-button { display: inline-flex; align-items: center; justify-content: center; gap: 12px; padding: 13px 20px; border: 0; border-radius: 999px; background: #b74730; color: var(--white); cursor: pointer; font-size: 12px; font-weight: 800; text-decoration: none; transition: transform .18s ease, background .18s ease; }
@@ -81,7 +83,7 @@ a { color: inherit; text-underline-offset: 3px; }
 
 .destinations, .stories { padding: 30px 0 72px; border-top: 1px solid rgb(23 51 59 / 10%); }
 .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin: 18px 0 26px; }
-.section-heading h2 { margin: 0; color: var(--teal-dark); font-family: Georgia, 'Times New Roman', serif; font-size: clamp(30px, 3.8vw, 48px); font-weight: 400; letter-spacing: -.05em; line-height: 1.05; }
+.section-heading h2 { margin: 0; color: var(--teal-dark); font-family: var(--font-serif); font-size: clamp(30px, 3.8vw, 48px); font-weight: 400; letter-spacing: -.05em; line-height: 1.05; }
 .section-heading > p { max-width: 36ch; margin: 0 0 4px; color: var(--muted); font-size: 13px; line-height: 1.65; }
 .category-filters { display: flex; flex-wrap: wrap; gap: 9px; margin: 0 0 22px; }
 .category-filters button { padding: 9px 15px; border: 1px solid #cdd9d4; border-radius: 999px; background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; font-weight: 700; transition: all .16s ease; }
@@ -104,7 +106,7 @@ a { color: inherit; text-underline-offset: 3px; }
 .destination-beach { background: radial-gradient(circle at 70% 27%, #ffe2a2 0 8%, transparent 8.5%), linear-gradient(180deg, #a8d9d8 0 45%, #56aeb0 46% 76%, #f2d2a1 77%); }
 .destination-food { background: radial-gradient(circle at 70% 30%, #ffcc8d 0 10%, transparent 10.5%), linear-gradient(155deg, #f1d7ae 0 42%, #ce8c69 43% 68%, #7d655a 69%); }
 .destination-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 16px 18px 0; }
-.destination-meta h3 { margin: 0; color: var(--teal-dark); font-family: Georgia, serif; font-size: 22px; font-weight: 400; letter-spacing: -.025em; }
+.destination-meta h3 { margin: 0; color: var(--teal-dark); font-family: var(--font-serif); font-size: 22px; font-weight: 400; letter-spacing: -.025em; }
 .destination-meta span { color: var(--muted); font-size: 12px; }
 .destination-card > p { margin: 9px 18px 18px; color: var(--muted); font-size: 12px; line-height: 1.65; }
 .destination-card > .destination-season { margin-top: -8px; color: var(--teal-dark); font-weight: 700; }
@@ -166,17 +168,17 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .story-comments input { font-size: 14px; }
 .story-comments form, .share-link-row, .share-actions { display: flex; gap: 8px; margin-top: 10px; }
 .story-comments input, .share-link-row input { flex: 1; }
-.share-control h3 { margin: 0; color: var(--teal-dark); font: 400 24px Georgia, serif; }
+.share-control h3 { margin: 0; color: var(--teal-dark); font: 400 24px var(--font-serif); }
 .share-control .secondary-action { border: 1px solid var(--line); background: transparent; color: var(--teal-dark); }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
 
 .shared-trip { max-width: 900px; margin: 56px auto; padding: clamp(24px, 5vw, 50px); border: 1px solid var(--line); border-radius: 24px; background: var(--white); box-shadow: var(--shadow); }
 .shared-state { max-width: 760px; display: grid; justify-items: start; gap: 12px; margin: 72px auto; padding: clamp(24px, 5vw, 50px); border: 1px solid var(--line); border-radius: 24px; background: var(--white); box-shadow: var(--shadow); color: var(--muted); font-size: 14px; line-height: 1.6; }
-.shared-state h1 { margin: 0; color: var(--teal-dark); font: 400 clamp(34px, 5vw, 56px)/1 Georgia, serif; letter-spacing: -.05em; }
+.shared-state h1 { margin: 0; color: var(--teal-dark); font: 400 clamp(34px, 5vw, 56px)/1 var(--font-serif); letter-spacing: -.05em; }
 .shared-state p { margin: 0; }
 .shared-state .eyebrow { color: var(--coral); }
 .shared-state .primary-button { margin-top: 8px; color: var(--white); }
-.shared-trip h1, .shared-trip h2 { color: var(--teal-dark); font-family: Georgia, serif; font-weight: 400; letter-spacing: normal; }
+.shared-trip h1, .shared-trip h2 { color: var(--teal-dark); font-family: var(--font-serif); font-weight: 400; letter-spacing: normal; }
 .shared-trip h1 { font-family: 'DM Sans', 'Segoe UI', sans-serif; font-size: clamp(36px, 6vw, 64px); line-height: 1.1; }
 .shared-trip-views { display: inline-flex; gap: 4px; padding: 5px; margin: 18px 0 4px; border: 1px solid var(--line); border-radius: 999px; background: #f5f8f5; }
 .shared-trip-views button { min-height: 42px; padding: 9px 18px; border: 0; border-radius: 999px; background: transparent; color: var(--teal-dark); font-weight: 700; cursor: pointer; transition: color .16s ease, background .16s ease; }
@@ -243,7 +245,7 @@ footer > span:first-child { color: var(--teal-dark); font-size: 16px; font-weigh
 
 .dashboard { max-width: 1120px; min-height: 60vh; margin: 0 auto; padding: 42px 0 80px; }
 .dashboard-header { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
-.dashboard-header h1 { margin: 0; color: var(--teal-dark); font: 400 clamp(36px, 4vw, 50px)/1.05 Georgia, serif; letter-spacing: -.035em; }
+.dashboard-header h1 { margin: 0; color: var(--teal-dark); font: 400 clamp(36px, 4vw, 50px)/1.05 var(--font-serif); letter-spacing: -.035em; }
 .dashboard-header p, .dashboard-empty p { margin: 10px 0 0; color: var(--muted); line-height: 1.5; }
 .dashboard-header .primary-button { min-height: 46px; box-shadow: 0 8px 18px rgb(233 110 81 / 18%); }
 .dashboard-selector { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; padding: 12px 16px; border: 1px solid var(--line); border-radius: 14px; background: rgb(255 255 255 / 78%); }
@@ -265,7 +267,7 @@ footer > span:first-child { color: var(--teal-dark); font-size: 16px; font-weigh
 .dashboard-trip a { margin-top: auto; padding-top: 20px; color: #146a63; font-size: 13px; font-weight: 800; text-decoration: none; }
 .dashboard-trip a:hover, .dashboard-selector a:hover, .dashboard-agenda-heading a:hover { text-decoration: underline; }
 .dashboard-budget { background: #fff; }
-.dashboard-budget h2, .dashboard-agenda h2, .dashboard-empty h2 { margin: 0; color: var(--teal-dark); font: 400 25px/1.2 Georgia, serif; }
+.dashboard-budget h2, .dashboard-agenda h2, .dashboard-empty h2 { margin: 0; color: var(--teal-dark); font: 400 25px/1.2 var(--font-serif); }
 .dashboard-budget dl { display: grid; gap: 9px; margin: 18px 0 0; }
 .dashboard-budget dl div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 11px 12px; border-radius: 11px; background: #f1f6f2; }
 .dashboard-budget dl .is-over-budget { background: #fff1e9; }
@@ -287,7 +289,7 @@ footer > span:first-child { color: var(--teal-dark); font-size: 16px; font-weigh
 .dashboard-agenda li span { color: var(--muted); font-size: 12px; }
 .dashboard-empty { padding: clamp(28px, 6vw, 52px); background: linear-gradient(120deg, #e7f2eb, white); }
 .dashboard-news { grid-area: news; margin-top: 0; padding: 22px; border: 1px solid var(--line); border-radius: 18px; background: white; box-shadow: 0 10px 28px rgb(14 49 52 / 5%); }
-.dashboard-news h2 { margin: 0; color: var(--teal-dark); font: 400 25px/1.2 Georgia, serif; }
+.dashboard-news h2 { margin: 0; color: var(--teal-dark); font: 400 25px/1.2 var(--font-serif); }
 .dashboard-news ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 16px 0 0; padding: 0; list-style: none; }
 .dashboard-news li { padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: #fbfcfa; }
 .dashboard-news li > a { display: grid; gap: 5px; color: var(--teal-dark); text-decoration: none; }
@@ -346,7 +348,7 @@ footer > span:first-child { color: var(--teal-dark); font-size: 16px; font-weigh
 @media (max-width: 640px) { .story-gallery-wrap { margin-inline: -16px; } }
 
 .invite-page { max-width: 620px; margin: 56px auto; padding: clamp(24px, 5vw, 44px); border-radius: 14px; background: white; }
-.invite-page h1 { margin: 0; color: var(--teal-dark); font: 400 clamp(32px, 5vw, 44px)/1.1 Georgia, serif; }
+.invite-page h1 { margin: 0; color: var(--teal-dark); font: 400 clamp(32px, 5vw, 44px)/1.1 var(--font-serif); }
 .invite-page p { color: var(--muted); line-height: 1.6; }
 .invite-page > .invite-cancel { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; margin-top: 16px; padding: 10px 18px; border: 1px solid #b8cbc4; border-radius: 999px; background: #fff; color: var(--teal-dark); cursor: pointer; font-size: 15px; font-weight: 650; transition: border-color .16s ease, background .16s ease, transform .16s ease; }
 .invite-page > .invite-cancel:hover:not(:disabled) { transform: translateY(-1px); border-color: var(--teal); background: #f1f7f4; }
@@ -365,12 +367,12 @@ footer > span:first-child { color: var(--teal-dark); font-size: 16px; font-weigh
 .dashboard-grid > .weather-panel { grid-column: auto; }
 .calendar-days + .weather-panel { margin: 0 0 16px; border: 1px solid var(--line); }
 .weather-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.weather-heading h2 { margin: 0; font: 400 25px/1.2 Georgia, serif; }
+.weather-heading h2 { margin: 0; font: 400 25px/1.2 var(--font-serif); }
 .weather-panel p { color: var(--muted); font-size: 13px; line-height: 1.55; }
 .weather-panel p strong { color: var(--ink); }
 .weather-location { margin: 16px 0 6px; color: var(--teal-dark); font-size: 16px; font-weight: 800; }
 .weather-current { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 12px; }
-.weather-temperature { color: var(--teal-dark); font: 400 40px/1.1 Georgia, serif; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.weather-temperature { color: var(--teal-dark); font: 400 40px/1.1 var(--font-serif); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
 .weather-condition { display: inline-flex; align-items: center; padding: 6px 13px; border-radius: 999px; background: rgb(255 255 255 / 88%); color: #304b50; font: 650 19px/1.3 'DM Sans', 'Segoe UI', sans-serif; }
 .weather-panel[data-weather='rain'] .weather-condition { color: #24586b; }
 .weather-panel[data-weather='cloud'] .weather-condition { color: #40596a; }
