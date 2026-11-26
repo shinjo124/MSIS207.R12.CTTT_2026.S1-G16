@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiRequest } from '../../lib/api.js';
+import { t } from '../../lib/i18n.js';
 
 // Convert the API's share path into a browser link for the owner to copy, replace, or revoke.
 export default function ShareControl({ tripId, getToken }) {
@@ -55,28 +56,28 @@ export default function ShareControl({ tripId, getToken }) {
   async function copyShare() {
     try {
       await navigator.clipboard.writeText(shareUrl);
-      setMessage('Share link copied. Anyone with it can view this trip.');
+      setMessage(t('Share link copied. Anyone with it can view this trip.'));
     } catch {
-      setMessage('Copy is unavailable in this browser. Try the copy button on another device.');
+      setMessage(t('Copy is unavailable in this browser. Try the copy button on another device.'));
     }
   }
 
-  if (status === 'unavailable') return <p>Sign in to manage this trip’s share link.</p>;
-  if (status === 'loading') return <p role="status">Checking share link…</p>;
+  if (status === 'unavailable') return <p>{t("Sign in to manage this trip’s share link.")}</p>;
+  if (status === 'loading') return <p role="status">{t("Checking share link…")}</p>;
 
   return (
-    <section className="share-control" aria-label="Read-only trip sharing">
-      <h3>Read-only share link</h3>
-      <p>Anyone with the link can view this trip. You can replace or revoke it at any time.</p>
+    <section className="share-control" aria-label={t("Read-only trip sharing")}>
+      <h3>{t("Read-only share link")}</h3>
+      <p>{t("Anyone with the link can view this trip. You can replace or revoke it at any time.")}</p>
       {sharePath && <div className="share-link-row">
-        <input aria-label="Active share link (token hidden)" readOnly value={`${new URL(shareUrl).origin}/share/••••••••`} />
-        <button type="button" onClick={copyShare}>Copy</button>
+        <input aria-label={t("Active share link (token hidden)")} readOnly value={`${new URL(shareUrl).origin}/share/••••••••`} />
+        <button type="button" onClick={copyShare}>{t("Copy")}</button>
       </div>}
       <div className="share-actions">
         <button type="button" onClick={createShare} disabled={status === 'working'}>
-          {sharePath ? 'Replace link' : 'Create link'}
+          {sharePath ? t("Replace link") : t("Create link")}
         </button>
-        {sharePath && <button type="button" className="secondary-action" onClick={revokeShare} disabled={status === 'working'}>Revoke</button>}
+        {sharePath && <button type="button" className="secondary-action" onClick={revokeShare} disabled={status === 'working'}>{t("Revoke")}</button>}
       </div>
       {message && <p role={status === 'error' ? 'alert' : 'status'}>{message}</p>}
     </section>

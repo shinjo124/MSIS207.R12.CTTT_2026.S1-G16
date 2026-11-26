@@ -5,6 +5,7 @@ import DestinationPicker from '../trips/DestinationPicker.jsx';
 import { displayName } from '../trips/destination-search.js';
 import { categoryLabel, formatDateTime } from '../trips/trip-format.js';
 import '../trips/trips.css';
+import { t } from '../../lib/i18n.js';
 
 export function StoryImage({ photo, priority }) {
   const [fallback, setFallback] = useState(false);
@@ -28,14 +29,14 @@ export function StoryGallery({ photos, priority }) {
     element.scrollTo({ left: (index + direction) * element.clientWidth, behavior: 'smooth' });
   }
   return <div className="story-gallery-wrap">
-    <div className="story-gallery" ref={gallery} role="region" aria-label="Story photos" tabIndex={photos.length > 1 ? 0 : undefined}
+    <div className="story-gallery" ref={gallery} role="region" aria-label={t("Story photos")} tabIndex={photos.length > 1 ? 0 : undefined}
       onScroll={(event) => setCurrent(galleryPhotoIndex(event.currentTarget.scrollLeft, event.currentTarget.clientWidth, photos.length))}>
       {photos.map((photo, index) => <StoryImage key={`${photo.imageUrl}-${index}`} photo={photo} priority={priority && index === 0} />)}
     </div>
     {photos.length > 1 && <div className="story-gallery-controls">
-      <button type="button" aria-label="Previous photo" disabled={current === 0} onClick={() => move(-1)}>Previous</button>
+      <button type="button" aria-label={t("Previous photo")} disabled={current === 0} onClick={() => move(-1)}>{t("Previous")}</button>
       <span aria-live="polite">{current + 1} / {photos.length}</span>
-      <button type="button" aria-label="Next photo" disabled={current >= photos.length - 1} onClick={() => move(1)}>Next</button>
+      <button type="button" aria-label={t("Next photo")} disabled={current >= photos.length - 1} onClick={() => move(1)}>{t("Next")}</button>
     </div>}
   </div>;
 }
@@ -97,7 +98,7 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
     if (file && (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 4 * 1024 * 1024)) {
       event.target.value = '';
       setPhoto(null);
-      setComposerMessage('Choose a JPEG, PNG, or WebP image of 4 MB or smaller.');
+      setComposerMessage(t('Choose a JPEG, PNG, or WebP image of 4 MB or smaller.'));
       return;
     }
     setPhoto(file || null);
@@ -198,11 +199,11 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
     setComposerMessage('');
     setComposerSuccess(false);
     setError('');
-    if (!body) return setComposerMessage('Write a few words before publishing.');
-    if (image?.size > 4 * 1024 * 1024) return setComposerMessage('Choose an image of 4 MB or smaller.');
-    if (image instanceof File && image.size && !['image/jpeg', 'image/png', 'image/webp'].includes(image.type)) return setComposerMessage('Choose a JPEG, PNG, or WebP image.');
+    if (!body) return setComposerMessage(t('Write a few words before publishing.'));
+    if (image?.size > 4 * 1024 * 1024) return setComposerMessage(t('Choose an image of 4 MB or smaller.'));
+    if (image instanceof File && image.size && !['image/jpeg', 'image/png', 'image/webp'].includes(image.type)) return setComposerMessage(t('Choose a JPEG, PNG, or WebP image.'));
     if (image instanceof File && image.size && !altText) {
-      return setComposerMessage('Add a descriptive alt text for this photo.');
+      return setComposerMessage(t('Add a descriptive alt text for this photo.'));
     }
 
     setComposerBusy(true);
@@ -232,7 +233,7 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
       setPhoto(null);
       setDestinationId('');
       setPlaceId('');
-      setComposerMessage('Your story is published.');
+      setComposerMessage(t('Your story is published.'));
       setComposerSuccess(true);
       await loadPosts();
     } catch (requestError) {
@@ -290,7 +291,7 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
     event.preventDefault();
     if (!canWrite || !post.isAuthor || editPostBusy !== null) return;
     const body = editDraft.trim();
-    if (!body) return setError('A story cannot be empty.');
+    if (!body) return setError(t('A story cannot be empty.'));
     setEditPostBusy(post.id);
     setError('');
     try {
@@ -350,26 +351,26 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
   return (
     <section className="stories" aria-labelledby="stories-title">
       <div className="section-heading">
-        <div><h2 id="stories-title">Travel stories</h2><p>Discover moments and recommendations from travelers.</p></div>
+        <div><h2 id="stories-title">{t("Travel stories")}</h2><p>{t("Discover moments and recommendations from travelers.")}</p></div>
       </div>
-      {canWrite && <div className="story-compose-area"><button className="story-compose-toggle" type="button" aria-expanded={composerOpen} aria-controls="story-composer" onClick={() => setComposerOpen((open) => !open)} disabled={composerBusy}>{composerOpen ? 'Close composer' : 'Share a travel story'}</button><form id="story-composer" className="story-composer" hidden={!composerOpen} onSubmit={createPost}>
-        <label>Write a travel story<textarea name="body" maxLength="2000" rows="3" required placeholder="A place, a moment, a recommendation…" /></label>
+      {canWrite && <div className="story-compose-area"><button className="story-compose-toggle" type="button" aria-expanded={composerOpen} aria-controls="story-composer" onClick={() => setComposerOpen((open) => !open)} disabled={composerBusy}>{composerOpen ? t("Close composer") : t("Share a travel story")}</button><form id="story-composer" className="story-composer" hidden={!composerOpen} onSubmit={createPost}>
+        <label>{t("Write a travel story")}<textarea name="body" maxLength="2000" rows="3" required placeholder={t("A place, a moment, a recommendation…")} /></label>
         <div className="composer-fields">
-          <label>Trip (optional)
+          <label>{t("Trip (optional)")}
             <select name="tripId" defaultValue="" disabled={linksLoading || linksUnavailable}>
-              <option value="">{linksLoading ? 'Loading trips…' : linkedTrips.length ? 'Do not link a trip' : 'No trips to link'}</option>
+              <option value="">{linksLoading ? t("Loading trips…") : linkedTrips.length ? t("Do not link a trip") : t("No trips to link")}</option>
               {linkedTrips.map((trip) => <option key={trip.id} value={trip.id}>{trip.title}</option>)}
             </select>
           </label>
           <div className="composer-destination">
-            <span id="story-destination-label">Destination (optional)</span>
+            <span id="story-destination-label">{t("Destination (optional)")}</span>
             <DestinationPicker
               max={1}
               showPlaces={false}
               options={destinations}
               labelledBy="story-destination-label"
               disabled={linksLoading || linksUnavailable}
-              placeholder={linksLoading ? 'Loading destinations…' : 'Type a place, e.g. Đà Lạt, da lat, H…'}
+              placeholder={linksLoading ? t("Loading destinations…") : t("Type a place…")}
               selected={(() => {
                 const chosen = destinations.find((destination) => String(destination.id) === destinationId);
                 return chosen ? [{ id: chosen.id, name: displayName(chosen) }] : [];
@@ -377,27 +378,27 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
               onChange={(list) => { setDestinationId(list[0] ? String(list[0].id) : ''); setPlaceId(''); }}
             />
           </div>
-          {destinationId && <label>Place (optional)
+          {destinationId && <label>{t("Place (optional)")}
             <select name="placeId" value={placeId} disabled={placesLoading || placesUnavailable} onChange={(event) => setPlaceId(event.target.value)}>
-              <option value="">{placesLoading ? 'Loading places…' : placesUnavailable ? 'Places unavailable right now' : places.length ? 'Do not link a place' : 'No places for this destination'}</option>
+              <option value="">{placesLoading ? t("Loading places…") : placesUnavailable ? t("Places unavailable right now") : places.length ? t("Do not link a place") : t("No places for this destination")}</option>
               {places.map((place) => <option key={place.id} value={place.id}>{place.name}</option>)}
             </select>
           </label>}
-          <label>Photo (JPEG, PNG or WebP, up to 4 MB) <input ref={photoInput} name="image" type="file" accept="image/jpeg,image/png,image/webp" onChange={selectPhoto} /></label>
-          <label>Photo description <input name="altText" maxLength="255" required={Boolean(photo)} placeholder="Describe the photo for screen readers" /></label>
+          <label>{t("Photo (JPEG, PNG or WebP, up to 4 MB)")} <input ref={photoInput} name="image" type="file" accept="image/jpeg,image/png,image/webp" onChange={selectPhoto} /></label>
+          <label>{t("Photo description")} <input name="altText" maxLength="255" required={Boolean(photo)} placeholder={t("Describe the photo for screen readers")} /></label>
         </div>
-        {photoUrl && <div className="story-photo-preview"><img src={photoUrl} alt="Selected photo preview" /><button type="button" onClick={() => { photoInput.current.value = ''; setPhoto(null); }}>Remove photo</button></div>}
-        {linksUnavailable && <p className="story-signin-note" role="status">Trip or place links are unavailable right now. You can still publish without linking them.</p>}
-        <button type="submit" disabled={composerBusy || postsLoading}>{composerBusy ? 'Publishing…' : 'Publish story'}</button>
+        {photoUrl && <div className="story-photo-preview"><img src={photoUrl} alt={t("Selected photo preview")} /><button type="button" onClick={() => { photoInput.current.value = ''; setPhoto(null); }}>{t("Remove photo")}</button></div>}
+        {linksUnavailable && <p className="story-signin-note" role="status">{t("Trip or place links are unavailable right now. You can still publish without linking them.")}</p>}
+        <button type="submit" disabled={composerBusy || postsLoading}>{composerBusy ? t("Publishing…") : t("Publish story")}</button>
         {composerMessage && <p className={composerSuccess ? 'story-success' : 'error-state'} role={composerSuccess ? 'status' : 'alert'}>{composerMessage}</p>}
       </form></div>}
-      {status === 'loading' && <p className="empty-state" role="status">Loading stories…</p>}
-      {status === 'error' && <p className="empty-state error-state" role="alert">Stories are unavailable right now.</p>}
-      {status === 'empty' && <p className="empty-state">New travel stories will show up here.</p>}
+      {status === 'loading' && <p className="empty-state" role="status">{t("Loading stories…")}</p>}
+      {status === 'error' && <p className="empty-state error-state" role="alert">{t("Stories are unavailable right now.")}</p>}
+      {status === 'empty' && <p className="empty-state">{t("New travel stories will show up here.")}</p>}
       {error && <p className="empty-state error-state" role="alert">{error}</p>}
-      {!isSignedIn && <p className="story-signin-note">Sign in to publish, like, or comment on a story.</p>}
-      {isSignedIn && profileStatus === 'loading' && <p className="story-signin-note" role="status">Setting up your profile…</p>}
-      {isSignedIn && profileStatus === 'error' && <p className="story-signin-note" role="alert">Profile setup failed: {profileError || 'Check the API connection and try again.'}</p>}
+      {!isSignedIn && <p className="story-signin-note">{t("Sign in to publish, like, or comment on a story.")}</p>}
+      {isSignedIn && profileStatus === 'loading' && <p className="story-signin-note" role="status">{t("Setting up your profile…")}</p>}
+      {isSignedIn && profileStatus === 'error' && <p className="story-signin-note" role="alert">{t("Profile setup failed:")} {profileError || t("Check the API connection and try again.")}</p>}
       {status === 'ready' && <div className="story-grid">
         {posts.map((post, index) => (
           <article className="story-card" key={post.id}>
@@ -405,10 +406,10 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
               {post.authorAvatar ? <img className="story-avatar" src={post.authorAvatar} alt="" /> : <span className="story-avatar" aria-hidden="true">{post.author?.trim().charAt(0).toUpperCase() || '?'}</span>}
               <p className="story-byline">{post.author} <span>{formatDateTime(post.createdAt, { dateStyle: 'medium' })}</span></p>
               {canWrite && post.isAuthor && <details className="story-post-menu" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false; }}>
-                <summary aria-label={`More options for your post by ${post.author}`} title="Post options"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></summary>
+                <summary aria-label={t('More options for your post by {author}', { author: post.author })} title={t("Post options")}><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></summary>
                 <div className="story-post-menu-panel">
-                  <button type="button" onClick={(event) => { event.currentTarget.closest('details').open = false; setEditDraft(post.body); setEditingPostId(post.id); setConfirmDeletePostId(null); }}>Edit post</button>
-                  <button type="button" className="story-post-menu-delete" onClick={(event) => { event.currentTarget.closest('details').open = false; setConfirmDeletePostId(post.id); setEditingPostId(null); }}>Delete post</button>
+                  <button type="button" onClick={(event) => { event.currentTarget.closest('details').open = false; setEditDraft(post.body); setEditingPostId(post.id); setConfirmDeletePostId(null); }}>{t("Edit post")}</button>
+                  <button type="button" className="story-post-menu-delete" onClick={(event) => { event.currentTarget.closest('details').open = false; setConfirmDeletePostId(post.id); setEditingPostId(null); }}>{t("Delete post")}</button>
                 </div>
               </details>}
             </div>
@@ -416,48 +417,48 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
             <StoryGallery photos={post.photos} priority={index === 0} />
             {editingPostId === post.id
               ? <form className="story-edit-form" onSubmit={(event) => savePost(event, post)}>
-                <label className="visually-hidden" htmlFor={`edit-story-${post.id}`}>Edit your travel story</label>
+                <label className="visually-hidden" htmlFor={`edit-story-${post.id}`}>{t("Edit your travel story")}</label>
                 <textarea id={`edit-story-${post.id}`} value={editDraft} onChange={(event) => setEditDraft(event.target.value)} maxLength="2000" rows="4" required autoFocus />
-                <div><button type="submit" disabled={editPostBusy !== null}>{editPostBusy === post.id ? 'Saving…' : 'Save changes'}</button><button type="button" onClick={() => { setEditingPostId(null); setEditDraft(''); }} disabled={editPostBusy !== null}>Cancel</button></div>
+                <div><button type="submit" disabled={editPostBusy !== null}>{editPostBusy === post.id ? t("Saving…") : t("Save changes")}</button><button type="button" onClick={() => { setEditingPostId(null); setEditDraft(''); }} disabled={editPostBusy !== null}>{t("Cancel")}</button></div>
               </form>
               : <p className="story-body">{post.body}</p>}
             <div className="story-actions">
-              <span className="story-stats">{post.likesCount} likes <span>·</span> {post.commentsCount} comments</span>
+              <span className="story-stats">{t("{n} likes", { n: post.likesCount })} <span>·</span> {t("{n} comments", { n: post.commentsCount })}</span>
               {canWrite && <button type="button" onClick={() => likePost(post)} disabled={likeBusy !== null || postsLoading} aria-pressed={Boolean(post.liked)}>
-                {likeBusy === post.id ? 'Saving…' : post.liked ? 'Unlike' : 'Like'}
+                {likeBusy === post.id ? t("Saving…") : post.liked ? t("Unlike") : t("Like")}
               </button>}
               <button type="button" aria-expanded={openComments.has(post.id)} onClick={() => toggleComments(post.id)}>
-                {openComments.has(post.id) ? 'Hide comments' : 'Comments'}
+                {openComments.has(post.id) ? t("Hide comments") : t("Comments")}
               </button>
             </div>
-            {confirmDeletePostId === post.id && <div className="story-delete-confirmation" role="group" aria-label="Confirm story deletion">
-              <span>Delete this post?</span>
-              <button type="button" className="story-delete-confirm" onClick={() => deletePost(post)} disabled={deletePostBusy !== null}>{deletePostBusy === post.id ? 'Deleting…' : 'Delete'}</button>
-              <button type="button" onClick={() => setConfirmDeletePostId(null)} disabled={deletePostBusy !== null}>Cancel</button>
+            {confirmDeletePostId === post.id && <div className="story-delete-confirmation" role="group" aria-label={t("Confirm story deletion")}>
+              <span>{t("Delete this post?")}</span>
+              <button type="button" className="story-delete-confirm" onClick={() => deletePost(post)} disabled={deletePostBusy !== null}>{deletePostBusy === post.id ? t("Deleting…") : t("Delete")}</button>
+              <button type="button" onClick={() => setConfirmDeletePostId(null)} disabled={deletePostBusy !== null}>{t("Cancel")}</button>
             </div>}
             {openComments.has(post.id) && <div className="story-comments">
-              {commentsLoading.has(post.id) && <p role="status">Loading comments…</p>}
+              {commentsLoading.has(post.id) && <p role="status">{t("Loading comments…")}</p>}
               {(commentsByPost[post.id] || []).map((comment) => (
                 <p className="story-comment" key={comment.id}><strong>{comment.author}</strong> {comment.body}</p>
               ))}
-              {!commentsLoading.has(post.id) && commentsByPost[post.id]?.length === 0 && <p>No comments yet.</p>}
+              {!commentsLoading.has(post.id) && commentsByPost[post.id]?.length === 0 && <p>{t("No comments yet.")}</p>}
               {commentOffsets[post.id] != null && <button type="button" disabled={commentsLoading.has(post.id)}
-                onClick={() => loadComments(post.id, commentOffsets[post.id])}>Load more comments</button>}
+                onClick={() => loadComments(post.id, commentOffsets[post.id])}>{t("Load more comments")}</button>}
               {canWrite && <form onSubmit={(event) => addComment(event, post.id)}>
-                <label className="visually-hidden" htmlFor={`comment-${post.id}`}>Write a comment</label>
-                <input id={`comment-${post.id}`} name="body" maxLength="1000" required placeholder="Write a comment…"
+                <label className="visually-hidden" htmlFor={`comment-${post.id}`}>{t("Write a comment")}</label>
+                <input id={`comment-${post.id}`} name="body" maxLength="1000" required placeholder={t("Write a comment…")}
                   value={commentDrafts[post.id] || ''}
                   onChange={(event) => setCommentDrafts((current) => ({ ...current, [post.id]: event.target.value }))} />
-                <button type="submit">Send</button>
+                <button type="submit">{t("Send")}</button>
               </form>}
             </div>}
           </article>
         ))}
       </div>}
       {nextPage && <div ref={loadMoreSentinel} className="story-load-sentinel" aria-live="polite">
-        {postsLoading && <span role="status">Loading more stories…</span>}
-        {error && <button type="button" onClick={() => loadPosts(undefined, nextPage)}>Retry loading stories</button>}
-        {typeof IntersectionObserver === 'undefined' && !postsLoading && !error && <button type="button" onClick={() => loadPosts(undefined, nextPage)}>Load more stories</button>}
+        {postsLoading && <span role="status">{t("Loading more stories…")}</span>}
+        {error && <button type="button" onClick={() => loadPosts(undefined, nextPage)}>{t("Retry loading stories")}</button>}
+        {typeof IntersectionObserver === 'undefined' && !postsLoading && !error && <button type="button" onClick={() => loadPosts(undefined, nextPage)}>{t("Load more stories")}</button>}
       </div>}
     </section>
   );
@@ -475,6 +476,6 @@ function StoryPlace({ place }) {
       <span>{place.name}</span>
     </p>
     {details.length > 0 && <p className="story-place-details">{details.join(' · ')}</p>}
-    <a className="story-place-map" href={mapHref} target="_blank" rel="noreferrer">Open in Google Maps <span aria-hidden="true">↗</span></a>
+    <a className="story-place-map" href={mapHref} target="_blank" rel="noreferrer">{t("Open in Google Maps")} <span aria-hidden="true">↗</span></a>
   </div>;
 }

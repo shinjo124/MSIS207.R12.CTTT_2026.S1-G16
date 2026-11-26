@@ -1,9 +1,11 @@
 import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ClerkProvider, SignIn, SignUp, useAuth } from '@clerk/react';
-import App from './App.jsx';
+import App, { LanguageSwitch } from './App.jsx';
 import '@fontsource-variable/dm-sans';
 import { apiRequest } from './lib/api.js';
+import { t } from './lib/i18n.js';
+import { useLanguage } from './lib/use-language.js';
 import { runViewTransition } from './lib/view-transition.js';
 import { INVITATION_RETURN_KEY, INVITATION_STORAGE_KEY } from './features/trips/invitation.js';
 import './styles.css';
@@ -119,8 +121,9 @@ function AuthPage({ signUp }) {
   return (
     <main className="page-shell">
       <header className="topbar">
-        <a className="brand" href="/" aria-label="Tripo home"><span className="brand-mark" aria-hidden="true">T</span> tripo</a>
-        <span className="top-note">Make room for the good days.</span>
+        <a className="brand" href="/" aria-label={t("Tripo home")}><span className="brand-mark" aria-hidden="true">T</span> tripo</a>
+        <span className="top-note">{t("Make room for the good days.")}</span>
+        <LanguageSwitch />
       </header>
       <section className="auth-page">
         {signUp ? <SignUp path="/sign-up" /> : <SignIn path="/sign-in" />}
@@ -131,6 +134,7 @@ function AuthPage({ signUp }) {
 
 // Track path and query together so links such as /trips?new=1 can open the right view.
 function AppRoot() {
+  useLanguage(); // re-render every screen when VIE / ENG changes
   const [path, setPath] = useState(() => `${window.location.pathname}${window.location.search}`);
   useEffect(() => {
     const updatePath = () => {
@@ -161,6 +165,8 @@ function AppRoot() {
   return <AuthenticatedApp path={pathname} search={url.search} />;
 }
 
+function LanguageRoot() { useLanguage(); return <App />; }
+
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     {publishableKey
@@ -171,6 +177,6 @@ createRoot(document.getElementById('root')).render(
           signInFallbackRedirectUrl="/"
           signUpFallbackRedirectUrl="/"
         ><AppRoot /></ClerkProvider>
-      : <App />}
+      : <LanguageRoot />}
   </React.StrictMode>,
 );

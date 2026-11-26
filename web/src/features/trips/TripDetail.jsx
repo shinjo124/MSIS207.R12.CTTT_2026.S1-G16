@@ -10,6 +10,7 @@ import { createMutationLock, updateSchedule } from './schedule-update.js';
 import { createTripPoller, fetchChangedTrip } from './trip-polling.js';
 import { MONEY_INPUT_PATTERN, categoryLabel, formatDate, formatDayHeading, formatMoney, formatTripTitle, mapsUrl, moneyInputProps, timeZoneLabel, todayInTimeZone, withDefaultTimeZone } from './trip-format.js';
 import './trips.css';
+import { t } from '../../lib/i18n.js';
 
 function ActivityItem({ activity, trip, onEdit, onDelete, onToggleVisited, onMove, onDragStart, onDragEnd }) {
   const [confirming, setConfirming] = useState(false);
@@ -32,21 +33,21 @@ function ActivityItem({ activity, trip, onEdit, onDelete, onToggleVisited, onMov
   const place = [activity.address, activity.city].filter(Boolean).join(', ');
   return (
     <li draggable={!busy} onDragStart={onDragStart} onDragEnd={onDragEnd} className={`activity board-activity${activity.visited ? ' visited' : ''}`}>
-      <label className="board-check-in"><input type="checkbox" aria-label={activity.visited ? 'Mark activity as not visited' : 'Mark activity as visited'} checked={activity.visited} disabled={busy} onChange={() => run(() => onToggleVisited(!activity.visited))} /></label>
+      <label className="board-check-in"><input type="checkbox" aria-label={activity.visited ? t("Mark activity as not visited") : t("Mark activity as visited")} checked={activity.visited} disabled={busy} onChange={() => run(() => onToggleVisited(!activity.visited))} /></label>
       <details>
         <summary>
           <span className={`category-badge category-${activity.category}`}>{categoryLabel(activity.category)}:</span>
           <strong>{activity.title}</strong>
-          <span className="board-card-meta">{activity.time || 'No time'}{place ? ` · ${place}` : ''}</span>
+          <span className="board-card-meta">{activity.time || t("No time")}{place ? ` · ${place}` : ''}</span>
         </summary>
         <div className="board-card-details">
-          <p>Planned {formatMoney(activity.plannedCost, trip.currencyCode)} · {activity.actualSpend == null ? 'Actual not recorded' : `Actual ${formatMoney(activity.actualSpend, trip.currencyCode)}`}</p>
+          <p>{t("Planned")} {formatMoney(activity.plannedCost, trip.currencyCode)} · {activity.actualSpend == null ? t("Actual not recorded") : t('Actual {amount}', { amount: formatMoney(activity.actualSpend, trip.currencyCode) })}</p>
           {activity.note && <p className="activity-note">{activity.note}</p>}
           <div className="activity-actions">
-            <a href={mapsUrl(activity)} target="_blank" rel="noreferrer">Open in Google Maps ↗</a>
-            <button className="text-button" type="button" onClick={onEdit} disabled={busy}>Edit</button>
-            <label className="move-activity">Move to day <select value={activity.date} disabled={busy} onChange={(event) => run(() => onMove(event.target.value))}>{trip.days.map((day) => <option key={day.date} value={day.date}>Day {day.dayNumber} · {formatDayHeading(day.date)}</option>)}</select></label>
-            {confirming ? <><button className="text-button danger" type="button" disabled={busy} onClick={() => run(() => onDelete(confirming.version))}>Confirm delete</button><button className="text-button" type="button" onClick={() => setConfirming(false)}>Keep</button></> : <button className="text-button danger" type="button" onClick={() => setConfirming({ version: activity.version })} disabled={busy}>Delete</button>}
+            <a href={mapsUrl(activity)} target="_blank" rel="noreferrer">{t("Open in Google Maps ↗")}</a>
+            <button className="text-button" type="button" onClick={onEdit} disabled={busy}>{t("Edit")}</button>
+            <label className="move-activity">{t("Move to day")} <select value={activity.date} disabled={busy} onChange={(event) => run(() => onMove(event.target.value))}>{trip.days.map((day) => <option key={day.date} value={day.date}>{t("Day {n}", { n: day.dayNumber })} · {formatDayHeading(day.date)}</option>)}</select></label>
+            {confirming ? <><button className="text-button danger" type="button" disabled={busy} onClick={() => run(() => onDelete(confirming.version))}>{t("Confirm delete")}</button><button className="text-button" type="button" onClick={() => setConfirming(false)}>{t("Keep")}</button></> : <button className="text-button danger" type="button" onClick={() => setConfirming({ version: activity.version })} disabled={busy}>{t("Delete")}</button>}
           </div>
           {error && <p className="form-error" role="alert">{error}</p>}
         </div>
@@ -59,8 +60,8 @@ function ActivityItem({ activity, trip, onEdit, onDelete, onToggleVisited, onMov
 export function ActivityEditor({ activity, trip, onSave, onCancel }) {
   const current = trip.days.flatMap((day) => day.activities).find((item) => item.id === activity.id);
   return <div className="activity editing">
-    {!current && <p role="alert">This activity was removed. Your draft is still here; copy it before closing.</p>}
-    {current && current.version !== activity.version && <p role="status">This activity changed while you were editing. Your draft uses the original version.</p>}
+    {!current && <p role="alert">{t("This activity was removed. Your draft is still here; copy it before closing.")}</p>}
+    {current && current.version !== activity.version && <p role="status">{t("This activity changed while you were editing. Your draft uses the original version.")}</p>}
     <ActivityForm activity={activity} days={trip.days} currencyCode={trip.currencyCode} onSubmit={onSave} onCancel={onCancel} />
   </div>;
 }
@@ -72,7 +73,7 @@ function BudgetSpendRow({ activity, onRecordSpend }) {
   async function submit(event) {
     event.preventDefault();
     if (actualSpend && !MONEY_INPUT_PATTERN.test(actualSpend)) {
-      setError('Enter an amount with up to two decimal places.');
+      setError(t('Enter an amount with up to two decimal places.'));
       return;
     }
     setSaving(true); setError('');
@@ -80,7 +81,7 @@ function BudgetSpendRow({ activity, onRecordSpend }) {
     catch (saveError) { setError(saveError.message); }
     finally { setSaving(false); }
   }
-  return <li><span>Day {activity.dayNumber} · {activity.title}</span><form onSubmit={submit}><label className="visually-hidden" htmlFor={`spend-${activity.id}`}>Actual spend for {activity.title}</label><input id={`spend-${activity.id}`} name="actualSpend" {...moneyInputProps(actualSpend, setActualSpend)} placeholder="Amount" /><button className="text-button" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>{error && <span role="alert" className="form-error">{error}</span>}</form></li>;
+  return <li><span>{t("Day {n}", { n: activity.dayNumber })} · {activity.title}</span><form onSubmit={submit}><label className="visually-hidden" htmlFor={`spend-${activity.id}`}>{t("Actual spend for {title}", { title: activity.title })}</label><input id={`spend-${activity.id}`} name="actualSpend" {...moneyInputProps(actualSpend, setActualSpend)} placeholder={t("Amount")} /><button className="text-button" type="submit" disabled={saving}>{saving ? t("Saving…") : t("Save")}</button>{error && <span role="alert" className="form-error">{error}</span>}</form></li>;
 }
 
 function BudgetSummary({ summary, trip, onRecordSpend }) {
@@ -88,24 +89,24 @@ function BudgetSummary({ summary, trip, onRecordSpend }) {
   const activities = trip.days.flatMap((day) => day.activities.map((activity) => ({ ...activity, dayNumber: day.dayNumber })));
   return (
     <section className="budget-summary" aria-labelledby="budget-summary-title">
-      <h2 id="budget-summary-title">Budget summary</h2>
+      <h2 id="budget-summary-title">{t("Budget summary")}</h2>
       <dl className="budget-totals">
-        <div className="is-budget"><dt>Budget</dt><dd>{formatMoney(summary.budget, currencyCode)}</dd></div>
-        <div className="is-planned"><dt>Planned total</dt><dd>{formatMoney(summary.plannedTotal, currencyCode)}</dd></div>
-        <div className="is-spent"><dt>Actual spent</dt><dd>{formatMoney(summary.totalActualSpend, currencyCode)}</dd></div>
-        <div className={Number(summary.remainingBudget) > 0 ? 'is-remaining is-positive' : Number(summary.remainingBudget) < 0 ? 'is-remaining is-negative' : 'is-remaining'}><dt>Remaining</dt><dd>{formatMoney(summary.remainingBudget, currencyCode)}</dd></div>
-        <div className={Number(summary.overBudget) > 0 ? 'is-over-budget' : ''}><dt>Over budget</dt><dd>{formatMoney(summary.overBudget, currencyCode)}</dd></div>
+        <div className="is-budget"><dt>{t("Budget")}</dt><dd>{formatMoney(summary.budget, currencyCode)}</dd></div>
+        <div className="is-planned"><dt>{t("Planned total")}</dt><dd>{formatMoney(summary.plannedTotal, currencyCode)}</dd></div>
+        <div className="is-spent"><dt>{t("Actual spent")}</dt><dd>{formatMoney(summary.totalActualSpend, currencyCode)}</dd></div>
+        <div className={Number(summary.remainingBudget) > 0 ? 'is-remaining is-positive' : Number(summary.remainingBudget) < 0 ? 'is-remaining is-negative' : 'is-remaining'}><dt>{t("Remaining")}</dt><dd>{formatMoney(summary.remainingBudget, currencyCode)}</dd></div>
+        <div className={Number(summary.overBudget) > 0 ? 'is-over-budget' : ''}><dt>{t("Over budget")}</dt><dd>{formatMoney(summary.overBudget, currencyCode)}</dd></div>
       </dl>
-      <h3>Actual spend by category</h3>
+      <h3>{t("Actual spend by category")}</h3>
       {summary.spendByCategory.length
         ? <ul className="budget-category-list">
             {summary.spendByCategory.map(({ category, amount }) => (
               <li key={category}><span>{categoryLabel(category)}</span><strong>{formatMoney(amount, currencyCode)}</strong></li>
             ))}
           </ul>
-        : <p className="day-empty">No actual spend recorded yet.</p>}
-      <h3>Record spending</h3>
-      {activities.length ? <ul className="budget-record-list">{activities.map((activity) => <BudgetSpendRow key={`${activity.id}:${activity.version}`} activity={activity} onRecordSpend={onRecordSpend} />)}</ul> : <p className="day-empty">Add an activity before recording its spend.</p>}
+        : <p className="day-empty">{t("No actual spend recorded yet.")}</p>}
+      <h3>{t("Record spending")}</h3>
+      {activities.length ? <ul className="budget-record-list">{activities.map((activity) => <BudgetSpendRow key={`${activity.id}:${activity.version}`} activity={activity} onRecordSpend={onRecordSpend} />)}</ul> : <p className="day-empty">{t("Add an activity before recording its spend.")}</p>}
     </section>
   );
 }
@@ -311,7 +312,7 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
   async function saveSchedule(id, values) {
     await withMutation(async () => {
       const activity = trip.days.flatMap((day) => day.activities).find((item) => item.id === id);
-      if (!activity) throw new Error('Activity no longer exists. Reload the trip.');
+      if (!activity) throw new Error(t('Activity no longer exists. Reload the trip.'));
       const original = { date: activity.date, time: activity.time, durationMinutes: activity.durationMinutes, version: activity.version };
       const { version = activity.version, ...schedule } = values;
       setTrip((current) => updateSchedule(current, id, schedule));
@@ -391,52 +392,52 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
 
   return (
     <section className="trip-detail">
-      <a className="back-link" href="/trips">← My trips</a>
+      <a className="back-link" href="/trips">{t("← My trips")}</a>
       <ProfileGate isSignedIn={isSignedIn} profileStatus={profileStatus} profileError={profileError} action="see this trip">
-        {status === 'loading' && <p className="empty-state" role="status">Loading trip…</p>}
+        {status === 'loading' && <p className="empty-state" role="status">{t("Loading trip…")}</p>}
         {status === 'error' && <div className="panel empty-panel">
           <p className="error-state" role="alert">{error}</p>
-          <button className="text-button" type="button" onClick={() => { setError(''); setStatus('loading'); loadTrip(); }}>Try again</button>
-          <a className="text-button" href="/trips">Back to my trips</a>
+          <button className="text-button" type="button" onClick={() => { setError(''); setStatus('loading'); loadTrip(); }}>{t("Try again")}</button>
+          <a className="text-button" href="/trips">{t("Back to my trips")}</a>
         </div>}
         {status === 'ready' && trip && <>
           {conflictError && <p className="form-error" role="alert">{conflictError}</p>}
           {editingTrip
             ? <div className="panel">
-                <h2>Edit trip</h2>
-                <TripForm trip={trip} submitLabel="Save changes" onSubmit={saveTrip} onCancel={() => setEditingTrip(false)} />
+                <h2>{t("Edit trip")}</h2>
+                <TripForm trip={trip} submitLabel={t("Save changes")} onSubmit={saveTrip} onCancel={() => setEditingTrip(false)} />
               </div>
             : <header className="trip-header">
                 <div>
                   <p className="eyebrow">{trip.destinations.map((destination) => destination.name.toUpperCase()).join(' → ')}</p>
                   <h1>{formatTripTitle(trip.title)}</h1>
-                  {trip.role && <p className="trip-role">{trip.role === 'owner' ? 'Trip owner' : 'Collaborator'}</p>}
+                  {trip.role && <p className="trip-role">{trip.role === 'owner' ? t("Trip owner") : t("Collaborator")}</p>}
                   <p className="trip-meta">
                     {formatDate(trip.startDate)} – {formatDate(trip.endDate)}
                     <span> · </span>{trip.dayCount} {trip.dayCount === 1 ? 'day' : 'days'}
                     <span> · </span>{trip.groupSize} {trip.groupSize === 1 ? 'traveler' : 'travelers'}
                     <span> · </span>{timeZoneLabel(trip.timeZone)}
-                    <span className={`trip-sync-dot${!online || syncStatus === 'error' ? ' is-error' : paused ? ' is-paused' : ''}`} role="status" title={!online ? 'Offline · Reconnect to save changes.' : paused ? 'Updates paused while you edit.' : syncStatus === 'error' ? 'Could not refresh trip. Retrying; your view may be out of date.' : 'Watching for trip changes.'} aria-label={!online ? 'Offline · Reconnect to save changes.' : paused ? 'Updates paused while you edit.' : syncStatus === 'error' ? 'Could not refresh trip. Retrying; your view may be out of date.' : 'Watching for trip changes.'} />
+                    <span className={`trip-sync-dot${!online || syncStatus === 'error' ? ' is-error' : paused ? ' is-paused' : ''}`} role="status" title={!online ? t("Offline · Reconnect to save changes.") : paused ? t("Updates paused while you edit.") : syncStatus === 'error' ? t("Could not refresh trip. Retrying; your view may be out of date.") : t("Watching for trip changes.")} aria-label={!online ? t("Offline · Reconnect to save changes.") : paused ? t("Updates paused while you edit.") : syncStatus === 'error' ? t("Could not refresh trip. Retrying; your view may be out of date.") : t("Watching for trip changes.")} />
                   </p>
                 </div>
                 <div className="trip-header-actions">
-                  <button className="text-button" type="button" onClick={() => { pollerRef.current?.stop(); setEditingTrip(true); }}>Edit trip</button>
+                  <button className="text-button" type="button" onClick={() => { pollerRef.current?.stop(); setEditingTrip(true); }}>{t("Edit trip")}</button>
                   {trip.role === 'owner' && (confirmDelete
                     ? <>
-                        <button className="text-button danger" type="button" onClick={deleteTrip}>Delete trip and all activities</button>
-                        <button className="text-button" type="button" onClick={() => setConfirmDelete(false)}>Cancel</button>
+                        <button className="text-button danger" type="button" onClick={deleteTrip}>{t("Delete trip and all activities")}</button>
+                        <button className="text-button" type="button" onClick={() => setConfirmDelete(false)}>{t("Cancel")}</button>
                       </>
-                    : <button className="text-button" type="button" onClick={() => { pollerRef.current?.stop(); setConfirmDelete(true); }}>Delete</button>)}
+                    : <button className="text-button" type="button" onClick={() => { pollerRef.current?.stop(); setConfirmDelete(true); }}>{t("Delete")}</button>)}
                   {deleteError && <p className="form-error" role="alert">{deleteError}</p>}
                 </div>
               </header>}
 
-          <div ref={workspaceControlsRef} className="workspace-controls" role="group" aria-label="Trip sections">
+          <div ref={workspaceControlsRef} className="workspace-controls" role="group" aria-label={t("Trip sections")}>
             {indicator && <span className="workspace-indicator" aria-hidden="true" style={{ left: indicator.left, top: indicator.top, width: indicator.width, height: indicator.height }} />}
-            <button type="button" aria-pressed={view === 'calendar'} onClick={() => changeView('calendar')}>Calendar</button>
-            <button type="button" aria-pressed={view === 'itinerary'} onClick={() => changeView('itinerary')}>Day board</button>
-            <button type="button" aria-pressed={view === 'budget'} onClick={() => changeView('budget')}>Budget</button>
-            {trip.role === 'owner' && <button type="button" aria-pressed={view === 'share'} onClick={() => changeView('share')}>Share &amp; members</button>}
+            <button type="button" aria-pressed={view === 'calendar'} onClick={() => changeView('calendar')}>{t("Calendar")}</button>
+            <button type="button" aria-pressed={view === 'itinerary'} onClick={() => changeView('itinerary')}>{t("Day board")}</button>
+            <button type="button" aria-pressed={view === 'budget'} onClick={() => changeView('budget')}>{t("Budget")}</button>
+            {trip.role === 'owner' && <button type="button" aria-pressed={view === 'share'} onClick={() => changeView('share')}>{t("Share & members")}</button>}
           </div>
           {editingActivity && <ActivityEditor key={editingActivity.id} activity={editingActivity} trip={trip} onSave={(values) => updateActivity(editingActivity.id, values, true)} onCancel={() => setEditingActivity(null)} />}
           {view === 'calendar' && <><TripCalendar trip={trip} getToken={getToken} disabled={!online || writing} onUpdate={saveSchedule} onInteractionChange={onCalendarInteraction} onEdit={beginEdit} onAdd={beginAdd} onDestinationChange={setDayDestination} />
@@ -446,29 +447,29 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
 
           {view === 'budget' && trip.budgetSummary && <BudgetSummary summary={trip.budgetSummary} trip={trip} onRecordSpend={(activity, actualSpend) => updateActivity(activity.id, { actualSpend, version: activity.version })} />}
 
-          {view === 'itinerary' && <><div className="board-heading"><div><h2>Day board</h2><p>Each column is a day. Drag a card or open it to move it.</p></div><button className="primary-button" type="button" onClick={() => { const date = trip.days.find((day) => day.date === selectedDay)?.date || trip.days.find((day) => day.date === tripToday)?.date || trip.days[0].date; setSelectedDay(date); beginAdd(date); }}>+ Add activity</button></div>
+          {view === 'itinerary' && <><div className="board-heading"><div><h2>{t("Day board")}</h2><p>{t("Each column is a day. Drag a card or open it to move it.")}</p></div><button className="primary-button" type="button" onClick={() => { const date = trip.days.find((day) => day.date === selectedDay)?.date || trip.days.find((day) => day.date === tripToday)?.date || trip.days[0].date; setSelectedDay(date); beginAdd(date); }}>{t("+ Add activity")}</button></div>
           {moveError && <p className="form-error" role="alert">{moveError}</p>}
-          {undoMove && <p role="status" className="move-notice">Moved {undoMove.title}. <button type="button" className="text-button" disabled={moving} onClick={undoLastMove}>Undo</button></p>}
-          <label className="day-jump">Jump to day
+          {undoMove && <p role="status" className="move-notice">{t("Moved")} {undoMove.title}. <button type="button" className="text-button" disabled={moving} onClick={undoLastMove}>{t("Undo")}</button></p>}
+          <label className="day-jump">{t("Jump to day")}
             <select value={selectedDay || trip.days[0]?.date || ''} onChange={(event) => {
               const date = event.target.value;
               setSelectedDay(date);
               document.getElementById('day-' + date)?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
             }}>
-              {trip.days.map((day) => <option key={day.date} value={day.date}>Day {day.dayNumber} · {formatDayHeading(day.date)}</option>)}
+              {trip.days.map((day) => <option key={day.date} value={day.date}>{t("Day {n}", { n: day.dayNumber })} · {formatDayHeading(day.date)}</option>)}
             </select>
           </label>
           <ol className="day-list itinerary-board">
             {trip.days.map((day) => (
               <li key={day.date} id={'day-' + day.date} className={`day-card${dropTarget === day.date ? ' is-drop-target' : ''}`} onDragOver={(event) => { if (dragged && dragged.date !== day.date && !moving) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; if (dropTarget !== day.date) setDropTarget(day.date); } }} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setDropTarget(null); }} onDrop={async (event) => { event.preventDefault(); const id = event.dataTransfer.getData('text/plain'); const activity = trip.days.flatMap((item) => item.activities).find((item) => String(item.id) === id); setDropTarget(null); if (!activity || moving) return; try { await moveActivity(activity, day.date); } catch { /* Error is shown above the board. */ } }}>
                 <div className="day-heading">
-                  <h2><span>Day {day.dayNumber}</span> {formatDayHeading(day.date)}</h2>
-                  <label className="day-destination">Weather destination<select value={day.destinationId ?? ''} disabled={!online || writing} onChange={(event) => setDayDestination(day.date, Number(event.target.value))}>{trip.destinations.map((destination) => <option key={destination.id} value={destination.id}>{destination.name}</option>)}</select></label>
-                  {addingOn !== day.date && <button className="text-button day-add-activity" type="button" aria-label={`Add activity to Day ${day.dayNumber}`} title={`Add activity to Day ${day.dayNumber}`} onClick={() => beginAdd(day.date)}><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg></button>}
+                  <h2><span>{t("Day {n}", { n: day.dayNumber })}</span> {formatDayHeading(day.date)}</h2>
+                  <label className="day-destination">{t("Weather destination")}<select value={day.destinationId ?? ''} disabled={!online || writing} onChange={(event) => setDayDestination(day.date, Number(event.target.value))}>{trip.destinations.map((destination) => <option key={destination.id} value={destination.id}>{destination.name}</option>)}</select></label>
+                  {addingOn !== day.date && <button className="text-button day-add-activity" type="button" aria-label={t('Add activity to Day {n}', { n: day.dayNumber })} title={t('Add activity to Day {n}', { n: day.dayNumber })} onClick={() => beginAdd(day.date)}><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg></button>}
                 </div>
                 <ul className="activity-list board-cards">
                   {day.activities.map((activity) => renderActivity(activity))}
-                  {day.activities.length === 0 && <li className="board-empty">No activities yet. Add one below.</li>}
+                  {day.activities.length === 0 && <li className="board-empty">{t("No activities yet. Add one below.")}</li>}
                 </ul>
                 {addingOn === day.date && <div ref={addActivityFormRef} className="activity editing">
                   <ActivityForm date={day.date} days={trip.days} currencyCode={trip.currencyCode} onSubmit={addActivity} onCancel={() => setAddingOn(null)} />

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { calendarStartDate, categoryLabel, formatDayHeading, formatMoney, mapsUrl, todayInTimeZone } from './trip-format.js';
 import { minutesOfDay, shiftedTime, resizedDuration, calendarLanes, calendarDrop, calendarWeather, timeRange } from './calendar-math.js';
 import WeatherPanel from '../dashboard/WeatherPanel.jsx';
+import { t } from '../../lib/i18n.js';
 
 const HOUR_HEIGHT = 64;
 const TIP_WIDTH = 280;
@@ -26,12 +27,12 @@ function EventTip({ hover, currencyCode }) {
   return <div ref={tipRef} id={`calendar-tip-${activity.id}`} className="calendar-tip" role="tooltip" style={position || initialPosition}>
     <span className={`category-badge category-${activity.category}`}>{categoryLabel(activity.category)}:</span>
     <strong>{activity.title}</strong>
-    <p>{activity.time ? (duration ? `${timeRange(activity.time, duration)} · ${duration} min` : `${activity.time} · Duration not set`) : 'No time set'}</p>
+    <p>{activity.time ? (duration ? `${timeRange(activity.time, duration)} · ${t('{n} min', { n: duration })}` : `${activity.time} · ${t('Duration not set')}`) : t("No time set")}</p>
     {place && <p>{place}</p>}
-    <p>Planned {formatMoney(activity.plannedCost, currencyCode)} · {activity.actualSpend == null ? 'Actual not recorded' : `Actual ${formatMoney(activity.actualSpend, currencyCode)}`}</p>
+    <p>{t("Planned")} {formatMoney(activity.plannedCost, currencyCode)} · {activity.actualSpend == null ? t("Actual not recorded") : t('Actual {amount}', { amount: formatMoney(activity.actualSpend, currencyCode) })}</p>
     {activity.note && <p className="calendar-tip-note">{activity.note}</p>}
-    {activity.visited && <p>✓ Visited</p>}
-    <small>Drag to move · drag the bottom edge to resize</small>
+    {activity.visited && <p>{t("✓ Visited")}</p>}
+    <small>{t("Drag to move · drag the bottom edge to resize")}</small>
   </div>;
 }
 
@@ -130,12 +131,12 @@ export default function TripCalendar({ trip, getToken, onUpdate, onEdit, onAdd, 
   function moveGesture(event) { if (gesture.current) setPreview({ id: gesture.current.activity.id, mode: gesture.current.mode, x: event.clientX - gesture.current.x, delta: (event.clientY - gesture.current.y) / HOUR_HEIGHT * 60 }); }
 
   return <section className="trip-calendar" aria-labelledby="calendar-title">
-    <div className="calendar-heading"><div><h2 id="calendar-title">Calendar</h2><p>Drag an event to change its day or time, or drag its bottom edge to change its duration. Use the activity button for precise or keyboard changes.</p></div><button className="primary-button" type="button" disabled={disabled || busy} onClick={() => onAdd(day.date)}>Add activity</button></div>
+    <div className="calendar-heading"><div><h2 id="calendar-title">{t("Calendar")}</h2><p>{t("Drag an event to change its day or time, or drag its bottom edge to change its duration. Use the activity button for precise or keyboard changes.")}</p></div><button className="primary-button" type="button" disabled={disabled || busy} onClick={() => onAdd(day.date)}>{t("Add activity")}</button></div>
     {error && <p className="form-error" role="alert">{error}</p>}
-    {busy && <p role="status">Saving calendar changes…</p>}
-    <div className="calendar-navigation"><button type="button" disabled={startIndex === 0} onClick={() => setDate(trip.days[startIndex - 1].date)}>Previous</button><button type="button" disabled={startIndex + visibleDays.length >= trip.days.length} onClick={() => setDate(trip.days[startIndex + visibleDays.length].date)}>Next</button></div>
-    <div className="calendar-column-headings">{visibleDays.map((item) => <div key={item.date}><button className="calendar-day-heading" type="button" aria-pressed={day.date === item.date} aria-current={today === item.date ? 'date' : undefined} onClick={() => setDate(item.date)}>{today === item.date ? 'Today · ' : ''}{formatDayHeading(item.date)}</button><label>Weather destination<select aria-label={`Weather destination for ${formatDayHeading(item.date)}`} value={item.destinationId ?? ''} disabled={disabled || busy} onChange={(event) => onDestinationChange(item.date, Number(event.target.value))}>{trip.destinations.map((destination) => <option key={destination.id} value={destination.id}>{destination.name}</option>)}</select></label></div>)}</div>
-    <div className="calendar-scroll" ref={scrollRef} aria-label="Calendar schedule">
+    {busy && <p role="status">{t("Saving calendar changes…")}</p>}
+    <div className="calendar-navigation"><button type="button" disabled={startIndex === 0} onClick={() => setDate(trip.days[startIndex - 1].date)}>{t("Previous")}</button><button type="button" disabled={startIndex + visibleDays.length >= trip.days.length} onClick={() => setDate(trip.days[startIndex + visibleDays.length].date)}>{t("Next")}</button></div>
+    <div className="calendar-column-headings">{visibleDays.map((item) => <div key={item.date}><button className="calendar-day-heading" type="button" aria-pressed={day.date === item.date} aria-current={today === item.date ? 'date' : undefined} onClick={() => setDate(item.date)}>{today === item.date ? t("Today · ") : ''}{formatDayHeading(item.date)}</button><label>{t("Weather destination")}<select aria-label={t('Weather destination for {date}', { date: formatDayHeading(item.date) })} value={item.destinationId ?? ''} disabled={disabled || busy} onChange={(event) => onDestinationChange(item.date, Number(event.target.value))}>{trip.destinations.map((destination) => <option key={destination.id} value={destination.id}>{destination.name}</option>)}</select></label></div>)}</div>
+    <div className="calendar-scroll" ref={scrollRef} aria-label={t("Calendar schedule")}>
       <div ref={hoursRef} className="calendar-hours" style={{ height: 24 * HOUR_HEIGHT }}>
         {Array.from({ length: 24 }, (_, hour) => <div className="calendar-hour" key={hour} style={{ top: hour * HOUR_HEIGHT }}><span>{String(hour).padStart(2, '0')}:00</span></div>)}
         <div className="calendar-columns">{visibleDays.map((column) => {
@@ -162,17 +163,17 @@ export default function TripCalendar({ trip, getToken, onUpdate, onEdit, onAdd, 
                 <span className="calendar-event-weather-description">{forecast.description}</span>
                 <span>{Math.round(forecast.temperature)}°</span>
               </span>}
-              <span>{showRange ? `${timeRange(time, duration)} · ${duration} min` : `${time} · Duration not set`}{end > 1440 ? ' · continues next day' : ''}</span>
+              <span>{showRange ? `${timeRange(time, duration)} · ${t('{n} min', { n: duration })}` : `${time} · ${t('Duration not set')}`}{end > 1440 ? t(" · continues next day") : ''}</span>
             </div>
-            <a className="calendar-map-link" href={mapsUrl(activity)} target="_blank" rel="noreferrer" aria-label={`Open ${activity.title} in Google Maps`} title="Google Maps" onPointerDown={(event) => event.stopPropagation()}><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg></a>
-            <button type="button" className="calendar-edit" onClick={() => onEdit(activity)} disabled={busy || disabled} aria-label={`Edit ${activity.title}`} title={`Edit ${activity.title}`} aria-describedby={hover?.activity.id === activity.id ? `calendar-tip-${activity.id}` : undefined}><svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>
-            <div className="calendar-resize" aria-hidden="true" title="Drag to change duration" onPointerDown={(event) => startGesture(event, activity, 'resize')} onPointerMove={moveGesture} onPointerUp={finishGesture} onPointerCancel={cancelGesture} onLostPointerCapture={cancelGesture}><span /></div>
+            <a className="calendar-map-link" href={mapsUrl(activity)} target="_blank" rel="noreferrer" aria-label={t('Open {title} in Google Maps', { title: activity.title })} title={t("Google Maps")} onPointerDown={(event) => event.stopPropagation()}><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg></a>
+            <button type="button" className="calendar-edit" onClick={() => onEdit(activity)} disabled={busy || disabled} aria-label={t('Edit {title}', { title: activity.title })} title={t('Edit {title}', { title: activity.title })} aria-describedby={hover?.activity.id === activity.id ? `calendar-tip-${activity.id}` : undefined}><svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>
+            <div className="calendar-resize" aria-hidden="true" title={t("Drag to change duration")} onPointerDown={(event) => startGesture(event, activity, 'resize')} onPointerMove={moveGesture} onPointerUp={finishGesture} onPointerCancel={cancelGesture} onLostPointerCapture={cancelGesture}><span /></div>
           </div>;
         })}</div>;
         })}</div>
       </div>
     </div>
-    <div className="calendar-unscheduled-columns">{visibleDays.map((column) => <section key={column.date} className="calendar-unscheduled" data-calendar-date={column.date} data-calendar-unscheduled><h3>{formatDayHeading(column.date)} · Not scheduled</h3>{column.activities.some((activity) => !activity.time) ? <ul>{column.activities.filter((activity) => !activity.time).map((activity) => <li key={activity.id}><span className="calendar-unscheduled-drag" title="Drag onto the calendar to set a time" onPointerDown={(event) => startGesture(event, activity, 'unscheduled')} onPointerMove={moveGesture} onPointerUp={finishGesture} onPointerCancel={cancelGesture} onLostPointerCapture={cancelGesture}>{activity.title}</span><button className="text-button" type="button" disabled={busy || disabled} onClick={() => onEdit(activity)}>Set time</button></li>)}</ul> : <p>All activities have a time.</p>}</section>)}</div>
+    <div className="calendar-unscheduled-columns">{visibleDays.map((column) => <section key={column.date} className="calendar-unscheduled" data-calendar-date={column.date} data-calendar-unscheduled><h3>{formatDayHeading(column.date)} {t("· Not scheduled")}</h3>{column.activities.some((activity) => !activity.time) ? <ul>{column.activities.filter((activity) => !activity.time).map((activity) => <li key={activity.id}><span className="calendar-unscheduled-drag" title={t("Drag onto the calendar to set a time")} onPointerDown={(event) => startGesture(event, activity, 'unscheduled')} onPointerMove={moveGesture} onPointerUp={finishGesture} onPointerCancel={cancelGesture} onLostPointerCapture={cancelGesture}>{activity.title}</span><button className="text-button" type="button" disabled={busy || disabled} onClick={() => onEdit(activity)}>{t("Set time")}</button></li>)}</ul> : <p>{t("All activities have a time.")}</p>}</section>)}</div>
     {hover && !pressed && !preview && createPortal(<EventTip hover={hover} currencyCode={trip.currencyCode} />, document.body)}
     {weatherDestinations.map((destinationId) => {
       const matchingDay = visibleDays.find((item) => String(item.destinationId) === String(destinationId));

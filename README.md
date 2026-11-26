@@ -29,6 +29,7 @@ Tripo helps a group plan a multi-day trip together: pick destinations, build a d
 - **Read-only sharing** — the owner can create and revoke a public share link.
 - **Stories** — a public feed of travel posts with photos, likes and comments; authors can edit or delete their own stories.
 - **Dashboard** — upcoming trip, today's plan, budget, weather forecast (OpenWeather) and travel news.
+- **Vietnamese and English** — a VIE / ENG switch in the top bar; the first visit follows the browser language and the choice is remembered.
 - **Tribot** — an AI travel assistant in a floating chat button on every signed-in page (Google Gemini). On a trip page it answers questions about the trip's schedule and budget, suggests activities that can be added to the plan with one click; on other pages it answers general travel questions or lets you pick a trip.
 
 ## Tech stack

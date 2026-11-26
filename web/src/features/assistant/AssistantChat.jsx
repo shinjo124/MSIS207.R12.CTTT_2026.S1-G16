@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { apiRequest } from '../../lib/api.js';
 import { categoryLabel, formatDayHeading, formatMoney } from '../trips/trip-format.js';
+import { t } from '../../lib/i18n.js';
 
 const TRIP_PROMPTS = [
   'Which day still has free time?',
@@ -33,13 +34,13 @@ function SuggestionCard({ suggestion, trip, onAdd, disabled }) {
     <li className="assistant-suggestion">
       <div>
         <strong>{suggestion.title}</strong>
-        <span>{day ? `Day ${day.dayNumber} · ${formatDayHeading(day.date)}` : suggestion.date}{suggestion.time ? ` · ${suggestion.time}` : ''}{suggestion.durationMinutes ? ` · ${suggestion.durationMinutes} min` : ''}</span>
+        <span>{day ? `${t('Day {n}', { n: day.dayNumber })} · ${formatDayHeading(day.date)}` : suggestion.date}{suggestion.time ? ` · ${suggestion.time}` : ''}{suggestion.durationMinutes ? ` · ${t('{n} min', { n: suggestion.durationMinutes })}` : ''}</span>
         <span>{categoryLabel(suggestion.category)}{suggestion.plannedCost ? ` · ${formatMoney(suggestion.plannedCost, trip.currencyCode)}` : ''}{suggestion.address ? ` · ${suggestion.address}` : ''}</span>
         {suggestion.note && <p>{suggestion.note}</p>}
         {error && <p className="form-error" role="alert">{error}</p>}
       </div>
       <button className={state === 'added' ? 'text-button' : 'primary-button'} type="button" disabled={disabled || state !== 'idle'} onClick={add}>
-        {state === 'added' ? 'Added ✓' : state === 'saving' ? 'Adding…' : 'Add to plan'}
+        {state === 'added' ? t("Added ✓") : state === 'saving' ? t("Adding…") : t("Add to plan")}
       </button>
     </li>
   );
@@ -69,7 +70,7 @@ export default function AssistantChat({ trip = null, getToken, onAddActivity, di
       setMessages((current) => [...current, { role: 'assistant', text: result.data.reply, suggestions: result.data.suggestions || [] }]);
       setStatus('idle');
     } catch (askError) {
-      setError(askError.code === 'ASSISTANT_NOT_CONFIGURED' ? 'Tribot is not set up on this server yet.' : askError.message);
+      setError(askError.code === 'ASSISTANT_NOT_CONFIGURED' ? t('Tribot is not set up on this server yet.') : askError.message);
       setStatus('error');
     }
   }
@@ -80,10 +81,10 @@ export default function AssistantChat({ trip = null, getToken, onAddActivity, di
       <ol className="assistant-messages" ref={listRef} aria-live="polite">
         {messages.length === 0 && (
           <li className="assistant-empty">
-            <p>{trip ? 'Ask about this trip’s schedule and budget, or get ideas you can add with one click.' : 'Ask any travel question. Choose a trip above to ask about its plan.'}</p>
+            <p>{trip ? t("Ask about this trip’s schedule and budget, or get ideas you can add with one click.") : t("Ask any travel question. Choose a trip above to ask about its plan.")}</p>
             <div className="assistant-prompts">
               {prompts.map((prompt) => (
-                <button key={prompt} type="button" className="text-button" disabled={disabled} onClick={() => ask(prompt)}>{prompt}</button>
+                <button key={prompt} type="button" className="text-button" disabled={disabled} onClick={() => ask(t(prompt))}>{t(prompt)}</button>
               ))}
             </div>
           </li>
@@ -92,7 +93,7 @@ export default function AssistantChat({ trip = null, getToken, onAddActivity, di
           <li key={index} className={`assistant-message is-${message.role}`}>
             <p>{message.text}</p>
             {trip && message.suggestions?.length > 0 && (
-              <ul className="assistant-suggestions" aria-label="Suggested activities">
+              <ul className="assistant-suggestions" aria-label={t("Suggested activities")}>
                 {message.suggestions.map((suggestion, k) => (
                   <SuggestionCard key={k} suggestion={suggestion} trip={trip} onAdd={onAddActivity} disabled={disabled} />
                 ))}
@@ -100,22 +101,22 @@ export default function AssistantChat({ trip = null, getToken, onAddActivity, di
             )}
           </li>
         ))}
-        {status === 'loading' && <li className="assistant-message is-assistant is-typing" role="status"><p>Thinking…</p></li>}
+        {status === 'loading' && <li className="assistant-message is-assistant is-typing" role="status"><p>{t("Thinking…")}</p></li>}
       </ol>
 
       {status === 'error' && (
-        <p className="error-state" role="alert">{error} <button className="text-button" type="button" onClick={() => ask(messages[messages.length - 1].text, messages.slice(0, -1))}>Try again</button></p>
+        <p className="error-state" role="alert">{error} <button className="text-button" type="button" onClick={() => ask(messages[messages.length - 1].text, messages.slice(0, -1))}>{t("Try again")}</button></p>
       )}
 
       <form className="assistant-form" onSubmit={(event) => { event.preventDefault(); ask(draft); }}>
-        <label className="visually-hidden" htmlFor="assistant-input">Ask Tribot</label>
-        <textarea id="assistant-input" ref={inputRef} rows={1} maxLength={2000} value={draft} placeholder={trip ? 'e.g. Ngày 2 còn trống giờ nào?' : 'e.g. Tháng 12 nên đi đâu?'}
+        <label className="visually-hidden" htmlFor="assistant-input">{t("Ask Tribot")}</label>
+        <textarea id="assistant-input" ref={inputRef} rows={1} maxLength={2000} value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); ask(draft); } }}
           disabled={disabled || status === 'loading'} />
-        <button className="primary-button" type="submit" disabled={disabled || status === 'loading' || !draft.trim()}>Send</button>
+        <button className="primary-button" type="submit" disabled={disabled || status === 'loading' || !draft.trim()}>{t("Send")}</button>
       </form>
-      <p className="assistant-disclaimer">Tribot’s answers come from Google Gemini and can be wrong.{trip ? ' This trip’s plan and budget are sent to Google to answer.' : ''} Nothing is added until you press “Add to plan”.</p>
+      <p className="assistant-disclaimer">{t("Tribot’s answers come from Google Gemini and can be wrong.")}{trip ? t(" This trip’s plan and budget are sent to Google to answer.") : ''} {t("Nothing is added until you press “Add to plan”.")}</p>
     </div>
   );
 }

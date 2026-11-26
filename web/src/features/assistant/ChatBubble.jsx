@@ -3,6 +3,7 @@ import { apiRequest } from '../../lib/api.js';
 import { formatTripTitle } from '../trips/trip-format.js';
 import AssistantChat from './AssistantChat.jsx';
 import './assistant.css';
+import { t } from '../../lib/i18n.js';
 
 // Tribot: floating chat button shown on every signed-in page.
 // On /trips/:id it uses that trip; elsewhere it answers general questions and lets the user pick a trip.
@@ -62,28 +63,28 @@ export default function ChatBubble({ path, getToken }) {
   return (
     <div className="chat-bubble">
       {open && (
-        <section className="chat-bubble-panel" id="chat-bubble-panel" role="dialog" aria-label="Tribot">
+        <section className="chat-bubble-panel" id="chat-bubble-panel" role="dialog" aria-label={t("Tribot")}>
           <header className="chat-bubble-header">
             <div>
-              <h2>Tribot</h2>
+              <h2>{t("Tribot")}</h2>
               <label>
-                <span className="visually-hidden">Ask about</span>
+                <span className="visually-hidden">{t("Ask about")}</span>
                 <select value={tripId} onChange={(event) => setTripId(event.target.value)}>
-                  <option value="">General travel questions</option>
-                  {tripId && !trips?.some((item) => String(item.id) === tripId) && <option value={tripId}>{trip ? formatTripTitle(trip.title) : 'This trip'}</option>}
+                  <option value="">{t("General travel questions")}</option>
+                  {tripId && !trips?.some((item) => String(item.id) === tripId) && <option value={tripId}>{trip ? formatTripTitle(trip.title) : t("This trip")}</option>}
                   {(trips || []).map((item) => <option key={item.id} value={String(item.id)}>{formatTripTitle(item.title)}</option>)}
                 </select>
               </label>
             </div>
-            <button type="button" className="chat-bubble-close" aria-label="Close Tribot" onClick={() => setOpen(false)}>×</button>
+            <button type="button" className="chat-bubble-close" aria-label={t("Close Tribot")} onClick={() => setOpen(false)}>×</button>
           </header>
           {tripError && <p className="error-state" role="alert">{tripError}</p>}
           {waitingForTrip
-            ? <p className="chat-bubble-loading" role="status">Loading trip…</p>
+            ? <p className="chat-bubble-loading" role="status">{t("Loading trip…")}</p>
             : <AssistantChat key={tripId || 'general'} trip={tripId ? trip : null} getToken={getToken} onAddActivity={addActivity} disabled={Boolean(tripError)} />}
         </section>
       )}
-      <button type="button" className="chat-bubble-button" aria-expanded={open} aria-controls="chat-bubble-panel" aria-label={open ? 'Close Tribot' : 'Open Tribot'} onClick={() => setOpen((value) => !value)}>
+      <button type="button" className="chat-bubble-button" aria-expanded={open} aria-controls="chat-bubble-panel" aria-label={open ? t("Close Tribot") : t("Open Tribot")} onClick={() => setOpen((value) => !value)}>
         {open
           ? <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
           : <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" /><path d="M8 9.5h8M8 12.5h5" /></svg>}
