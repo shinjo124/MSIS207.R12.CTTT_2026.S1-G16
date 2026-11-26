@@ -179,7 +179,7 @@ paths:
         '503': { description: Weather provider unavailable }
   /api/assistant:
     post:
-      summary: Ask the assistant (Google Gemini) a general travel question, without a trip
+      summary: Ask Tribot (Google Gemini) a general travel question, without a trip
       description: Used by the floating chat when no trip is chosen. Only the conversation is sent to Gemini. Answers are not stored and suggestions are always empty.
       security: [{ bearerAuth: [] }]
       requestBody:
@@ -202,7 +202,7 @@ paths:
                       text: { type: string, minLength: 1, maxLength: 2000 }
       responses:
         '200':
-          description: The assistant's reply
+          description: Tribot's reply
           content:
             application/json:
               schema:
@@ -215,11 +215,11 @@ paths:
                       suggestions: { type: array, maxItems: 0, items: { type: object } }
         '400': { description: INVALID_MESSAGES }
         '401': { description: Not signed in }
-        '429': { description: Assistant rate limit reached (shared with the trip assistant) }
+        '429': { description: Tribot rate limit reached (shared with the trip endpoint) }
         '503': { description: ASSISTANT_NOT_CONFIGURED or ASSISTANT_UNAVAILABLE }
   /api/trips/{tripId}/assistant:
     post:
-      summary: Ask the trip assistant (Google Gemini) about this trip or about travel
+      summary: Ask Tribot (Google Gemini) about this trip or about travel
       description: Requires trip access. The API sends the trip plan, budget and catalogue places for the trip's destinations to Gemini. Answers are not stored. Suggestions are proposals only; add one with POST /api/trips/{tripId}/activities.
       security: [{ bearerAuth: [] }]
       parameters:
@@ -248,7 +248,7 @@ paths:
                       text: { type: string, minLength: 1, maxLength: 2000 }
       responses:
         '200':
-          description: The assistant's reply and up to five suggested activities inside the trip dates
+          description: Tribot's reply and up to five suggested activities inside the trip dates
           content:
             application/json:
               schema:
@@ -277,7 +277,7 @@ paths:
         '400': { description: INVALID_TRIP_ID or INVALID_MESSAGES }
         '401': { description: Not signed in }
         '404': { description: Trip unavailable or caller has no access }
-        '429': { description: Assistant rate limit reached (20 questions per 15 minutes per user) }
+        '429': { description: Tribot rate limit reached (20 questions per 15 minutes per user) }
         '503': { description: ASSISTANT_NOT_CONFIGURED (no GEMINI_API_KEY) or ASSISTANT_UNAVAILABLE }
   /api/trips/{tripId}/days/{date}/destination:
     put:

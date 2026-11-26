@@ -12,7 +12,7 @@ const router = Router();
 const assistantLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: 'draft-8', legacyHeaders: false,
   keyGenerator: (req) => `assistant:${req.userId}`,
-  message: { error: { code: 'ASSISTANT_RATE_LIMITED', message: 'Too many questions. Try again in a few minutes.' } },
+  message: { error: { code: 'ASSISTANT_RATE_LIMITED', message: 'Too many questions for Tribot. Try again in a few minutes.' } },
 });
 
 const INVALID_MESSAGES = { status: 400, code: 'INVALID_MESSAGES', message: 'Send 1–12 messages of up to 2000 characters, ending with your question.' };
@@ -32,12 +32,12 @@ async function loadPlaces(trip) {
 // Calls Gemini and sends the checked reply. Answers are not stored.
 async function answer(res, { context, messages, trip }) {
   res.set('Cache-Control', 'private, no-store');
-  if (!process.env.GEMINI_API_KEY) return sendError(res, { status: 503, code: 'ASSISTANT_NOT_CONFIGURED', message: 'The assistant is not set up on this server yet.' });
+  if (!process.env.GEMINI_API_KEY) return sendError(res, { status: 503, code: 'ASSISTANT_NOT_CONFIGURED', message: 'Tribot is not set up on this server yet.' });
   let text;
   try {
     text = await askGemini({ apiKey: process.env.GEMINI_API_KEY, model: process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL, context, messages });
   } catch {
-    return sendError(res, { status: 503, code: 'ASSISTANT_UNAVAILABLE', message: 'The assistant is unavailable right now. Try again later.' });
+    return sendError(res, { status: 503, code: 'ASSISTANT_UNAVAILABLE', message: 'Tribot is unavailable right now. Try again later.' });
   }
   return res.json({ data: parseModelReply(text, trip) });
 }

@@ -1,4 +1,4 @@
-// Trip assistant: builds the trip context, calls Gemini and checks what comes back.
+// Tribot (trip assistant): builds the trip context, calls Gemini and checks what comes back.
 // The model only proposes activities; the user adds one with the normal activity endpoint.
 import { ACTIVITY_CATEGORIES, optionalText, parseDate, parseMoney, parseTime } from './trip-rules.js';
 
@@ -7,7 +7,7 @@ export const MAX_MESSAGE_LENGTH = 2000;
 export const MAX_SUGGESTIONS = 5;
 export const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash';
 
-const SYSTEM_PROMPT = `You are Tripo Assistant, a travel-planning helper inside the Tripo web app.
+const SYSTEM_PROMPT = `You are Tribot, the travel-planning helper inside the Tripo web app.
 You help one traveller with the trip described in TRIP DATA (when there is one), and with general travel questions.
 Rules:
 - Answer in the same language as the user's last message (Vietnamese or English). Be short and concrete.

@@ -216,7 +216,7 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
     }
   }, [getToken, tripId]);
 
-  // The floating assistant adds activities through the API; reload so the new card shows at once.
+  // Tribot (the floating chat) adds activities through the API; reload so the new card shows at once.
   useEffect(() => {
     const onChanged = (event) => { if (String(event.detail?.tripId) === String(tripId)) setRefreshGeneration((current) => current + 1); };
     window.addEventListener('tripo:trip-changed', onChanged);

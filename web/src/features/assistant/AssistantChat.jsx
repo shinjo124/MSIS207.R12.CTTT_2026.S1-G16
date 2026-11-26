@@ -69,7 +69,7 @@ export default function AssistantChat({ trip = null, getToken, onAddActivity, di
       setMessages((current) => [...current, { role: 'assistant', text: result.data.reply, suggestions: result.data.suggestions || [] }]);
       setStatus('idle');
     } catch (askError) {
-      setError(askError.code === 'ASSISTANT_NOT_CONFIGURED' ? 'The assistant is not set up on this server yet.' : askError.message);
+      setError(askError.code === 'ASSISTANT_NOT_CONFIGURED' ? 'Tribot is not set up on this server yet.' : askError.message);
       setStatus('error');
     }
   }
@@ -108,14 +108,14 @@ export default function AssistantChat({ trip = null, getToken, onAddActivity, di
       )}
 
       <form className="assistant-form" onSubmit={(event) => { event.preventDefault(); ask(draft); }}>
-        <label className="visually-hidden" htmlFor="assistant-input">Ask the assistant</label>
+        <label className="visually-hidden" htmlFor="assistant-input">Ask Tribot</label>
         <textarea id="assistant-input" ref={inputRef} rows={1} maxLength={2000} value={draft} placeholder={trip ? 'e.g. Ngày 2 còn trống giờ nào?' : 'e.g. Tháng 12 nên đi đâu?'}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); ask(draft); } }}
           disabled={disabled || status === 'loading'} />
         <button className="primary-button" type="submit" disabled={disabled || status === 'loading' || !draft.trim()}>Send</button>
       </form>
-      <p className="assistant-disclaimer">Answers come from Google Gemini and can be wrong.{trip ? ' This trip’s plan and budget are sent to Google to answer.' : ''} Nothing is added until you press “Add to plan”.</p>
+      <p className="assistant-disclaimer">Tribot’s answers come from Google Gemini and can be wrong.{trip ? ' This trip’s plan and budget are sent to Google to answer.' : ''} Nothing is added until you press “Add to plan”.</p>
     </div>
   );
 }
