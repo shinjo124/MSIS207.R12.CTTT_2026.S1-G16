@@ -34,7 +34,7 @@ function validate(values) {
   return '';
 }
 
-export default function TripForm({ trip = null, initialDestination = null, submitLabel, onSubmit, onCancel }) {
+export default function TripForm({ trip = null, initialDestination = null, submitLabel, onSubmit, onCancel, getToken = null }) {
   const [values, setValues] = useState(() => initialValues(trip, initialDestination));
   // Keep the revision from when editing began so the API can detect a newer trip update.
   const [revision] = useState(() => trip?.revision);
@@ -91,6 +91,7 @@ export default function TripForm({ trip = null, initialDestination = null, submi
       <fieldset className="field field-wide">
         <legend>{t("Where are you going?")} <span>{t("Add destinations in the order you’ll visit them.")}</span></legend>
         <DestinationPicker
+          getToken={getToken}
           selected={values.destinations}
           allowCustom
           onChange={(destinations) => { setZoneConfirmed(false); setValues((current) => ({ ...current, destinations, timeZone: current.destinations[0]?.id !== destinations[0]?.id ? (destinations.length ? destinationTimeZone(destinations[0]) || '' : 'Asia/Ho_Chi_Minh') : current.timeZone })); }}

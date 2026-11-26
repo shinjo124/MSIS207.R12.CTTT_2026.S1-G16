@@ -91,6 +91,49 @@ paths:
                         bestSeason: { type: [string, 'null'] }
                         mapQuery: { type: string }
                         imageUrl: { type: [string, 'null'], format: uri }
+  /api/destinations/{id}/google-places:
+    get:
+      summary: Live place ideas from Google Maps (Places API Text Search) for a catalogue destination
+      description: Signed-in users only. Results come straight from Google and are not stored. Show the "Google Maps" attribution with them.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: type
+          required: true
+          schema: { type: string, enum: [sights, food, cafe, nature, culture, shopping] }
+        - in: query
+          name: lang
+          schema: { type: string, enum: [vi, en], default: vi }
+      responses:
+        '200':
+          description: Up to 10 places
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, name]
+                      properties:
+                        id: { type: string }
+                        name: { type: string }
+                        address: { type: string }
+                        mapsUrl: { type: string, format: uri }
+                        type: { type: string }
+                        rating: { type: number }
+                        ratingCount: { type: integer }
+        '400': { description: INVALID_DESTINATION_ID or INVALID_PLACE_TYPE }
+        '401': { description: Not signed in }
+        '404': { description: DESTINATION_NOT_FOUND }
+        '429': { description: GOOGLE_PLACES_RATE_LIMITED (30 searches per 15 minutes per user) }
+        '503': { description: GOOGLE_PLACES_NOT_CONFIGURED or GOOGLE_PLACES_UNAVAILABLE }
   /api/destinations/{id}/places:
     get:
       summary: List curated places for a destination

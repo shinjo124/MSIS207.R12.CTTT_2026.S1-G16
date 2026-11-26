@@ -405,7 +405,7 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
           {editingTrip
             ? <div className="panel">
                 <h2>{t("Edit trip")}</h2>
-                <TripForm trip={trip} submitLabel={t("Save changes")} onSubmit={saveTrip} onCancel={() => setEditingTrip(false)} />
+                <TripForm trip={trip} getToken={getToken} submitLabel={t("Save changes")} onSubmit={saveTrip} onCancel={() => setEditingTrip(false)} />
               </div>
             : <header className="trip-header">
                 <div>

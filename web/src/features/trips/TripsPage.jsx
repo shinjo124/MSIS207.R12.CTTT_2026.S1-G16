@@ -67,7 +67,7 @@ export default function TripsPage({ getToken, isSignedIn, profileStatus, profile
       <ProfileGate isSignedIn={isSignedIn} profileStatus={profileStatus} profileError={profileError} action="plan a trip">
         {showForm && <div className="panel">
           <h2>{t("Plan a new trip")}</h2>
-          <TripForm key={suggestedDestination?.id || 'new'} initialDestination={suggestedDestination} submitLabel={t("Create trip")} onSubmit={createTrip} onCancel={() => setShowForm(false)} />
+          <TripForm getToken={getToken} key={suggestedDestination?.id || 'new'} initialDestination={suggestedDestination} submitLabel={t("Create trip")} onSubmit={createTrip} onCancel={() => setShowForm(false)} />
         </div>}
 
         {status === 'loading' && <p className="empty-state" role="status">{t("Loading your trips…")}</p>}

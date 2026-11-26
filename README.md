@@ -30,6 +30,7 @@ Tripo helps a group plan a multi-day trip together: pick destinations, build a d
 - **Stories** — a public feed of travel posts with photos, likes and comments; authors can edit or delete their own stories.
 - **Dashboard** — upcoming trip, today's plan, budget, weather forecast (OpenWeather) and travel news.
 - **Vietnamese and English** — a VIE / ENG switch in the top bar; the first visit follows the browser language and the choice is remembered.
+- **Ideas from Google Maps** — when choosing destinations, signed-in users can load popular sights, food, cafés, nature, history and markets from Google Places (live, not stored).
 - **Tribot** — an AI travel assistant in a floating chat button on every signed-in page (Google Gemini). On a trip page it answers questions about the trip's schedule and budget, suggests activities that can be added to the plan with one click; on other pages it answers general travel questions or lets you pick a trip.
 
 ## Tech stack
@@ -54,7 +55,7 @@ www.tripo.website        Bearer token      api.tripo.website                │
 
 ## API overview
 
-All endpoints are under `/api`, exchange JSON, and return errors as `{ "error": { "code", "message" } }`. Protected endpoints need `Authorization: Bearer <Clerk session token>`. The full contract (26 paths, 38 operations) is in [Swagger UI](https://api.tripo.website/api-docs).
+All endpoints are under `/api`, exchange JSON, and return errors as `{ "error": { "code", "message" } }`. Protected endpoints need `Authorization: Bearer <Clerk session token>`. The full contract (27 paths, 39 operations) is in [Swagger UI](https://api.tripo.website/api-docs).
 
 | Resource | Endpoints |
 |---|---|

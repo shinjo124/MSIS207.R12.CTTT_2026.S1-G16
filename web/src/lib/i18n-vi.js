@@ -3,6 +3,17 @@
 // API error messages are included so server errors also show in Vietnamese.
 export default {
   // Interface
+  "More ideas": "Gợi ý thêm",
+  "Google suggestions for {name}": "Gợi ý từ Google cho {name}",
+  "Top sights": "Nổi bật",
+  "Local food": "Món ngon",
+  "Cafés": "Cà phê",
+  "History & museums": "Di tích, bảo tàng",
+  "Markets & shopping": "Chợ, mua sắm",
+  "Pick a type to see popular places on Google Maps.": "Chọn một mục để xem những nơi được nhiều người ghé trên Google Maps.",
+  "Searching Google Maps…": "Đang tìm trên Google Maps…",
+  "Google Maps has no results for this type.": "Google Maps chưa có kết quả cho mục này.",
+  "Rated {rating} out of 5 from {count} reviews": "Được chấm {rating}/5 từ {count} lượt đánh giá",
   " This trip’s plan and budget are sent to Google to answer.": " Để trả lời, lịch trình và chi tiêu của chuyến đi sẽ được gửi cho Google.",
   " · continues next day": " · kéo dài sang hôm sau",
   "+ Add": "+ Thêm",
@@ -416,6 +427,10 @@ export default {
   "← My trips": "← Chuyến đi của tôi",
   "✓ Visited": "✓ Đã đi",
   // API error messages
+  "Choose a valid place type.": "Hãy chọn một mục hợp lệ.",
+  "Too many Google searches. Try again in a few minutes.": "Bạn tìm hơi nhiều, đợi vài phút rồi thử lại nhé.",
+  "Google suggestions are not set up on this server yet.": "Gợi ý từ Google chưa được bật trên máy chủ.",
+  "Google suggestions are unavailable right now. Try again later.": "Chưa lấy được gợi ý từ Google, thử lại sau nhé.",
   "Activity ID must be a positive integer.": "Mã hoạt động phải là số nguyên dương.",
   "Activity was not found.": "Không tìm thấy hoạt động này.",
   "Authentication is not configured.": "Chưa cấu hình đăng nhập.",
