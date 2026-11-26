@@ -5,7 +5,6 @@ import ProfileGate from './ProfileGate.jsx';
 import ShareControl from './ShareControl.jsx';
 import TripForm from './TripForm.jsx';
 import TripCalendar from './TripCalendar.jsx';
-import TripAssistant from './TripAssistant.jsx';
 import MemberControl from './MemberControl.jsx';
 import { createMutationLock, updateSchedule } from './schedule-update.js';
 import { createTripPoller, fetchChangedTrip } from './trip-polling.js';
@@ -216,6 +215,13 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
       setStatus('error');
     }
   }, [getToken, tripId]);
+
+  // The floating assistant adds activities through the API; reload so the new card shows at once.
+  useEffect(() => {
+    const onChanged = (event) => { if (String(event.detail?.tripId) === String(tripId)) setRefreshGeneration((current) => current + 1); };
+    window.addEventListener('tripo:trip-changed', onChanged);
+    return () => window.removeEventListener('tripo:trip-changed', onChanged);
+  }, [tripId]);
 
   useEffect(() => {
     if (!ready) return undefined;
@@ -430,7 +436,6 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
             <button type="button" aria-pressed={view === 'calendar'} onClick={() => changeView('calendar')}>Calendar</button>
             <button type="button" aria-pressed={view === 'itinerary'} onClick={() => changeView('itinerary')}>Day board</button>
             <button type="button" aria-pressed={view === 'budget'} onClick={() => changeView('budget')}>Budget</button>
-            <button type="button" aria-pressed={view === 'assistant'} onClick={() => changeView('assistant')}>Assistant</button>
             {trip.role === 'owner' && <button type="button" aria-pressed={view === 'share'} onClick={() => changeView('share')}>Share &amp; members</button>}
           </div>
           {editingActivity && <ActivityEditor key={editingActivity.id} activity={editingActivity} trip={trip} onSave={(values) => updateActivity(editingActivity.id, values, true)} onCancel={() => setEditingActivity(null)} />}
@@ -439,7 +444,6 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
           </>}
           {view === 'share' && trip.role === 'owner' && <><MemberControl tripId={trip.id} getToken={getToken} /><ShareControl tripId={trip.id} getToken={getToken} /></>}
 
-          {view === 'assistant' && <TripAssistant trip={trip} getToken={getToken} onAddActivity={addActivity} disabled={!online || writing} />}
           {view === 'budget' && trip.budgetSummary && <BudgetSummary summary={trip.budgetSummary} trip={trip} onRecordSpend={(activity, actualSpend) => updateActivity(activity.id, { actualSpend, version: activity.version })} />}
 
           {view === 'itinerary' && <><div className="board-heading"><div><h2>Day board</h2><p>Each column is a day. Drag a card or open it to move it.</p></div><button className="primary-button" type="button" onClick={() => { const date = trip.days.find((day) => day.date === selectedDay)?.date || trip.days.find((day) => day.date === tripToday)?.date || trip.days[0].date; setSelectedDay(date); beginAdd(date); }}>+ Add activity</button></div>

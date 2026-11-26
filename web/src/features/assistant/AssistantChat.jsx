@@ -1,12 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { apiRequest } from '../../lib/api.js';
-import { categoryLabel, formatDayHeading, formatMoney } from './trip-format.js';
+import { categoryLabel, formatDayHeading, formatMoney } from '../trips/trip-format.js';
 
-const QUICK_PROMPTS = [
+const TRIP_PROMPTS = [
   'Which day still has free time?',
-  'How much budget is left, and what did we spend most on?',
+  'How much budget is left?',
   'Suggest 3 things to do on our free day.',
   'What should I pack for this trip?',
+];
+const GENERAL_PROMPTS = [
+  'Where should I go in Vietnam in December?',
+  'Plan 3 days in Đà Lạt for a small budget.',
+  'What should I eat in Huế?',
+  'How do I get from Hà Nội to Hạ Long?',
 ];
 const MAX_HISTORY = 12;
 
@@ -39,15 +45,18 @@ function SuggestionCard({ suggestion, trip, onAdd, disabled }) {
   );
 }
 
-// Chat with the trip assistant. Messages live only in this tab; suggestions are added through the normal activity API.
-export default function TripAssistant({ trip, getToken, onAddActivity, disabled = false }) {
+// One conversation. With a trip it asks about that trip; without one it answers general travel questions.
+// Messages live only in memory; the parent remounts this (key) when the trip changes so history never mixes trips.
+export default function AssistantChat({ trip = null, getToken, onAddActivity, disabled = false }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState('');
   const listRef = useRef(null);
+  const inputRef = useRef(null);
 
   useEffect(() => { listRef.current?.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, [messages, status]);
+  useEffect(() => { inputRef.current?.focus(); }, []);
 
   async function ask(text, base = messages) {
     const question = text.trim();
@@ -56,7 +65,7 @@ export default function TripAssistant({ trip, getToken, onAddActivity, disabled 
     setMessages(history); setDraft(''); setError(''); setStatus('loading');
     try {
       const body = { messages: history.slice(-MAX_HISTORY).map(({ role, text: messageText }) => ({ role, text: messageText })) };
-      const result = await apiRequest(`/trips/${trip.id}/assistant`, { method: 'POST', body, getToken });
+      const result = await apiRequest(trip ? `/trips/${trip.id}/assistant` : '/assistant', { method: 'POST', body, getToken });
       setMessages((current) => [...current, { role: 'assistant', text: result.data.reply, suggestions: result.data.suggestions || [] }]);
       setStatus('idle');
     } catch (askError) {
@@ -65,31 +74,24 @@ export default function TripAssistant({ trip, getToken, onAddActivity, disabled 
     }
   }
 
+  const prompts = trip ? TRIP_PROMPTS : GENERAL_PROMPTS;
   return (
-    <section className="assistant-panel" aria-labelledby="assistant-title">
-      <div className="board-heading">
-        <div>
-          <h2 id="assistant-title">Trip assistant</h2>
-          <p>Ask about this trip's schedule and budget, get ideas, or ask any travel question.</p>
-        </div>
-      </div>
-
-      {messages.length === 0 && (
-        <div className="assistant-empty">
-          <p>Try one of these:</p>
-          <div className="assistant-prompts">
-            {QUICK_PROMPTS.map((prompt) => (
-              <button key={prompt} type="button" className="text-button" disabled={disabled} onClick={() => ask(prompt)}>{prompt}</button>
-            ))}
-          </div>
-        </div>
-      )}
-
+    <div className="assistant-chat">
       <ol className="assistant-messages" ref={listRef} aria-live="polite">
+        {messages.length === 0 && (
+          <li className="assistant-empty">
+            <p>{trip ? 'Ask about this trip’s schedule and budget, or get ideas you can add with one click.' : 'Ask any travel question. Choose a trip above to ask about its plan.'}</p>
+            <div className="assistant-prompts">
+              {prompts.map((prompt) => (
+                <button key={prompt} type="button" className="text-button" disabled={disabled} onClick={() => ask(prompt)}>{prompt}</button>
+              ))}
+            </div>
+          </li>
+        )}
         {messages.map((message, index) => (
           <li key={index} className={`assistant-message is-${message.role}`}>
             <p>{message.text}</p>
-            {message.suggestions?.length > 0 && (
+            {trip && message.suggestions?.length > 0 && (
               <ul className="assistant-suggestions" aria-label="Suggested activities">
                 {message.suggestions.map((suggestion, k) => (
                   <SuggestionCard key={k} suggestion={suggestion} trip={trip} onAdd={onAddActivity} disabled={disabled} />
@@ -106,14 +108,14 @@ export default function TripAssistant({ trip, getToken, onAddActivity, disabled 
       )}
 
       <form className="assistant-form" onSubmit={(event) => { event.preventDefault(); ask(draft); }}>
-        <label className="visually-hidden" htmlFor="assistant-input">Ask the trip assistant</label>
-        <textarea id="assistant-input" rows={2} maxLength={2000} value={draft} placeholder="e.g. Ngày 2 còn trống giờ nào?"
+        <label className="visually-hidden" htmlFor="assistant-input">Ask the assistant</label>
+        <textarea id="assistant-input" ref={inputRef} rows={1} maxLength={2000} value={draft} placeholder={trip ? 'e.g. Ngày 2 còn trống giờ nào?' : 'e.g. Tháng 12 nên đi đâu?'}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); ask(draft); } }}
           disabled={disabled || status === 'loading'} />
         <button className="primary-button" type="submit" disabled={disabled || status === 'loading' || !draft.trim()}>Send</button>
       </form>
-      <p className="assistant-disclaimer">Answers are written by Google Gemini and can be wrong. To answer, this trip's plan and budget are sent to Google. Suggestions are only added when you press “Add to plan”.</p>
-    </section>
+      <p className="assistant-disclaimer">Answers come from Google Gemini and can be wrong.{trip ? ' This trip’s plan and budget are sent to Google to answer.' : ''} Nothing is added until you press “Add to plan”.</p>
+    </div>
   );
 }

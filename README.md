@@ -29,7 +29,7 @@ Tripo helps a group plan a multi-day trip together: pick destinations, build a d
 - **Read-only sharing** — the owner can create and revoke a public share link.
 - **Stories** — a public feed of travel posts with photos, likes and comments; authors can edit or delete their own stories.
 - **Dashboard** — upcoming trip, today's plan, budget, weather forecast (OpenWeather) and travel news.
-- **Trip assistant** — a chat tab on each trip (Google Gemini) that answers questions about the trip's schedule and budget, suggests activities that can be added to the plan with one click, and answers general travel questions.
+- **Trip assistant** — a floating chat button on every signed-in page (Google Gemini). On a trip page it answers questions about the trip's schedule and budget, suggests activities that can be added to the plan with one click; on other pages it answers general travel questions or lets you pick a trip.
 
 ## Tech stack
 
@@ -53,7 +53,7 @@ www.tripo.website        Bearer token      api.tripo.website                │
 
 ## API overview
 
-All endpoints are under `/api`, exchange JSON, and return errors as `{ "error": { "code", "message" } }`. Protected endpoints need `Authorization: Bearer <Clerk session token>`. The full contract (25 paths, 37 operations) is in [Swagger UI](https://api.tripo.website/api-docs).
+All endpoints are under `/api`, exchange JSON, and return errors as `{ "error": { "code", "message" } }`. Protected endpoints need `Authorization: Bearer <Clerk session token>`. The full contract (26 paths, 38 operations) is in [Swagger UI](https://api.tripo.website/api-docs).
 
 | Resource | Endpoints |
 |---|---|
@@ -64,7 +64,7 @@ All endpoints are under `/api`, exchange JSON, and return errors as `{ "error": 
 | Members | `POST /api/trips/{tripId}/invitations`, `POST /api/trips/invitations/accept`, `GET /api/trips/{tripId}/members`, `DELETE …/members/{userId}` |
 | Sharing | `GET/POST/DELETE /api/trips/{tripId}/share`, `GET /api/share/{token}` (public) |
 | Stories | `GET/POST /api/posts`, `PATCH/DELETE /api/posts/{id}` (own story), `GET /api/posts/mine`, likes and comments |
-| Extras | `POST /api/trips/{tripId}/assistant`, `GET /api/trips/{tripId}/weather`, `PUT /api/trips/{tripId}/days/{date}/destination`, `GET /api/news` |
+| Extras | `POST /api/assistant`, `POST /api/trips/{tripId}/assistant`, `GET /api/trips/{tripId}/weather`, `PUT /api/trips/{tripId}/days/{date}/destination`, `GET /api/news` |
 
 Typical status codes: `200`, `201` created, `204` deleted, `400` validation, `401` not signed in, `404` not found or not allowed, `409` conflicting edit, `429` rate limited.
 

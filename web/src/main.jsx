@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ClerkProvider, SignIn, SignUp, useAuth } from '@clerk/react';
 import App from './App.jsx';
@@ -8,6 +8,8 @@ import { runViewTransition } from './lib/view-transition.js';
 import { INVITATION_RETURN_KEY, INVITATION_STORAGE_KEY } from './features/trips/invitation.js';
 import './styles.css';
 import './polish.css';
+
+const ChatBubble = lazy(() => import('./features/assistant/ChatBubble.jsx'));
 
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
@@ -107,7 +109,10 @@ function AuthenticatedApp({ path, search }) {
     return () => controller.abort();
   }, [getToken, isLoaded, isSignedIn, userId]);
 
-  return <AuthenticatedPages key={userId || 'guest'} path={path} search={search} getToken={getToken} isSignedIn={isLoaded && Boolean(isSignedIn)} profileStatus={isLoaded ? profileStatus : 'loading'} profileError={profileError} />;
+  return <>
+    <AuthenticatedPages key={userId || 'guest'} path={path} search={search} getToken={getToken} isSignedIn={isLoaded && Boolean(isSignedIn)} profileStatus={isLoaded ? profileStatus : 'loading'} profileError={profileError} />
+    {isLoaded && isSignedIn && profileStatus === 'ready' && <Suspense fallback={null}><ChatBubble key={userId} path={path} getToken={getToken} /></Suspense>}
+  </>;
 }
 
 function AuthPage({ signUp }) {
