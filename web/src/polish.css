@@ -35,7 +35,7 @@ body {
 .dashboard-trip::after { border-color: rgb(255 249 239 / 14%); box-shadow: 0 0 0 28px rgb(255 249 239 / 4%), 0 0 0 64px rgb(255 249 239 / 3%); }
 .dashboard-trip > span { background: var(--lime); color: var(--teal-dark); }
 /* DM Sans, not Georgia: Georgia lacks Vietnamese stacked accents ("hồ" rendered as "hô`"). */
-.dashboard-trip h2 { margin-top: 16px; color: white; font: 650 clamp(30px, 3.2vw, 40px)/1.12 'DM Sans', 'Segoe UI', sans-serif; letter-spacing: -.02em; }
+.dashboard-trip h2 { margin-top: 16px; color: white; font: 650 clamp(30px, 3.2vw, 40px)/1.12 var(--font-sans); letter-spacing: -.02em; }
 .dashboard-trip p { color: rgb(255 249 239 / 82%); }
 .dashboard-trip p:nth-of-type(1) { color: #ffcfb8; font-weight: 700; letter-spacing: .02em; }
 .dashboard-trip a {

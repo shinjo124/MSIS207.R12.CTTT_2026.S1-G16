@@ -1,0 +1,63 @@
+/* Modern look, loaded after polish.css. Be Vietnam Pro covers every Vietnamese letter,
+   so headings and text use one clean sans-serif family instead of serif headings. */
+:root {
+  --font-sans: 'Be Vietnam Pro', 'DM Sans', 'Segoe UI', sans-serif;
+  --font-serif: var(--font-sans);
+  --radius: 20px;
+  --shadow-soft: 0 10px 30px rgb(14 49 52 / 7%);
+  font-family: var(--font-sans);
+}
+body { font-family: var(--font-sans); letter-spacing: -.005em; }
+
+/* Former serif headings: heavier and tighter so they read as modern display type. */
+.section-heading h2, .panel h2, .dashboard-header h1, .dashboard-budget h2, .dashboard-agenda h2, .dashboard-empty h2,
+.dashboard-news h2, .weather-heading h2, .board-heading h2, .calendar-heading h2, .calendar-unscheduled h3, .budget-summary h2,
+.place-suggestions h3, .invite-page h1, .shared-state h1, .share-control h3, .destination-meta h3, .explore-region h3,
+.province-places-heading h2, .shared-trip h1, .shared-trip h2 {
+  font-family: var(--font-sans); font-weight: 750; letter-spacing: -.025em;
+}
+.section-heading h2 { font-size: clamp(28px, 3.2vw, 40px); }
+.weather-temperature, .day-count b { font-family: var(--font-sans); font-weight: 750; }
+
+/* Top bar: floating glass pill on wide screens. */
+@media (min-width: 901px) {
+  .topbar {
+    top: 12px; margin: 12px 0 0; padding: 0 14px 0 20px; min-height: 68px;
+    border: 1px solid rgb(23 51 59 / 8%); border-radius: 22px;
+    background: rgb(255 255 255 / 72%); box-shadow: 0 10px 30px rgb(14 49 52 / 8%); backdrop-filter: blur(18px) saturate(1.4);
+  }
+}
+@media (max-width: 900px) {
+  .topbar { background: rgb(255 255 255 / 82%); box-shadow: 0 6px 20px rgb(14 49 52 / 6%); backdrop-filter: blur(18px) saturate(1.4); }
+}
+.brand { font-family: var(--font-sans); letter-spacing: -.04em; }
+.brand-mark { border-radius: 11px; transform: rotate(-6deg); background: linear-gradient(135deg, #f08a63, #d9573a); box-shadow: 0 6px 14px rgb(217 87 58 / 30%); font-family: var(--font-sans); font-weight: 800; }
+.topbar .app-nav .nav-link { font-family: var(--font-sans); font-weight: 650; }
+.sign-in { font-weight: 700; }
+.sign-in:last-child { border-color: var(--teal-dark); background: var(--teal-dark); color: var(--cream); }
+.sign-in:last-child:hover { background: var(--teal); }
+
+/* Buttons and controls */
+.primary-button { border-radius: 14px; background: linear-gradient(135deg, #e0694c, #b74730); font-size: 13px; letter-spacing: .01em; }
+.primary-button:hover:not(:disabled) { background: linear-gradient(135deg, #d45a3d, #9f3d2a); }
+.category-filters button { font-weight: 650; transition: background .16s ease, color .16s ease, border-color .16s ease; }
+
+/* Cards and panels */
+.panel, .trip-card, .dashboard-budget, .dashboard-agenda, .dashboard-news, .weather-panel, .story-card, .province-card, .province-place {
+  border-radius: var(--radius);
+}
+.panel { border-color: rgb(23 51 59 / 7%); box-shadow: var(--shadow-soft); }
+.empty-state { border-radius: 16px; background: rgb(255 255 255 / 55%); }
+
+/* Footer */
+footer.site-footer { display: grid; grid-template-columns: 1.4fr 1fr; gap: 24px; margin-top: 24px; padding: 34px 0 40px; border-top: 1px solid rgb(23 51 59 / 10%); }
+.site-footer-brand { display: grid; gap: 8px; }
+.site-footer-brand strong { color: var(--teal-dark); font-size: 22px; font-weight: 800; letter-spacing: -.04em; }
+.site-footer-brand span { color: var(--muted); font-size: 14px; }
+.site-footer nav { display: flex; flex-wrap: wrap; justify-content: end; gap: 10px 22px; }
+.site-footer nav a { color: var(--teal-dark); font-size: 14px; font-weight: 650; text-decoration: none; }
+.site-footer nav a:hover { color: var(--coral); }
+@media (max-width: 640px) {
+  footer.site-footer { grid-template-columns: 1fr; }
+  .site-footer nav { justify-content: start; }
+}

@@ -5,12 +5,18 @@ import { REGIONS, filterProvinces, groupByRegion, provinceName, provinceSummary 
 import './explore.css';
 
 // Explore: every province and centrally run city, grouped by region. A card opens /explore/:id.
-export default function ExplorePage({ active = true }) {
+export default function ExplorePage({ active = true, search = '' }) {
   const [provinces, setProvinces] = useState([]);
   const [status, setStatus] = useState('loading');
   const [query, setQuery] = useState('');
   const [region, setRegion] = useState('');
   const language = getLanguage();
+
+  // The home page search sends people here as /explore?q=…
+  useEffect(() => {
+    const q = new URLSearchParams(search).get('q');
+    if (q !== null) setQuery(q);
+  }, [search]);
 
   useEffect(() => {
     if (!active || status === 'ready') return undefined;

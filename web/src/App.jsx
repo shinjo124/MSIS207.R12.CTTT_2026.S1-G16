@@ -11,6 +11,8 @@ const TripsPage = lazy(() => import('./features/trips/TripsPage.jsx'));
 const InvitePage = lazy(() => import('./features/trips/InvitePage.jsx'));
 const ExplorePage = lazy(() => import('./features/explore/ExplorePage.jsx'));
 const ProvincePage = lazy(() => import('./features/explore/ProvincePage.jsx'));
+const HomeHero = lazy(() => import('./features/home/HomeHero.jsx'));
+const HomeSuggestions = lazy(() => import('./features/home/HomeSuggestions.jsx'));
 
 // VIE / ENG switch. The choice is remembered in this browser.
 export function LanguageSwitch() {
@@ -74,34 +76,28 @@ export default function App(props) {
 }
 
 // Signed-in Home uses the dashboard. Explore and Stories reuse this shell and stay public.
-function HomePage({ getToken, isSignedIn = false, profileStatus = 'signed-out', profileError = '', page, active = true }) {
+function HomePage({ getToken, isSignedIn = false, profileStatus = 'signed-out', profileError = '', page, active = true, search = '' }) {
   return (
     <main className="page-shell">
       <Topbar getToken={getToken} isSignedIn={isSignedIn} active={page} />
 
       {page === 'home' && isSignedIn && <Suspense fallback={<p role="status">{t("Loading…")}</p>}><Dashboard getToken={getToken} isSignedIn={isSignedIn} profileStatus={profileStatus} profileError={profileError} active={active} /></Suspense>}
 
-      {page === 'home' && !isSignedIn && <section className="hero" id="top">
-        <div className="hero-copy">
-          <p className="eyebrow">{t("GOOD TRIPS, WELL PLANNED")}</p>
-          <h1>{t("More time")}<br />{t("for")} <em>{t("there.")}</em></h1>
-          <p className="hero-text">{t("Bring the places, plans, and costs for your next trip together in one easy-to-share itinerary.")}</p>
-          <a className="primary-button" href="/trips?new=1">{t("Create a trip")} <span aria-hidden="true">↗</span></a>
-        </div>
-        <div className="hero-art" aria-label={t("Illustration of a coastal trip")}>
-          <div className="sun" />
-          <div className="ridge ridge-back" />
-          <div className="ridge ridge-front" />
-          <div className="sea" />
-          <div className="art-label"><span>01</span> {t("A little further, together")}</div>
-        </div>
-      </section>}
+      {page === 'home' && !isSignedIn && <Suspense fallback={<p role="status">{t("Loading…")}</p>}><HomeHero /></Suspense>}
+      {page === 'home' && <Suspense fallback={null}><HomeSuggestions /></Suspense>}
 
-      {page === 'explore' && <Suspense fallback={<p role="status">{t("Loading…")}</p>}><ExplorePage active={active} /></Suspense>}
+      {page === 'explore' && <Suspense fallback={<p role="status">{t("Loading…")}</p>}><ExplorePage active={active} search={search} /></Suspense>}
 
       {page === 'stories' && <Suspense fallback={<p role="status">{t("Loading…")}</p>}><PostsFeed getToken={getToken} isSignedIn={isSignedIn} profileStatus={profileStatus} profileError={profileError} /></Suspense>}
 
-      <footer><span>tripo</span><span>{t("Plan a little. Enjoy a lot.")}</span></footer>
+      <footer className="site-footer">
+        <div className="site-footer-brand"><strong>tripo</strong><span>{t("Plan a little. Enjoy a lot.")}</span></div>
+        <nav aria-label={t('Footer')}>
+          <a href="/explore">{t('Explore')}</a>
+          <a href="/stories">{t('Stories')}</a>
+          <a href="/trips?new=1">{t('Create a trip')}</a>
+        </nav>
+      </footer>
     </main>
   );
 }

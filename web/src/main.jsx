@@ -10,6 +10,7 @@ import { runViewTransition } from './lib/view-transition.js';
 import { INVITATION_RETURN_KEY, INVITATION_STORAGE_KEY } from './features/trips/invitation.js';
 import './styles.css';
 import './polish.css';
+import './modern.css';
 
 const ChatBubble = lazy(() => import('./features/assistant/ChatBubble.jsx'));
 

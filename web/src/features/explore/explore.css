@@ -5,7 +5,7 @@
 .explore-search input:focus-visible { outline: 3px solid rgb(11 116 117 / 25%); border-color: var(--teal); }
 .explore-region { margin-top: 26px; }
 .explore-region h3 { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; color: var(--teal-dark); font: 400 26px/1.2 var(--font-serif); }
-.explore-region h3 span { padding: 3px 10px; border-radius: 999px; background: #e3efe9; color: var(--teal-dark); font: 700 12px/1.4 'DM Sans', 'Segoe UI', sans-serif; }
+.explore-region h3 span { padding: 3px 10px; border-radius: 999px; background: #e3efe9; color: var(--teal-dark); font: 700 12px/1.4 var(--font-sans); }
 .province-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; margin: 0; padding: 0; list-style: none; }
 .province-card { position: relative; display: flex; flex-direction: column; gap: 6px; height: 100%; padding: 18px 18px 16px; overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: var(--white); color: var(--ink); text-decoration: none; box-shadow: 0 6px 18px rgb(14 49 52 / 5%); transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
 .province-card::before { position: absolute; inset: 0 0 auto; height: 5px; background: var(--teal); content: ''; }
@@ -23,7 +23,7 @@
 .province-page { display: grid; gap: 26px; margin: 10px 0 40px; }
 .province-hero { display: grid; justify-items: start; gap: 10px; padding: 30px; border-radius: 26px; background: linear-gradient(120deg, var(--teal-dark), #1f6f6c); color: var(--cream); }
 .province-hero .eyebrow { margin: 0; color: var(--lime); }
-.province-hero h1 { margin: 0; font: 650 clamp(38px, 5vw, 60px)/1.05 'DM Sans', 'Segoe UI', sans-serif; letter-spacing: -.02em; }
+.province-hero h1 { margin: 0; font: 650 clamp(38px, 5vw, 60px)/1.05 var(--font-sans); letter-spacing: -.02em; }
 .province-hero p { max-width: 720px; margin: 0; font-size: 16px; line-height: 1.6; }
 .province-hero .province-merged { color: #cfe7df; font-size: 14px; }
 .province-hero .primary-button { margin-top: 8px; }
