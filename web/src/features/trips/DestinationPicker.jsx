@@ -4,7 +4,7 @@ import { categoryLabel } from './trip-format.js';
 import { displayName, searchDestinations } from './destination-search.js';
 import { filterPlacesByCategory } from './place-filters.js';
 import { t } from '../../lib/i18n.js';
-import GooglePlaces from './GooglePlaces.jsx';
+import PlaceIdeas from './PlaceIdeas.jsx';
 
 
 // Public place suggestions are catalog data. The picker skips this panel for custom destinations.
@@ -34,7 +34,7 @@ function PlaceSuggestions({ destination, getToken }) {
       <h3>{t("Places to explore in {name}", { name: destination.name })}</h3>
       {status === 'loading' && <p className="form-hint" role="status">{t("Loading places…")}</p>}
       {status === 'error' && <p className="form-hint error-state" role="alert">{t("Could not load places for {name}.", { name: destination.name })}</p>}
-      {status === 'empty' && !getToken && <p className="form-hint">{t("No seeded places for this destination yet.")}</p>}
+      {status === 'empty' && <p className="form-hint">{t("No seeded places for this destination yet.")}</p>}
       {status === 'ready' && <>
         <label className="place-filter">{t("Filter by type")}
           <select value={category} onChange={(event) => setCategory(event.target.value)}>
@@ -52,7 +52,7 @@ function PlaceSuggestions({ destination, getToken }) {
           ))}
         </ul>
       </>}
-      {getToken && <GooglePlaces destination={destination} getToken={getToken} />}
+      <PlaceIdeas destination={destination} />
     </section>
   );
 }

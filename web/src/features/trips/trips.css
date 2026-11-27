@@ -336,11 +336,12 @@
 .calendar-tip small { padding-top: 6px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
 @media (hover: none) { .calendar-tip { display: none; } }
 
-/* Live ideas from Google Maps (Places API). The "Google Maps" text attribution follows Google's rules: Roboto 400, #5E5E5E, not translated. */
+/* More place ideas (Geoapify / OpenStreetMap), with the required credit line. */
 .google-places { display: grid; gap: 8px; padding-top: 10px; border-top: 1px dashed var(--line); }
 .google-places-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .google-places-heading strong { color: var(--teal-dark); font-size: 13px; }
-.google-attribution { flex: 0 0 auto; color: #5e5e5e; font: 400 12px/1.3 Roboto, Arial, sans-serif; white-space: nowrap; }
+.google-attribution { flex: 0 0 auto; color: var(--muted); font-size: 11px; white-space: nowrap; }
+.google-attribution a { color: inherit; }
 .google-places-types { display: flex; flex-wrap: wrap; gap: 6px; }
 .google-places-types button { min-height: 34px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--white); color: var(--teal-dark); cursor: pointer; font: 600 12px/1.2 var(--font-sans); }
 .google-places-types button:hover:not(:disabled) { border-color: var(--teal); }

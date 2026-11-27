@@ -1,9 +1,7 @@
 import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { pool } from '../db/pool.js';
-import { requireAuth } from '../middleware/require-auth.js';
-import { requireProfile } from '../middleware/require-profile.js';
-import { GOOGLE_PLACE_TYPES, buildTextSearchRequest, searchGooglePlaces } from '../services/google-places.js';
+import { PLACE_IDEA_TYPES, buildPlacesUrl, searchPlaceIdeas } from '../services/place-ideas.js';
 
 const router = Router();
 const DESTINATION_COLUMNS = `id, name, local_name AS localName, aliases, is_featured AS featured, country, region, category,
@@ -34,6 +32,11 @@ router.get('/', async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+});
+
+// Lets the page hide the "More ideas" box when no key is set.
+router.get('/place-ideas/status', (req, res) => {
+  res.json({ data: { enabled: Boolean(process.env.GEOAPIFY_API_KEY) } });
 });
 
 // One public catalogue destination, for the Explore province page.
@@ -83,38 +86,37 @@ router.get('/:id/places', async (req, res, next) => {
   }
 });
 
-// Each search is a paid Google call, so limit it per signed-in user.
-const googlePlacesLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false,
-  keyGenerator: (req) => `google-places:${req.userId}`,
-  message: { error: { code: 'GOOGLE_PLACES_RATE_LIMITED', message: 'Too many Google searches. Try again in a few minutes.' } },
+// Live ideas from Geoapify cost a request each, so limit them per visitor.
+const placeIdeasLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, limit: 40, standardHeaders: 'draft-8', legacyHeaders: false,
+  message: { error: { code: 'PLACE_IDEAS_RATE_LIMITED', message: 'Too many searches. Try again in a few minutes.' } },
 });
 
-// Live ideas from Google Maps for a catalogue destination. Results are not stored (Google's terms).
-router.get('/:id/google-places', requireAuth, requireProfile, googlePlacesLimiter, async (req, res, next) => {
+// Places near a catalogue destination (OpenStreetMap data via Geoapify).
+router.get('/:id/place-ideas', placeIdeasLimiter, async (req, res, next) => {
   const destinationId = Number(req.params.id);
   if (!Number.isSafeInteger(destinationId) || destinationId < 1) {
     return res.status(400).json({ error: { code: 'INVALID_DESTINATION_ID', message: 'Destination ID must be a positive integer.' } });
   }
-  const type = typeof req.query.type === 'string' && Object.hasOwn(GOOGLE_PLACE_TYPES, req.query.type) ? req.query.type : null;
+  const type = typeof req.query.type === 'string' && Object.hasOwn(PLACE_IDEA_TYPES, req.query.type) ? req.query.type : null;
   if (!type) return res.status(400).json({ error: { code: 'INVALID_PLACE_TYPE', message: 'Choose a valid place type.' } });
-  res.set('Cache-Control', 'private, no-store');
   try {
     const [rows] = await pool.execute(
-      `SELECT id, name, local_name AS localName, country, latitude, longitude
-       FROM destinations WHERE id = ? AND custom_trip_id IS NULL`,
+      'SELECT id, latitude, longitude FROM destinations WHERE id = ? AND custom_trip_id IS NULL',
       [destinationId],
     );
     if (!rows.length) return res.status(404).json({ error: { code: 'DESTINATION_NOT_FOUND', message: 'Destination was not found.' } });
-    if (!process.env.GOOGLE_PLACES_API_KEY) {
-      return res.status(503).json({ error: { code: 'GOOGLE_PLACES_NOT_CONFIGURED', message: 'Google suggestions are not set up on this server yet.' } });
+    if (!process.env.GEOAPIFY_API_KEY) {
+      return res.status(503).json({ error: { code: 'PLACE_IDEAS_NOT_CONFIGURED', message: 'More place ideas are not set up on this server yet.' } });
     }
+    const url = buildPlacesUrl({ apiKey: process.env.GEOAPIFY_API_KEY, destination: rows[0], type, language: req.query.lang });
+    if (!url) return res.json({ data: [] });
     let places;
     try {
-      places = await searchGooglePlaces({ apiKey: process.env.GOOGLE_PLACES_API_KEY, body: buildTextSearchRequest(rows[0], type, req.query.lang) });
+      places = await searchPlaceIdeas(url);
     } catch (error) {
-      console.error(`[google-places] ${error.name === 'TimeoutError' ? 'Google did not answer in time' : error.message}`);
-      return res.status(503).json({ error: { code: 'GOOGLE_PLACES_UNAVAILABLE', message: 'Google suggestions are unavailable right now. Try again later.' } });
+      console.error(`[place-ideas] ${error.name === 'TimeoutError' ? 'Geoapify did not answer in time' : error.message.replace(/apiKey=[^&\s]+/g, 'apiKey=***')}`);
+      return res.status(503).json({ error: { code: 'PLACE_IDEAS_UNAVAILABLE', message: 'Place ideas are unavailable right now. Try again later.' } });
     }
     return res.json({ data: places });
   } catch (error) {

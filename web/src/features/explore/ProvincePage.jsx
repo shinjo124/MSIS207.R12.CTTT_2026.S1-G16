@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../../lib/api.js';
 import { getLanguage, t } from '../../lib/i18n.js';
-import GooglePlaces from '../trips/GooglePlaces.jsx';
+import PlaceIdeas from '../trips/PlaceIdeas.jsx';
 import { placeCategories, provinceName, provinceSummary } from './explore-data.js';
 import './explore.css';
 
 // One province: its summary, the places worth visiting (catalogue), and more ideas from Google Maps.
-export default function ProvincePage({ destinationId, getToken, isSignedIn = false }) {
+export default function ProvincePage({ destinationId }) {
   const [province, setProvince] = useState(null);
   const [places, setPlaces] = useState([]);
   const [status, setStatus] = useState('loading');
@@ -75,11 +75,7 @@ export default function ProvincePage({ destinationId, getToken, isSignedIn = fal
         </ul>
       </section>
 
-      <section className="province-google" aria-label={t('More ideas')}>
-        {isSignedIn && getToken
-          ? <GooglePlaces destination={{ id: province.id, name }} getToken={getToken} />
-          : <p className="form-hint">{t('Sign in to see more ideas from Google Maps: food, cafés, markets and more.')}</p>}
-      </section>
+      <PlaceIdeas key={province.id} destination={{ id: province.id, name }} />
     </article>
   );
 }

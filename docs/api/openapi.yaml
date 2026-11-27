@@ -103,11 +103,15 @@ paths:
         '200': { description: The destination, including adminLevel, mergedFrom, summary and summaryVi }
         '400': { description: INVALID_DESTINATION_ID }
         '404': { description: DESTINATION_NOT_FOUND }
-  /api/destinations/{id}/google-places:
+  /api/destinations/place-ideas/status:
     get:
-      summary: Live place ideas from Google Maps (Places API Text Search) for a catalogue destination
-      description: Signed-in users only. Results come straight from Google and are not stored. Show the "Google Maps" attribution with them.
-      security: [{ bearerAuth: [] }]
+      summary: Whether live place ideas (Geoapify) are set up on this server
+      responses:
+        '200': { description: "{ data: { enabled: boolean } }" }
+  /api/destinations/{id}/place-ideas:
+    get:
+      summary: Places near a catalogue destination from OpenStreetMap via Geoapify (not stored)
+      description: Public, 40 searches per 15 minutes per visitor. Show "Powered by Geoapify" and OpenStreetMap credit with the results.
       parameters:
         - in: path
           name: id
@@ -122,7 +126,7 @@ paths:
           schema: { type: string, enum: [vi, en], default: vi }
       responses:
         '200':
-          description: Up to 10 places
+          description: Up to 12 named places within 25 km
           content:
             application/json:
               schema:
@@ -137,15 +141,12 @@ paths:
                         id: { type: string }
                         name: { type: string }
                         address: { type: string }
+                        distanceKm: { type: number }
                         mapsUrl: { type: string, format: uri }
-                        type: { type: string }
-                        rating: { type: number }
-                        ratingCount: { type: integer }
         '400': { description: INVALID_DESTINATION_ID or INVALID_PLACE_TYPE }
-        '401': { description: Not signed in }
         '404': { description: DESTINATION_NOT_FOUND }
-        '429': { description: GOOGLE_PLACES_RATE_LIMITED (30 searches per 15 minutes per user) }
-        '503': { description: GOOGLE_PLACES_NOT_CONFIGURED or GOOGLE_PLACES_UNAVAILABLE }
+        '429': { description: PLACE_IDEAS_RATE_LIMITED }
+        '503': { description: PLACE_IDEAS_NOT_CONFIGURED (no GEOAPIFY_API_KEY) or PLACE_IDEAS_UNAVAILABLE }
   /api/destinations/{id}/places:
     get:
       summary: List curated places for a destination

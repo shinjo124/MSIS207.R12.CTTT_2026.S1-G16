@@ -69,7 +69,7 @@ export default function App(props) {
   }
   const provinceId = path.match(/^\/explore\/(\d+)$/)?.[1];
   if (provinceId) {
-    return <main className="page-shell"><Topbar getToken={props.getToken} isSignedIn={props.isSignedIn} active="explore" /><Suspense fallback={<p role="status">{t("Loading…")}</p>}><ProvincePage key={provinceId} destinationId={provinceId} getToken={props.getToken} isSignedIn={props.isSignedIn} /></Suspense></main>;
+    return <main className="page-shell"><Topbar getToken={props.getToken} isSignedIn={props.isSignedIn} active="explore" /><Suspense fallback={<p role="status">{t("Loading…")}</p>}><ProvincePage key={provinceId} destinationId={provinceId} /></Suspense></main>;
   }
   if (path === '/' || path === '/explore' || path === '/stories') return <HomePage {...props} page={path === '/explore' ? 'explore' : path === '/stories' ? 'stories' : 'home'} />;
   return <main className="page-shell"><Topbar getToken={props.getToken} isSignedIn={props.isSignedIn} /><section className="panel empty-panel"><h1>{t("Page not found")}</h1><p>{t("This page may have moved or the address may be incomplete.")}</p><a className="primary-button" href="/">{t("Go home")}</a></section></main>;

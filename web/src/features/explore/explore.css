@@ -43,8 +43,7 @@
 .place-tag.tag-food { background: #fdf0c9; color: #7a5a00; }
 .place-tag.tag-shopping { background: #efe4f6; color: #6a3d84; }
 .place-tag.tag-sightseeing { background: #e6eaf7; color: #344a8a; }
-.province-google { padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: #f5f8f3; }
-.province-google .google-places { padding-top: 0; border-top: 0; }
+.province-page > .place-ideas { padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: #f5f8f3; }
 @media (max-width: 640px) {
   .province-hero { padding: 22px 18px; border-radius: 20px; }
   .province-grid, .province-place-grid { grid-template-columns: 1fr; }

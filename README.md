@@ -31,7 +31,7 @@ Tripo helps a group plan a multi-day trip together: pick destinations, build a d
 - **Dashboard** — upcoming trip, today's plan, budget, weather forecast (OpenWeather) and travel news.
 - **Vietnamese and English** — a VIE / ENG switch in the top bar; the first visit follows the browser language and the choice is remembered.
 - **Explore Vietnam** — all 34 provinces and centrally run cities (2025 map), grouped by region and searchable by current or former province name; each has a page of places worth visiting (seed 005, Vietnamese and English).
-- **Ideas from Google Maps** — when choosing destinations, signed-in users can load popular sights, food, cafés, nature, history and markets from Google Places (live, not stored).
+- **More place ideas** — on each province page and when choosing destinations, six quick types (sights, food, cafés, nature, history, markets) load nearby places from OpenStreetMap via Geoapify. The box is hidden until `GEOAPIFY_API_KEY` is set.
 - **Tribot** — an AI travel assistant in a floating chat button on every signed-in page (Google Gemini). On a trip page it answers questions about the trip's schedule and budget, suggests activities that can be added to the plan with one click; on other pages it answers general travel questions or lets you pick a trip.
 
 ## Tech stack
@@ -56,7 +56,7 @@ www.tripo.website        Bearer token      api.tripo.website                │
 
 ## API overview
 
-All endpoints are under `/api`, exchange JSON, and return errors as `{ "error": { "code", "message" } }`. Protected endpoints need `Authorization: Bearer <Clerk session token>`. The full contract (28 paths, 40 operations) is in [Swagger UI](https://api.tripo.website/api-docs).
+All endpoints are under `/api`, exchange JSON, and return errors as `{ "error": { "code", "message" } }`. Protected endpoints need `Authorization: Bearer <Clerk session token>`. The full contract (29 paths, 41 operations) is in [Swagger UI](https://api.tripo.website/api-docs).
 
 | Resource | Endpoints |
 |---|---|
