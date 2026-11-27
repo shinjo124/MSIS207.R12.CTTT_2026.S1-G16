@@ -44,12 +44,17 @@ export default function ProvincePage({ destinationId }) {
   return (
     <article className="province-page">
       <a className="back-link" href="/explore">{t('← Explore')}</a>
-      <header className="province-hero">
+      <header className={`province-hero${province.imageUrl ? ' has-photo' : ''}`} style={province.imageUrl ? { '--hero-photo': `url("${province.imageUrl.replace(/"/g, '%22')}")` } : undefined}>
         <p className="eyebrow">{t(province.region)} · {province.adminLevel === 'city' ? t('City') : t('Province')}</p>
         <h1>{name}</h1>
         <p>{provinceSummary(province, language)}</p>
         {province.mergedFrom && <p className="province-merged">{t('Since 2025 this includes the former provinces: {names}.', { names: province.mergedFrom })}</p>}
         <a className="primary-button" href={`/trips?new=1&destination=${encodeURIComponent(province.id)}`}>{t('Plan a trip to {name}', { name })} <span aria-hidden="true">↗</span></a>
+        {province.imageUrl && province.imageCredit && (
+          <a className="province-hero-credit" href={province.imagePageUrl || 'https://commons.wikimedia.org/'} target="_blank" rel="noreferrer">
+            {t('Photo: {credit}', { credit: province.imageCredit })}{province.imageLicense ? ` · ${province.imageLicense}` : ''}
+          </a>
+        )}
       </header>
 
       {province.latitude != null && province.longitude != null && (

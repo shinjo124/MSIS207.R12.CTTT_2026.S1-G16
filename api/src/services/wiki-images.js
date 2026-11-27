@@ -49,3 +49,13 @@ export function pickCommonsInfo(data) {
   const artist = stripHtml(meta.Artist?.value).slice(0, 200) || 'Wikimedia Commons';
   return { credit: artist, license: license.slice(0, 100), pageUrl: info.descriptionurl || null };
 }
+
+// Pick the photo that best represents a province from its places: scenery first, food and shops last.
+const CATEGORY_ORDER = ['Sightseeing', 'Nature', 'Beach', 'Culture', 'Shopping', 'Food'];
+export function pickProvincePhoto(places) {
+  const withPhoto = places.filter((place) => place.imageUrl);
+  if (!withPhoto.length) return null;
+  const rank = (place) => { const index = CATEGORY_ORDER.indexOf(place.category); return index === -1 ? CATEGORY_ORDER.length : index; };
+  const best = [...withPhoto].sort((a, b) => rank(a) - rank(b) || Number(a.id) - Number(b.id))[0];
+  return { placeName: best.name, url: best.imageUrl, credit: best.imageCredit || null, license: best.imageLicense || null, pageUrl: best.imagePageUrl || null };
+}

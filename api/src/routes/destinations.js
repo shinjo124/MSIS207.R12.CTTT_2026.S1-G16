@@ -6,7 +6,8 @@ import { PLACE_IDEA_TYPES, buildPlacesUrl, searchPlaceIdeas } from '../services/
 const router = Router();
 const DESTINATION_COLUMNS = `id, name, local_name AS localName, aliases, is_featured AS featured, country, region, category,
   admin_level AS adminLevel, merged_from AS mergedFrom, summary, summary_vi AS summaryVi,
-  best_season AS bestSeason, map_query AS mapQuery, image_url AS imageUrl, latitude, longitude, time_zone AS timeZone`;
+  best_season AS bestSeason, map_query AS mapQuery, image_url AS imageUrl, image_credit AS imageCredit, image_license AS imageLicense,
+  image_page_url AS imagePageUrl, latitude, longitude, time_zone AS timeZone`;
 
 // Default: featured destinations for the home page.
 // Scope all includes the entire public catalog. Custom destinations stay inside their trips.

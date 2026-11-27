@@ -60,7 +60,13 @@ export default function ExplorePage({ active = true, search = '' }) {
           <ul className="province-grid">
             {group.provinces.map((province) => (
               <li key={province.id}>
-                <a className={`province-card region-${REGIONS.indexOf(province.region)}`} href={`/explore/${province.id}`}>
+                <a className={`province-card region-${REGIONS.indexOf(province.region)}${province.imageUrl ? ' has-photo' : ''}`} href={`/explore/${province.id}`}>
+                  {province.imageUrl && (
+                    <span className="province-card-photo">
+                      <img src={province.imageUrl} alt="" loading="lazy" />
+                      {province.imageCredit && <small>{t('Photo: {credit}', { credit: province.imageCredit })}{province.imageLicense ? ` · ${province.imageLicense}` : ''}</small>}
+                    </span>
+                  )}
                   <span className="province-kind">{province.adminLevel === 'city' ? t('City') : t('Province')}</span>
                   <strong>{provinceName(province, language)}</strong>
                   {province.mergedFrom && <small>{t('Includes {names}', { names: province.mergedFrom })}</small>}

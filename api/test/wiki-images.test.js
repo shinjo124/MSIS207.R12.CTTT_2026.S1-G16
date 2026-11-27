@@ -21,3 +21,14 @@ test('reads search results, page image and Commons licence', () => {
   assert.deepEqual(info, { credit: 'Nguyễn A', license: 'CC BY-SA 4.0', pageUrl: 'https://commons.wikimedia.org/wiki/File:X.jpg' });
   assert.equal(pickCommonsInfo({ query: { pages: { '-1': { imageinfo: [{ extmetadata: { LicenseShortName: { value: 'Fair use' } } }] } } } }), null);
 });
+
+test('province photo prefers scenery over food and markets', async () => {
+  const { pickProvincePhoto } = await import('../src/services/wiki-images.js');
+  const photo = pickProvincePhoto([
+    { id: 1, name: 'Chợ Đà Lạt', category: 'Shopping', imageUrl: 'a.jpg' },
+    { id: 2, name: 'Hồ Xuân Hương', category: 'Nature', imageUrl: 'b.jpg', imageCredit: 'A', imageLicense: 'CC BY-SA 4.0' },
+    { id: 3, name: 'Quảng trường Lâm Viên', category: 'Sightseeing', imageUrl: null },
+  ]);
+  assert.deepEqual(photo, { placeName: 'Hồ Xuân Hương', url: 'b.jpg', credit: 'A', license: 'CC BY-SA 4.0', pageUrl: null });
+  assert.equal(pickProvincePhoto([{ id: 1, category: 'Food', imageUrl: null }]), null);
+});
