@@ -3,6 +3,8 @@
 // API error messages are included so server errors also show in Vietnamese.
 export default {
   // Interface
+  "Photos: Wikimedia Commons. Authors and licences are listed on each province page.": "Ảnh: Wikimedia Commons. Tác giả và giấy phép ghi ở cuối trang từng tỉnh.",
+  "Photo credits ({n})": "Nguồn ảnh ({n})",
   "Split the bill": "Chia tiền",
   "Record who paid each spend. Tripo splits it equally and shows who should pay whom.": "Ghi ai đã trả từng khoản. Tripo chia đều và cho biết ai cần trả ai bao nhiêu.",
   "People on this trip": "Người trong chuyến đi",

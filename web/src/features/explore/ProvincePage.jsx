@@ -50,11 +50,6 @@ export default function ProvincePage({ destinationId }) {
         <p>{provinceSummary(province, language)}</p>
         {province.mergedFrom && <p className="province-merged">{t('Since 2025 this includes the former provinces: {names}.', { names: province.mergedFrom })}</p>}
         <a className="primary-button" href={`/trips?new=1&destination=${encodeURIComponent(province.id)}`}>{t('Plan a trip to {name}', { name })} <span aria-hidden="true">↗</span></a>
-        {province.imageUrl && province.imageCredit && (
-          <a className="province-hero-credit" href={province.imagePageUrl || 'https://commons.wikimedia.org/'} target="_blank" rel="noreferrer">
-            {t('Photo: {credit}', { credit: province.imageCredit })}{province.imageLicense ? ` · ${province.imageLicense}` : ''}
-          </a>
-        )}
       </header>
 
       {province.latitude != null && province.longitude != null && (
@@ -80,11 +75,6 @@ export default function ProvincePage({ destinationId }) {
               {place.imageUrl && (
                 <figure className="province-place-photo">
                   <img src={place.imageUrl} alt={place.name} loading="lazy" />
-                  <figcaption>
-                    <a href={place.imagePageUrl || 'https://commons.wikimedia.org/'} target="_blank" rel="noreferrer">
-                      {t('Photo: {credit}', { credit: place.imageCredit || 'Wikimedia Commons' })}{place.imageLicense ? ` · ${place.imageLicense}` : ''}
-                    </a>
-                  </figcaption>
                 </figure>
               )}
               <span className={`place-tag tag-${place.category.toLowerCase()}`}>{t(place.category)}</span>
@@ -98,6 +88,25 @@ export default function ProvincePage({ destinationId }) {
       </section>
 
       <PlaceIdeas key={province.id} destination={{ id: province.id, name }} onResults={setIdeas} />
+      {(() => {
+        const credits = [
+          ...(province.imageUrl && province.imageCredit ? [{ key: 'hero', name, credit: province.imageCredit, license: province.imageLicense, url: province.imagePageUrl }] : []),
+          ...places.filter((place) => place.imageUrl && place.imageCredit).map((place) => ({ key: place.id, name: place.name, credit: place.imageCredit, license: place.imageLicense, url: place.imagePageUrl })),
+        ];
+        return credits.length > 0 && (
+          <details className="photo-credits">
+            <summary>{t('Photo credits ({n})', { n: credits.length })}</summary>
+            <ul>
+              {credits.map((item) => (
+                <li key={item.key}>
+                  <strong>{item.name}</strong>: {item.credit}{item.license ? ` · ${item.license}` : ''}
+                  {item.url && <> · <a href={item.url} target="_blank" rel="noreferrer">Wikimedia Commons</a></>}
+                </li>
+              ))}
+            </ul>
+          </details>
+        );
+      })()}
     </article>
   );
 }

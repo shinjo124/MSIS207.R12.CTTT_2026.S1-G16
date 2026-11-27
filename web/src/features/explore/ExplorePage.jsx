@@ -62,9 +62,8 @@ export default function ExplorePage({ active = true, search = '' }) {
               <li key={province.id}>
                 <a className={`province-card region-${REGIONS.indexOf(province.region)}${province.imageUrl ? ' has-photo' : ''}`} href={`/explore/${province.id}`}>
                   {province.imageUrl && (
-                    <span className="province-card-photo">
+                    <span className="province-card-photo" title={province.imageCredit ? t('Photo: {credit}', { credit: `${province.imageCredit}${province.imageLicense ? ` · ${province.imageLicense}` : ''}` }) : undefined}>
                       <img src={province.imageUrl} alt="" loading="lazy" />
-                      {province.imageCredit && <small>{t('Photo: {credit}', { credit: province.imageCredit })}{province.imageLicense ? ` · ${province.imageLicense}` : ''}</small>}
                     </span>
                   )}
                   <span className="province-kind">{province.adminLevel === 'city' ? t('City') : t('Province')}</span>
@@ -78,6 +77,9 @@ export default function ExplorePage({ active = true, search = '' }) {
           </ul>
         </section>
       ))}
+      {status === 'ready' && provinces.some((province) => province.imageCredit) && (
+        <p className="photo-credits-note">{t('Photos: Wikimedia Commons. Authors and licences are listed on each province page.')}</p>
+      )}
     </section>
   );
 }
