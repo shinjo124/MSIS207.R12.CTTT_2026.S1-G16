@@ -4,33 +4,44 @@ import { commonsInfoUrl, isRelevantTitle, pageImageUrl, pickCommonsInfo, pickPag
 
 // Add a Wikimedia Commons photo (with author and licence) to catalogue places that have none.
 // Safe to re-run; only places without a photo are looked up. Run: npm run places:images
-const HEADERS = { 'User-Agent': 'TripoStudentProject/1.0 (MSIS207 coursework; place photos)' };
+// Wikimedia asks scripts to identify themselves with a contact and to go slowly, one request at a time.
+const HEADERS = {
+  'User-Agent': 'TripoPlacePhotos/1.0 (https://www.tripo.website; student project MSIS207) node-fetch',
+  'Api-User-Agent': 'TripoPlacePhotos/1.0 (https://www.tripo.website)',
+};
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const PAUSE_MS = 1100;
+let blockedInARow = 0;
 
+class RateLimited extends Error {}
+
+// Wait between requests; on 429 wait for Retry-After (or longer each time) and try again.
 async function getJson(url) {
-  for (let attempt = 1; attempt <= 2; attempt += 1) {
-    try {
-      const response = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(20000) });
-      if (!response.ok) throw new Error(`status ${response.status}`);
-      return await response.json();
-    } catch (error) {
-      if (attempt === 2) throw error;
-      await sleep(1500);
+  for (let attempt = 1; attempt <= 4; attempt += 1) {
+    await sleep(PAUSE_MS);
+    const response = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(20000) });
+    if (response.status === 429 || response.status === 503) {
+      const retryAfter = Number(response.headers.get('retry-after'));
+      const wait = Math.min(120000, Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 15000 * attempt);
+      console.log(`  Wikimedia asked to slow down, waiting ${Math.round(wait / 1000)} s…`);
+      await sleep(wait);
+      continue;
     }
+    if (!response.ok) throw new Error(`status ${response.status}`);
+    blockedInARow = 0;
+    return response.json();
   }
-  return null;
+  blockedInARow += 1;
+  throw new RateLimited('still rate limited');
 }
 
 async function findPhoto(place) {
   for (const text of [place.name, `${place.name} ${place.destinationName}`]) {
     const titles = searchTitles(await getJson(wikiSearchUrl(text))).filter((title) => isRelevantTitle(place.name, title));
-    await sleep(200);
     for (const title of titles.slice(0, 2)) {
       const image = pickPageImage(await getJson(pageImageUrl(title)));
-      await sleep(200);
       if (!image) continue;
       const info = pickCommonsInfo(await getJson(commonsInfoUrl(image.fileName)));
-      await sleep(200);
       if (info) return { url: image.thumbnail, ...info, title };
     }
   }
@@ -56,6 +67,10 @@ try {
       }
     } catch (error) {
       console.error(`  failed: ${place.name} (${error.message})`);
+      if (blockedInARow >= 3) {
+        console.error('Wikimedia keeps refusing requests. Stopping now; wait 15-30 minutes and run again (finished places are kept).');
+        break;
+      }
     }
     if ((index + 1) % 25 === 0) console.log(`  …${index + 1}/${places.length}`);
   }
