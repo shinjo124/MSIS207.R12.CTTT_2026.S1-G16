@@ -1,3 +1,4 @@
+import { t } from './i18n.js';
 export const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL
   || (import.meta.env.PROD ? 'https://api.tripo.website' : 'http://localhost:4000')).replace(/\/+$/, '');
 
@@ -21,7 +22,7 @@ export async function apiRequest(path, options = {}) {
   if (response.status === 204) return null;
   const result = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = new Error(result.error?.message || 'The request could not be completed.');
+    const error = new Error(t(result.error?.message || 'The request could not be completed.'));
     error.code = result.error?.code;
     throw error;
   }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../../lib/api.js';
 import { invitationFromFragment, INVITATION_RETURN_KEY, INVITATION_STORAGE_KEY } from './invitation.js';
+import { t } from '../../lib/i18n.js';
 
 // The first visit can carry a fragment. After sign-in, the token may only be in this tab's session storage.
 function storedInvitation() {
@@ -41,15 +42,15 @@ export default function InvitePage({ getToken, isSignedIn, profileStatus, profil
     } catch (error) { setMessage(error.message); setBusy(false); }
   }
   return <section className="invite-page" aria-labelledby="invite-title">
-    <h1 id="invite-title">Trip invitation</h1>
-    {!token ? <p>This invitation is missing or invalid. Ask the trip owner for a new link.</p> : <>
-      <p>You have been invited to collaborate on a trip. Joining lets you edit its details and activities.</p>
-      {profileStatus === 'loading' && <p role="status">Setting up your profile…</p>}
-      {!isSignedIn && profileStatus !== 'loading' && <><p>Sign in before deciding whether to join.</p>{!storageAvailable && <p>After signing in, reopen the original invitation link.</p>}<a className="primary-button" href="/sign-in" onClick={signIn}>Sign in</a></>}
-      {isSignedIn && profileStatus === 'error' && <p role="alert">Profile setup failed: {profileError || 'Check the connection and try again.'}</p>}
-      {isSignedIn && profileStatus === 'ready' && <button className="primary-button" type="button" onClick={accept} disabled={busy}>{busy ? 'Joining…' : 'Accept invitation'}</button>}
+    <h1 id="invite-title">{t("Trip invitation")}</h1>
+    {!token ? <p>{t("This invitation is missing or invalid. Ask the trip owner for a new link.")}</p> : <>
+      <p>{t("You have been invited to collaborate on a trip. Joining lets you edit its details and activities.")}</p>
+      {profileStatus === 'loading' && <p role="status">{t("Setting up your profile…")}</p>}
+      {!isSignedIn && profileStatus !== 'loading' && <><p>{t("Sign in before deciding whether to join.")}</p>{!storageAvailable && <p>{t("After signing in, reopen the original invitation link.")}</p>}<a className="primary-button" href="/sign-in" onClick={signIn}>{t("Sign in")}</a></>}
+      {isSignedIn && profileStatus === 'error' && <p role="alert">{t("Profile setup failed:")} {profileError || t("Check the connection and try again.")}</p>}
+      {isSignedIn && profileStatus === 'ready' && <button className="primary-button" type="button" onClick={accept} disabled={busy}>{busy ? t("Joining…") : t("Accept invitation")}</button>}
       {message && <p className="form-error" role="alert">{message}</p>}
     </>}
-    <button className="invite-cancel" type="button" onClick={cancel} disabled={busy}>Cancel</button>
+    <button className="invite-cancel" type="button" onClick={cancel} disabled={busy}>{t("Cancel")}</button>
   </section>;
 }

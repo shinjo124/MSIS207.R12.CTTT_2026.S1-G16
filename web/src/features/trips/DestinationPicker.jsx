@@ -3,10 +3,12 @@ import { apiRequest } from '../../lib/api.js';
 import { categoryLabel } from './trip-format.js';
 import { displayName, searchDestinations } from './destination-search.js';
 import { filterPlacesByCategory } from './place-filters.js';
+import { t } from '../../lib/i18n.js';
+import PlaceIdeas from './PlaceIdeas.jsx';
 
 
 // Public place suggestions are catalog data. The picker skips this panel for custom destinations.
-function PlaceSuggestions({ destination }) {
+function PlaceSuggestions({ destination, getToken }) {
   const [places, setPlaces] = useState([]);
   const [status, setStatus] = useState('loading');
   const [category, setCategory] = useState('');
@@ -28,15 +30,15 @@ function PlaceSuggestions({ destination }) {
   const visiblePlaces = filterPlacesByCategory(places, category);
 
   return (
-    <section className="place-suggestions" aria-label={`Places in ${destination.name}`}>
-      <h3>Places to explore in {destination.name}</h3>
-      {status === 'loading' && <p className="form-hint" role="status">Loading places…</p>}
-      {status === 'error' && <p className="form-hint error-state" role="alert">Could not load places for {destination.name}.</p>}
-      {status === 'empty' && <p className="form-hint">No seeded places for this destination yet.</p>}
+    <section className="place-suggestions" aria-label={t('Places in {name}', { name: destination.name })}>
+      <h3>{t("Places to explore in {name}", { name: destination.name })}</h3>
+      {status === 'loading' && <p className="form-hint" role="status">{t("Loading places…")}</p>}
+      {status === 'error' && <p className="form-hint error-state" role="alert">{t("Could not load places for {name}.", { name: destination.name })}</p>}
+      {status === 'empty' && <p className="form-hint">{t("No seeded places for this destination yet.")}</p>}
       {status === 'ready' && <>
-        <label className="place-filter">Filter by type
+        <label className="place-filter">{t("Filter by type")}
           <select value={category} onChange={(event) => setCategory(event.target.value)}>
-            <option value="">All types</option>
+            <option value="">{t("All types")}</option>
             {categories.map((item) => <option key={item} value={item}>{categoryLabel(item)}</option>)}
           </select>
         </label>
@@ -50,6 +52,7 @@ function PlaceSuggestions({ destination }) {
           ))}
         </ul>
       </>}
+      <PlaceIdeas destination={destination} />
     </section>
   );
 }
@@ -60,7 +63,7 @@ function PlaceSuggestions({ destination }) {
 // and `options` reuses the destination list the composer already loaded.
 export default function DestinationPicker({
   selected, onChange, max = 10, showPlaces = true, options, disabled = false, labelledBy, allowCustom = false,
-  placeholder = 'Type a city or province, e.g. Đà Lạt, da lat, H…',
+  placeholder = 'Type a city or province…', getToken = null,
 }) {
   const [fetched, setFetched] = useState([]);
   const [fetchStatus, setFetchStatus] = useState('loading');
@@ -164,17 +167,17 @@ export default function DestinationPicker({
 
   return (
     <div className="destination-picker">
-      {selected.length > 0 && <ol className="selected-destinations" aria-label={single ? 'Chosen destination' : 'Chosen destinations, in visiting order'}>
+      {selected.length > 0 && <ol className="selected-destinations" aria-label={single ? t("Chosen destination") : t("Chosen destinations, in visiting order")}>
         {selected.map((destination, index) => (
           <li key={destination.id} className="chip chip-selected">
             {!single && <b>{index + 1}</b>}{destination.name}
-            <button type="button" className="chip-remove" onClick={() => remove(destination.id)} aria-label={`Remove ${destination.name}`}>×</button>
+            <button type="button" className="chip-remove" onClick={() => remove(destination.id)} aria-label={t('Remove {name}', { name: destination.name })}>×</button>
           </li>
         ))}
       </ol>}
 
       {showPlaces && selected.some((destination) => !destination.custom) && <div className="place-suggestions-list">
-        {selected.filter((destination) => !destination.custom).map((destination) => <PlaceSuggestions key={destination.id} destination={destination} />)}
+        {selected.filter((destination) => !destination.custom).map((destination) => <PlaceSuggestions key={destination.id} destination={destination} getToken={getToken} />)}
       </div>}
 
       {!(single && full) && <div className="combobox">
@@ -182,7 +185,7 @@ export default function DestinationPicker({
           ref={inputRef}
           role="combobox"
           aria-labelledby={labelledBy}
-          aria-label={labelledBy ? undefined : 'Search destinations'}
+          aria-label={labelledBy ? undefined : t("Search destinations")}
           aria-expanded={showList}
           aria-controls={listId}
           aria-autocomplete="list"
@@ -190,7 +193,7 @@ export default function DestinationPicker({
           value={query}
           disabled={disabled || full || Boolean(customName) || (status === 'error' && !allowCustom)}
           maxLength={allowCustom ? 120 : undefined}
-          placeholder={full ? `Up to ${max} destinations` : placeholder}
+          placeholder={full ? t('Up to {max} destinations', { max }) : t(placeholder)}
           onChange={(event) => { setQuery(event.target.value); setActive(0); setOpen(true); }}
           onFocus={() => setOpen(true)}
           onBlur={() => setOpen(false)}
@@ -207,14 +210,14 @@ export default function DestinationPicker({
                   id={`${listId}-${destination.id}`}
                   role="option"
                   aria-selected={index === active}
-                  aria-label={`Add ${displayName(destination)}, ${destination.region}`}
+                  aria-label={t('Add {name}, {region}', { name: displayName(destination), region: t(destination.region) })}
                   // Keep the list open until the click handler adds this destination.
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => choose(destination)}
                   onMouseEnter={() => setActive(index)}
                 >
-                  <span className="destination-suggestion-name"><strong>{displayName(destination)}</strong><small>{destination.region}</small></span>
-                  <span className="destination-add-label">+ Add</span>
+                  <span className="destination-suggestion-name"><strong>{displayName(destination)}</strong><small>{t(destination.region)}</small></span>
+                  <span className="destination-add-label">{t("+ Add")}</span>
                 </button>
                 </li>
               ))}
@@ -222,28 +225,28 @@ export default function DestinationPicker({
             <button className="destination-suggestion" id={`${listId}-custom`} type="button" role="option"
               aria-selected={active === suggestions.length} onMouseDown={(event) => event.preventDefault()}
               onMouseEnter={() => setActive(suggestions.length)} onClick={openCustom}>
-              Use “{query.trim()}” as a custom destination
+              {t("Use “{name}” as a custom destination", { name: query.trim() })}
             </button>
           </li>}
-          {!optionCount && <li className="no-match" role="option" aria-disabled="true" aria-selected="false">No destination matches “{query}”.</li>}
+          {!optionCount && <li className="no-match" role="option" aria-disabled="true" aria-selected="false">{t("No destination matches “{query}”.", { query })}</li>}
         </ul>}
       </div>}
 
       {customName && <div className="field">
-        <label className="field">Country for {customName}
+        <label className="field">{t("Country for {name}", { name: customName })}
           <input ref={countryRef} value={customCountry} maxLength={120} onChange={(event) => setCustomCountry(event.target.value)}
             onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addCustom(); } }} />
         </label>
-        {duplicate && <p className="form-hint" role="status">This custom destination is already selected.</p>}
+        {duplicate && <p className="form-hint" role="status">{t("This custom destination is already selected.")}</p>}
         <div className="form-actions">
-          <button className="primary-button" type="button" disabled={!country || duplicate || disabled} onClick={addCustom}>Add destination</button>
-          <button className="text-button" type="button" onClick={closeCustom}>Cancel</button>
+          <button className="primary-button" type="button" disabled={!country || duplicate || disabled} onClick={addCustom}>{t("Add destination")}</button>
+          <button className="text-button" type="button" onClick={closeCustom}>{t("Cancel")}</button>
         </div>
       </div>}
 
-      {!options && status === 'loading' && <p className="form-hint" role="status">Loading destinations…</p>}
-      {status === 'error' && <p className="form-hint error-state" role="alert">Could not load destinations. Refresh to try again.</p>}
-      {!options && status === 'empty' && <p className="form-hint">No destinations yet. Run the seed files first.</p>}
+      {!options && status === 'loading' && <p className="form-hint" role="status">{t("Loading destinations…")}</p>}
+      {status === 'error' && <p className="form-hint error-state" role="alert">{t("Could not load destinations. Refresh to try again.")}</p>}
+      {!options && status === 'empty' && <p className="form-hint">{t("No destinations yet. Run the seed files first.")}</p>}
     </div>
   );
 }

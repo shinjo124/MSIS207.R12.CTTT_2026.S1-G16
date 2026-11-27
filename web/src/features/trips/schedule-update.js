@@ -1,3 +1,4 @@
+import { t } from '../../lib/i18n.js';
 // Move an activity between day lists without changing the rest of the trip response.
 export function updateSchedule(trip, id, values) {
   if (!trip) return trip;
@@ -17,8 +18,8 @@ export function updateSchedule(trip, id, values) {
 export function createMutationLock(isOnline = () => globalThis.navigator?.onLine !== false) {
   let busy = false;
   return async (work) => {
-    if (!isOnline()) throw new Error('A connection is required to save changes. Reconnect and try again.');
-    if (busy) throw new Error('Please wait for another change to finish.');
+    if (!isOnline()) throw new Error(t('A connection is required to save changes. Reconnect and try again.'));
+    if (busy) throw new Error(t('Please wait for another change to finish.'));
     busy = true;
     try { return await work(); }
     finally { busy = false; }

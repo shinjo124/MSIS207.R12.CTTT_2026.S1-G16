@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiRequest } from '../../lib/api.js';
 import { formatDate } from '../trips/trip-format.js';
+import { t } from '../../lib/i18n.js';
 
 // The dashboard shows this panel. The calendar can use it as a hidden loader for destination forecasts.
 export default function WeatherPanel({ trip, getToken, date, destinationId, onWeatherChange, hidden = false }) {
@@ -31,22 +32,22 @@ export default function WeatherPanel({ trip, getToken, date, destinationId, onWe
   const description = forecast?.description?.toLowerCase() || '';
   const weather = /thunder|storm|rain|drizzle|shower/.test(description) ? 'rain' : /cloud|overcast|mist|fog/.test(description) ? 'cloud' : 'sun';
   if (hidden) return null;
-  return <section className="weather-panel" data-weather={status === 'ready' && data?.status === 'available' ? weather : undefined} aria-label="Trip weather">
-    <div className="weather-heading"><h2>Weather</h2></div>
-    {status === 'loading' && <p role="status">Loading weather…</p>}
-    {status === 'error' && <p role="alert">{message} <button className="text-button" type="button" onClick={() => load()}>Retry</button></p>}
-    {status === 'ready' && data?.status === 'not-configured' && <p>Weather is not configured on the server yet.</p>}
-    {status === 'ready' && data?.status === 'missing-location' && <p>Add a destination with weather coordinates to see the forecast.</p>}
+  return <section className="weather-panel" data-weather={status === 'ready' && data?.status === 'available' ? weather : undefined} aria-label={t("Trip weather")}>
+    <div className="weather-heading"><h2>{t("Weather")}</h2></div>
+    {status === 'loading' && <p role="status">{t("Loading weather…")}</p>}
+    {status === 'error' && <p role="alert">{message} <button className="text-button" type="button" onClick={() => load()}>{t("Retry")}</button></p>}
+    {status === 'ready' && data?.status === 'not-configured' && <p>{t("Weather is not configured on the server yet.")}</p>}
+    {status === 'ready' && data?.status === 'missing-location' && <p>{t("Add a destination with weather coordinates to see the forecast.")}</p>}
     {status === 'ready' && data?.status === 'available' && <>
       <p className="weather-location">{data.location.destinationName}</p>
       {forecast ? <>
         <div className="weather-current">
-          <strong className="weather-temperature">{Math.round(forecast.temperature)}°C</strong>
+          <strong className="weather-temperature">{Math.round(forecast.temperature)}{t("°C")}</strong>
           <span className="weather-condition">{forecast.description}</span>
         </div>
-        <p className="weather-forecast-time">Forecast for {formatDate(date)}, {forecast.time} local time</p>
-      </> : <p>No forecast is available for {formatDate(date)}.</p>}
-      <p className="weather-attribution">Weather: <a href="https://openweathermap.org/" target="_blank" rel="noreferrer">OpenWeather</a> · Location data: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors (ODbL)</a></p>
+        <p className="weather-forecast-time">{t("Forecast for {date}, {time} local time", { date: formatDate(date), time: forecast.time })}</p>
+      </> : <p>{t("No forecast is available for {date}.", { date: formatDate(date) })}</p>}
+      <p className="weather-attribution">{t("Weather:")} <a href="https://openweathermap.org/" target="_blank" rel="noreferrer">OpenWeather</a> {t("· Location data:")} <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors (ODbL)</a></p>
     </>}
   </section>;
 }

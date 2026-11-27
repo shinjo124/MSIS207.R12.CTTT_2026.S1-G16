@@ -10,7 +10,10 @@
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
     "test": "node --experimental-sqlite --experimental-test-module-mocks --test",
-    "photos:retry": "node scripts/retry-photo-deletes.js"
+    "photos:retry": "node scripts/retry-photo-deletes.js",
+    "places:geocode": "node scripts/geocode-places.js",
+    "places:images": "node scripts/place-images.js",
+    "provinces:images": "node scripts/province-images.js"
   },
   "dependencies": {
     "@clerk/express": "^2.1.88",

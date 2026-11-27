@@ -1,3 +1,4 @@
+import { getLanguage, locale, t } from '../../lib/i18n.js';
 export const CATEGORIES = [
   { value: 'sightseeing', label: 'Sightseeing / check-in' },
   { value: 'food_drink', label: 'Food & drink' },
@@ -65,7 +66,7 @@ export function formatTripTitle(title) {
   return title.normalize('NFC').replace(/\s+([,.;!?])/g, '$1');
 }
 
-export const categoryLabel = (value) => CATEGORIES.find((item) => item.value === value)?.label || value;
+export const categoryLabel = (value) => t(CATEGORIES.find((item) => item.value === value)?.label || value);
 
 // shortcut: only Vietnam has a reliable country-wide zone; use destination zone metadata when available.
 export function destinationTimeZone(destination) {
@@ -73,9 +74,9 @@ export function destinationTimeZone(destination) {
 }
 
 export function timeZoneLabel(timeZone) {
-  if (!timeZone) return 'Time zone not set';
-  try { return new Intl.DateTimeFormat('en', { timeZone, timeZoneName: 'longGeneric' }).formatToParts(new Date()).find(({ type }) => type === 'timeZoneName')?.value || 'Local time'; }
-  catch { return 'Local time'; }
+  if (!timeZone) return t('Time zone not set');
+  try { return new Intl.DateTimeFormat(getLanguage() === 'vi' ? 'vi' : 'en', { timeZone, timeZoneName: 'longGeneric' }).formatToParts(new Date()).find(({ type }) => type === 'timeZoneName')?.value || t('Local time'); }
+  catch { return t('Local time'); }
 }
 
 export function withDefaultTimeZone(trip) {
@@ -93,11 +94,11 @@ export function countDays(startDate, endDate) {
 }
 
 export function formatDate(date, options = { day: 'numeric', month: 'short', year: 'numeric' }) {
-  return new Intl.DateTimeFormat('en-GB', { ...options, timeZone: 'UTC' }).format(toUtc(date));
+  return new Intl.DateTimeFormat(locale(), { ...options, timeZone: 'UTC' }).format(toUtc(date));
 }
 
 export function formatDateTime(value, options = { dateStyle: 'medium', timeStyle: 'short' }, timeZone) {
-  return new Intl.DateTimeFormat('en-GB', { ...options, ...(timeZone ? { timeZone } : {}) }).format(new Date(value));
+  return new Intl.DateTimeFormat(locale(), { ...options, ...(timeZone ? { timeZone } : {}) }).format(new Date(value));
 }
 
 export function addDays(date, days) {
@@ -113,11 +114,11 @@ export function formatDayHeading(date) {
 export function formatMoney(amount, currencyCode) {
   const value = Number(amount);
   try {
-    const parts = new Intl.NumberFormat('en-US', { style: 'currency', currency: currencyCode, maximumFractionDigits: 2 }).formatToParts(value);
+    const parts = new Intl.NumberFormat(getLanguage() === 'vi' ? 'vi-VN' : 'en-US', { style: 'currency', currency: currencyCode, maximumFractionDigits: 2 }).formatToParts(value);
     const amountText = parts.filter(({ type }) => type !== 'currency' && type !== 'literal').map(({ value: part }) => part).join('');
     return `${amountText} ${parts.find(({ type }) => type === 'currency').value}`;
   } catch {
-    return `${value.toLocaleString('en-US')} ${currencyCode}`;
+    return `${value.toLocaleString(getLanguage() === 'vi' ? 'vi-VN' : 'en-US')} ${currencyCode}`;
   }
 }
 
