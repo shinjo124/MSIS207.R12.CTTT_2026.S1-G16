@@ -31,6 +31,8 @@ Tripo helps a group plan a multi-day trip together: pick destinations, build a d
 - **Dashboard** — upcoming trip, today's plan, budget, weather forecast (OpenWeather) and travel news.
 - **Vietnamese and English** — a VIE / ENG switch in the top bar; the first visit follows the browser language and the choice is remembered.
 - **Explore Vietnam** — all 34 provinces and centrally run cities (2025 map), grouped by region and searchable by current or former province name; each has a page of places worth visiting (seed 005, Vietnamese and English).
+- **Split the bill** — in the Budget view, list the people on the trip (Tripo members or anyone else), choose who paid each recorded spend and who shares it, and see balances and the fewest transfers to settle up.
+- **Place photos** — catalogue places show freely licensed photos from Wikimedia Commons with author and licence (`npm run places:images`).
 - **More place ideas** — on each province page and when choosing destinations, six quick types (sights, food, cafés, nature, history, markets) load nearby places from OpenStreetMap via Geoapify. The box is hidden until `GEOAPIFY_API_KEY` is set. Province pages also show a map (Leaflet + OpenStreetMap tiles) with pins for catalogue places (after `npm run places:geocode`) and the current ideas.
 - **Tribot** — an AI travel assistant in a floating chat button on every signed-in page (Google Gemini). On a trip page it answers questions about the trip's schedule and budget, suggests activities that can be added to the plan with one click; on other pages it answers general travel questions or lets you pick a trip.
 
@@ -56,7 +58,7 @@ www.tripo.website        Bearer token      api.tripo.website                │
 
 ## API overview
 
-All endpoints are under `/api`, exchange JSON, and return errors as `{ "error": { "code", "message" } }`. Protected endpoints need `Authorization: Bearer <Clerk session token>`. The full contract (29 paths, 41 operations) is in [Swagger UI](https://api.tripo.website/api-docs).
+All endpoints are under `/api`, exchange JSON, and return errors as `{ "error": { "code", "message" } }`. Protected endpoints need `Authorization: Bearer <Clerk session token>`. The full contract (33 paths, 45 operations) is in [Swagger UI](https://api.tripo.website/api-docs).
 
 | Resource | Endpoints |
 |---|---|

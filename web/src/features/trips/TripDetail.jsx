@@ -11,6 +11,7 @@ import { createTripPoller, fetchChangedTrip } from './trip-polling.js';
 import { MONEY_INPUT_PATTERN, categoryLabel, formatDate, formatDayHeading, formatMoney, formatTripTitle, mapsUrl, moneyInputProps, timeZoneLabel, todayInTimeZone, withDefaultTimeZone } from './trip-format.js';
 import './trips.css';
 import { t } from '../../lib/i18n.js';
+import SplitBill from './SplitBill.jsx';
 
 function ActivityItem({ activity, trip, onEdit, onDelete, onToggleVisited, onMove, onDragStart, onDragEnd }) {
   const [confirming, setConfirming] = useState(false);
@@ -445,7 +446,7 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
           </>}
           {view === 'share' && trip.role === 'owner' && <><MemberControl tripId={trip.id} getToken={getToken} /><ShareControl tripId={trip.id} getToken={getToken} /></>}
 
-          {view === 'budget' && trip.budgetSummary && <BudgetSummary summary={trip.budgetSummary} trip={trip} onRecordSpend={(activity, actualSpend) => updateActivity(activity.id, { actualSpend, version: activity.version })} />}
+          {view === 'budget' && trip.budgetSummary && <><BudgetSummary summary={trip.budgetSummary} trip={trip} onRecordSpend={(activity, actualSpend) => updateActivity(activity.id, { actualSpend, version: activity.version })} /><SplitBill tripId={trip.id} revision={trip.revision} getToken={getToken} disabled={!online} /></>}
 
           {view === 'itinerary' && <><div className="board-heading"><div><h2>{t("Day board")}</h2><p>{t("Each column is a day. Drag a card or open it to move it.")}</p></div><button className="primary-button" type="button" onClick={() => { const date = trip.days.find((day) => day.date === selectedDay)?.date || trip.days.find((day) => day.date === tripToday)?.date || trip.days[0].date; setSelectedDay(date); beginAdd(date); }}>{t("+ Add activity")}</button></div>
           {moveError && <p className="form-error" role="alert">{moveError}</p>}

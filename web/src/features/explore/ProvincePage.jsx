@@ -70,7 +70,18 @@ export default function ProvincePage({ destinationId }) {
         {!places.length && <p className="empty-state">{t('No places listed here yet.')}</p>}
         <ul className="province-place-grid">
           {visible.map((place) => (
-            <li key={place.id} className="province-place">
+            <li key={place.id} className="province-place has-photo">
+              {!place.imageUrl && <div className={`province-place-photo is-empty tag-${place.category.toLowerCase()}`} aria-hidden="true"><span>{place.name.slice(0, 1)}</span></div>}
+              {place.imageUrl && (
+                <figure className="province-place-photo">
+                  <img src={place.imageUrl} alt={place.name} loading="lazy" />
+                  <figcaption>
+                    <a href={place.imagePageUrl || 'https://commons.wikimedia.org/'} target="_blank" rel="noreferrer">
+                      {t('Photo: {credit}', { credit: place.imageCredit || 'Wikimedia Commons' })}{place.imageLicense ? ` · ${place.imageLicense}` : ''}
+                    </a>
+                  </figcaption>
+                </figure>
+              )}
               <span className={`place-tag tag-${place.category.toLowerCase()}`}>{t(place.category)}</span>
               <h3>{place.name}</h3>
               {place.address && <small>{place.address}</small>}

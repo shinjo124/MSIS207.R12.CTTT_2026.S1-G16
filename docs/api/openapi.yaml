@@ -273,6 +273,61 @@ paths:
         '401': { description: Not signed in }
         '429': { description: Tribot rate limit reached (shared with the trip endpoint) }
         '503': { description: ASSISTANT_NOT_CONFIGURED or ASSISTANT_UNAVAILABLE }
+  /api/trips/{tripId}/split:
+    get:
+      summary: Split bill for a trip (people, spends with payer and sharers, balances, transfers to settle up)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: tripId, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: "{ data: { currencyCode, people, expenses, suggestions, balances, transfers, unassigned } }" }
+        '404': { description: TRIP_NOT_FOUND }
+  /api/trips/{tripId}/people:
+    post:
+      summary: Add a person to split costs with (optionally linked to a trip member)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: tripId, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [name], properties: { name: { type: string, maxLength: 60 }, userId: { type: integer } } }
+      responses:
+        '200': { description: The updated split bill }
+        '400': { description: INVALID_PERSON_NAME or TOO_MANY_PEOPLE }
+        '409': { description: PERSON_EXISTS }
+  /api/trips/{tripId}/people/{personId}:
+    delete:
+      summary: Remove a person (their payments and shares are removed from the split)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: tripId, required: true, schema: { type: integer, minimum: 1 } }
+        - { in: path, name: personId, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: The updated split bill }
+        '404': { description: PERSON_NOT_FOUND or TRIP_NOT_FOUND }
+  /api/trips/{tripId}/split/{activityId}:
+    put:
+      summary: Set who paid one recorded spend and who shares it (empty participants = everyone)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: tripId, required: true, schema: { type: integer, minimum: 1 } }
+        - { in: path, name: activityId, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [paidBy, participants]
+              properties:
+                paidBy: { type: integer, nullable: true }
+                participants: { type: array, items: { type: integer }, maxItems: 30 }
+      responses:
+        '200': { description: The updated split bill }
+        '400': { description: INVALID_SPLIT or UNKNOWN_PERSON }
+        '404': { description: ACTIVITY_NOT_FOUND or TRIP_NOT_FOUND }
   /api/trips/{tripId}/assistant:
     post:
       summary: Ask Tribot (Google Gemini) about this trip or about travel

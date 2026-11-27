@@ -15,6 +15,7 @@ import activitiesRouter from './routes/activities.js';
 import weatherRouter from './routes/weather.js';
 import newsRouter from './routes/news.js';
 import assistantRouter from './routes/assistant.js';
+import splitRouter from './routes/split.js';
 import { isTripSyncRequest, tripSyncKey } from './services/trip-sync-limit.js';
 import { apiLimitKey } from './services/api-limit.js';
 
@@ -120,6 +121,7 @@ app.use('/api/news', newsRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/trips', tripsRouter);
 app.use('/api', activitiesRouter);
+app.use('/api', splitRouter);
 app.use('/api', weatherRouter);
 app.use('/api', assistantRouter);
 app.use('/api', shareRouter);

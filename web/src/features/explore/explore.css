@@ -37,6 +37,19 @@
 .province-place p { flex: 1; margin: 0; color: var(--ink); font-size: 14px; line-height: 1.5; }
 .province-place a { align-self: flex-start; color: var(--teal); font-size: 13px; font-weight: 800; text-decoration: none; }
 .province-place a:hover { color: var(--coral); text-decoration: underline; }
+.province-place.has-photo { padding-top: 0; overflow: hidden; }
+.province-place-photo { position: relative; margin: 0 -18px 8px; aspect-ratio: 16 / 10; overflow: hidden; background: #e3ece7; }
+.province-place-photo img { width: 100%; height: 100%; object-fit: cover; transition: transform .5s ease; }
+.province-place:hover .province-place-photo img { transform: scale(1.04); }
+.province-place-photo.is-empty { display: grid; place-items: center; background: linear-gradient(135deg, #cfe3da, #9cc5b8); }
+.province-place-photo.is-empty span { color: rgb(255 255 255 / 85%); font-size: 64px; font-weight: 800; }
+.province-place-photo.is-empty.tag-culture { background: linear-gradient(135deg, #f6d6c7, #e3a088); }
+.province-place-photo.is-empty.tag-beach { background: linear-gradient(135deg, #cfe5f2, #8fbfdc); }
+.province-place-photo.is-empty.tag-food { background: linear-gradient(135deg, #fbe7b5, #e7c36a); }
+.province-place-photo.is-empty.tag-shopping { background: linear-gradient(135deg, #e7d8f0, #b996cf); }
+.province-place-photo.is-empty.tag-sightseeing { background: linear-gradient(135deg, #d9def3, #9eaadb); }
+.province-place-photo figcaption { position: absolute; right: 8px; bottom: 8px; left: 8px; overflow: hidden; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+.province-place .province-place-photo figcaption a { padding: 3px 8px; border-radius: 999px; background: rgb(0 0 0 / 55%); color: #fff; font-size: 10px; font-weight: 500; text-decoration: none; }
 .place-tag { align-self: flex-start; padding: 3px 9px; border-radius: 999px; background: #e3efe9; color: var(--teal-dark); font-size: 11px; font-weight: 800; }
 .place-tag.tag-culture { background: #fbe7dd; color: #9c4430; }
 .place-tag.tag-beach { background: #dcecf6; color: #1d5b80; }
