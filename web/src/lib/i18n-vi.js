@@ -3,6 +3,10 @@
 // API error messages are included so server errors also show in Vietnamese.
 export default {
   // Interface
+  "Example": "Ví dụ",
+  "Đà Lạt trip, 3 days · 4 people": "Chuyến Đà Lạt 3 ngày · 4 người",
+  "{amount} left": "Còn {amount}",
+  "Budget updates as you log spending": "Ngân sách tự cập nhật khi ghi chi tiêu",
   "Map": "Bản đồ",
   "Loading map…": "Đang tải bản đồ…",
   "More ideas for {name}": "Gợi ý thêm ở {name}",

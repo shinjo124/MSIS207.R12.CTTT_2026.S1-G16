@@ -57,10 +57,12 @@ export default function HomeHero() {
             <figcaption>{language === 'vi' ? photo.localName || photo.name : photo.name}</figcaption>
           </figure>
         ))}
+        {/* Illustration of what Tripo tracks, not the visitor's data. */}
         <div className="home-float-card">
-          <span>{t('Budget left')}</span>
-          <strong>4.250.000 ₫</strong>
-          <small>{t('Day 2 of 3 · Đà Lạt')}</small>
+          <span className="home-float-tag">{t('Example')}</span>
+          <span>{t('Đà Lạt trip, 3 days · 4 people')}</span>
+          <strong>{t('{amount} left', { amount: '4.250.000 ₫' })}</strong>
+          <small>{t('Budget updates as you log spending')}</small>
         </div>
       </div>
     </section>
