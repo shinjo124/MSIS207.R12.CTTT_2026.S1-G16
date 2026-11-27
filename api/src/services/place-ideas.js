@@ -70,7 +70,7 @@ export function buildGeocodeUrl({ apiKey, text, near }) {
 }
 
 // The first result, only if it lies within maxKm of the destination (so a same-named place elsewhere is ignored).
-export function pickGeocodeResult(data, near, maxKm = 120) {
+export function pickGeocodeResult(data, near, maxKm = 250) {
   const result = Array.isArray(data?.results) ? data.results[0] : null;
   if (!result || !Number.isFinite(result.lat) || !Number.isFinite(result.lon)) return null;
   const latitude = Number(near?.latitude);
@@ -83,4 +83,32 @@ export function distanceKm(lat1, lon1, lat2, lon2) {
   const rad = (value) => (value * Math.PI) / 180;
   const a = Math.sin(rad(lat2 - lat1) / 2) ** 2 + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(rad(lon2 - lon1) / 2) ** 2;
   return 2 * 6371 * Math.asin(Math.sqrt(a));
+}
+
+// Fallback geocoder: OpenStreetMap Nominatim (free, max 1 request per second, needs a User-Agent).
+export function buildNominatimUrl({ text, near }) {
+  const params = new URLSearchParams({ q: text, countrycodes: 'vn', format: 'jsonv2', limit: '1', 'accept-language': 'vi' });
+  const latitude = Number(near?.latitude);
+  const longitude = Number(near?.longitude);
+  if (near?.latitude != null && near?.longitude != null && Number.isFinite(latitude) && Number.isFinite(longitude)) {
+    params.set('viewbox', `${longitude - 1.5},${latitude + 1.5},${longitude + 1.5},${latitude - 1.5}`);
+  }
+  return `https://nominatim.openstreetmap.org/search?${params}`;
+}
+
+export function pickNominatimResult(data, near, maxKm = 250) {
+  const first = Array.isArray(data) ? data[0] : null;
+  if (!first) return null;
+  return pickGeocodeResult({ results: [{ lat: Number(first.lat), lon: Number(first.lon) }] }, near, maxKm);
+}
+
+// Search texts from most to least specific: "name, area, province", "name, province", "name".
+export function geocodeQueries(place) {
+  const name = place.name;
+  const texts = [
+    [name, place.address, place.destinationName, 'Việt Nam'],
+    [name, place.destinationName, 'Việt Nam'],
+    [name, 'Việt Nam'],
+  ].map((parts) => parts.filter(Boolean).join(', '));
+  return [...new Set(texts)];
 }

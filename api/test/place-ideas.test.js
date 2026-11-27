@@ -42,3 +42,14 @@ test('geocoding stays in Vietnam, near the destination', async () => {
   assert.equal(pickGeocodeResult({ results: [{ lat: 21.03, lon: 105.85 }] }, dalat), null);
   assert.equal(pickGeocodeResult({ results: [] }, dalat), null);
 });
+
+test('geocoding tries specific texts first and has an OpenStreetMap fallback', async () => {
+  const { geocodeQueries, buildNominatimUrl, pickNominatimResult } = await import('../src/services/place-ideas.js');
+  assert.deepEqual(geocodeQueries({ name: 'Dinh Độc Lập', address: 'Quận 1', destinationName: 'TP. Hồ Chí Minh' }),
+    ['Dinh Độc Lập, Quận 1, TP. Hồ Chí Minh, Việt Nam', 'Dinh Độc Lập, TP. Hồ Chí Minh, Việt Nam', 'Dinh Độc Lập, Việt Nam']);
+  const url = new URL(buildNominatimUrl({ text: 'Dinh Độc Lập, Việt Nam', near: dalat }));
+  assert.equal(url.hostname, 'nominatim.openstreetmap.org');
+  assert.equal(url.searchParams.get('countrycodes'), 'vn');
+  assert.deepEqual(pickNominatimResult([{ lat: '11.9429', lon: '108.4368' }], dalat), { latitude: 11.9429, longitude: 108.4368 });
+  assert.equal(pickNominatimResult([], dalat), null);
+});
