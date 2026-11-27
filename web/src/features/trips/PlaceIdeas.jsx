@@ -22,7 +22,7 @@ function placeIdeasEnabled() {
 }
 
 // More places near a destination (OpenStreetMap data via Geoapify). Nothing loads until a type is picked.
-export default function PlaceIdeas({ destination }) {
+export default function PlaceIdeas({ destination, onResults }) {
   const [enabled, setEnabled] = useState(false);
   const [type, setType] = useState('');
   const [places, setPlaces] = useState([]);
@@ -40,6 +40,7 @@ export default function PlaceIdeas({ destination }) {
     try {
       const result = await apiRequest(`/destinations/${destination.id}/place-ideas?type=${nextType}&lang=${getLanguage()}`);
       setPlaces(result.data || []);
+      onResults?.(result.data || []);
       setStatus(result.data?.length ? 'ready' : 'empty');
     } catch (loadError) {
       if (loadError.code === 'PLACE_IDEAS_NOT_CONFIGURED') { setEnabled(false); return; }

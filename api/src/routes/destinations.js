@@ -76,7 +76,7 @@ router.get('/:id/places', async (req, res, next) => {
 
     const [places] = await pool.execute(
       `SELECT id, destination_id AS destinationId, name, category, address, summary, summary_vi AS summaryVi,
-              map_query AS mapQuery
+              map_query AS mapQuery, latitude, longitude
        FROM places WHERE destination_id = ? ORDER BY name`,
       [destinationId],
     );

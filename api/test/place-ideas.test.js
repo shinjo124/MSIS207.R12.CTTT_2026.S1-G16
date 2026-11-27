@@ -21,7 +21,7 @@ test('keeps named places once, with address, distance and a map link', () => {
     { properties: { place_id: 'c' } },
   ] });
   assert.equal(places.length, 1);
-  assert.deepEqual({ ...places[0], mapsUrl: undefined }, { id: 'a', name: 'Chợ Đà Lạt', address: 'Nguyễn Thị Minh Khai, Đà Lạt', distanceKm: 1.2, mapsUrl: undefined });
+  assert.deepEqual({ ...places[0], mapsUrl: undefined }, { id: 'a', name: 'Chợ Đà Lạt', address: 'Nguyễn Thị Minh Khai, Đà Lạt', distanceKm: 1.2, latitude: 11.94, longitude: 108.43, mapsUrl: undefined });
   assert.match(places[0].mapsUrl, /^https:\/\/www\.google\.com\/maps\/search\//);
   assert.deepEqual(shapePlaces({}), []);
 });
@@ -31,4 +31,14 @@ test('client reports Geoapify errors', async () => {
   assert.deepEqual(await ok('https://api.geoapify.com/v2/places'), []);
   const failing = createPlaceIdeasClient({ fetchImpl: async () => ({ ok: false, status: 401, json: async () => ({ message: 'Invalid apiKey' }) }) });
   await assert.rejects(failing('x'), /401: Invalid apiKey/);
+});
+
+test('geocoding stays in Vietnam, near the destination', async () => {
+  const { buildGeocodeUrl, pickGeocodeResult } = await import('../src/services/place-ideas.js');
+  const url = new URL(buildGeocodeUrl({ apiKey: 'k', text: 'Chợ Đà Lạt, Đà Lạt, Việt Nam', near: dalat }));
+  assert.equal(url.searchParams.get('filter'), 'countrycode:vn');
+  assert.equal(url.searchParams.get('bias'), 'proximity:108.4583,11.94046');
+  assert.deepEqual(pickGeocodeResult({ results: [{ lat: 11.9429, lon: 108.4368 }] }, dalat), { latitude: 11.9429, longitude: 108.4368 });
+  assert.equal(pickGeocodeResult({ results: [{ lat: 21.03, lon: 105.85 }] }, dalat), null);
+  assert.equal(pickGeocodeResult({ results: [] }, dalat), null);
 });

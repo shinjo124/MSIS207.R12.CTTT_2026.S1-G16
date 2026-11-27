@@ -3,6 +3,8 @@
 // API error messages are included so server errors also show in Vietnamese.
 export default {
   // Interface
+  "Map": "Bản đồ",
+  "Loading map…": "Đang tải bản đồ…",
   "More ideas for {name}": "Gợi ý thêm ở {name}",
   "Pick a type to see more places nearby.": "Chọn một mục để xem thêm địa điểm gần đó.",
   "Searching nearby…": "Đang tìm quanh đây…",

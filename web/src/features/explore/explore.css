@@ -44,7 +44,17 @@
 .place-tag.tag-shopping { background: #efe4f6; color: #6a3d84; }
 .place-tag.tag-sightseeing { background: #e6eaf7; color: #344a8a; }
 .province-page > .place-ideas { padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: #f5f8f3; }
+/* Province map (Leaflet + OpenStreetMap tiles) */
+.province-map { display: grid; gap: 8px; }
+.province-map-canvas { height: 380px; overflow: hidden; border: 1px solid var(--line); border-radius: 20px; background: #e3ece7; z-index: 0; }
+.province-map-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0; color: var(--muted); font-size: 12px; }
+.province-map-legend .pin { display: inline-block; width: 12px; height: 12px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px rgb(0 0 0 / 15%); }
+.pin-place { background: #0b7475; }
+.pin-idea { background: #e96e51; }
+.province-map .leaflet-popup-content a { color: var(--teal); font-weight: 700; }
+
 @media (max-width: 640px) {
+  .province-map-canvas { height: 300px; }
   .province-hero { padding: 22px 18px; border-radius: 20px; }
   .province-grid, .province-place-grid { grid-template-columns: 1fr; }
 }

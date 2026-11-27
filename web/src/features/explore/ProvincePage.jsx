@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { apiRequest } from '../../lib/api.js';
 import { getLanguage, t } from '../../lib/i18n.js';
 import PlaceIdeas from '../trips/PlaceIdeas.jsx';
+import ProvinceMap from './ProvinceMap.jsx';
 import { placeCategories, provinceName, provinceSummary } from './explore-data.js';
 import './explore.css';
 
@@ -12,6 +13,7 @@ export default function ProvincePage({ destinationId }) {
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState('');
   const [category, setCategory] = useState('');
+  const [ideas, setIdeas] = useState([]);
   const language = getLanguage();
 
   useEffect(() => {
@@ -50,6 +52,10 @@ export default function ProvincePage({ destinationId }) {
         <a className="primary-button" href={`/trips?new=1&destination=${encodeURIComponent(province.id)}`}>{t('Plan a trip to {name}', { name })} <span aria-hidden="true">↗</span></a>
       </header>
 
+      {province.latitude != null && province.longitude != null && (
+        <ProvinceMap center={{ latitude: Number(province.latitude), longitude: Number(province.longitude) }} places={visible} ideas={ideas} />
+      )}
+
       <section className="province-places" aria-labelledby="places-title">
         <div className="province-places-heading">
           <h2 id="places-title">{t('Places worth visiting')}</h2>
@@ -75,7 +81,7 @@ export default function ProvincePage({ destinationId }) {
         </ul>
       </section>
 
-      <PlaceIdeas key={province.id} destination={{ id: province.id, name }} />
+      <PlaceIdeas key={province.id} destination={{ id: province.id, name }} onResults={setIdeas} />
     </article>
   );
 }

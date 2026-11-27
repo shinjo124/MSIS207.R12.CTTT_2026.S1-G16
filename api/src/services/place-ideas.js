@@ -39,6 +39,7 @@ export function shapePlaces(data) {
     const address = [p.address_line2, p.formatted].find((value) => typeof value === 'string' && value.trim());
     if (address) place.address = address.trim();
     if (Number.isFinite(p.distance)) place.distanceKm = Math.round(p.distance / 100) / 10;
+    if (Number.isFinite(p.lat) && Number.isFinite(p.lon)) { place.latitude = p.lat; place.longitude = p.lon; }
     if (Number.isFinite(p.lat) && Number.isFinite(p.lon)) place.mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${name} ${p.lat},${p.lon}`)}`;
     out.push(place);
   }
@@ -58,3 +59,28 @@ export function createPlaceIdeasClient({ fetchImpl = fetch, timeoutMs = 10000 } 
 }
 
 export const searchPlaceIdeas = createPlaceIdeasClient();
+
+// Geocoding for catalogue places (script only). Search near the destination, inside Vietnam.
+export function buildGeocodeUrl({ apiKey, text, near }) {
+  const params = new URLSearchParams({ text, filter: 'countrycode:vn', limit: '1', format: 'json', lang: 'vi', apiKey });
+  const latitude = Number(near?.latitude);
+  const longitude = Number(near?.longitude);
+  if (near?.latitude != null && near?.longitude != null && Number.isFinite(latitude) && Number.isFinite(longitude)) params.set('bias', `proximity:${longitude},${latitude}`);
+  return `https://api.geoapify.com/v1/geocode/search?${params}`;
+}
+
+// The first result, only if it lies within maxKm of the destination (so a same-named place elsewhere is ignored).
+export function pickGeocodeResult(data, near, maxKm = 120) {
+  const result = Array.isArray(data?.results) ? data.results[0] : null;
+  if (!result || !Number.isFinite(result.lat) || !Number.isFinite(result.lon)) return null;
+  const latitude = Number(near?.latitude);
+  const longitude = Number(near?.longitude);
+  if (Number.isFinite(latitude) && Number.isFinite(longitude) && near?.latitude != null && distanceKm(latitude, longitude, result.lat, result.lon) > maxKm) return null;
+  return { latitude: Math.round(result.lat * 1e6) / 1e6, longitude: Math.round(result.lon * 1e6) / 1e6 };
+}
+
+export function distanceKm(lat1, lon1, lat2, lon2) {
+  const rad = (value) => (value * Math.PI) / 180;
+  const a = Math.sin(rad(lat2 - lat1) / 2) ** 2 + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(rad(lon2 - lon1) / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(a));
+}
