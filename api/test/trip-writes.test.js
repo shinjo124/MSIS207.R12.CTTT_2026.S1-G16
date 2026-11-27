@@ -26,7 +26,7 @@ test('an owner can create, edit and delete with one connection; another fixture 
     CREATE TABLE users (id INTEGER PRIMARY KEY, clerk_user_id TEXT, display_name TEXT);
     INSERT INTO users VALUES (1,'alice','Alice'),(2,'bob','Bob'),(3,'charlie','Charlie');
     CREATE TABLE trips (id INTEGER PRIMARY KEY, title, start_date, end_date, group_size, budget, currency_code, owner_user_id, share_token, share_enabled, time_zone TEXT, revision INTEGER NOT NULL DEFAULT 1, created_at, updated_at);
-    CREATE TABLE destinations (id INTEGER PRIMARY KEY, local_name, name, country, region, category, map_query, summary, best_season, image_url, is_featured, aliases, latitude, longitude, time_zone, custom_trip_id REFERENCES trips(id) ON DELETE CASCADE);
+    CREATE TABLE destinations (id INTEGER PRIMARY KEY, local_name, name, country, region, category, admin_level, merged_from, map_query, summary, summary_vi, best_season, image_url, image_credit, image_license, image_page_url, is_featured, aliases, latitude, longitude, time_zone, custom_trip_id REFERENCES trips(id) ON DELETE CASCADE);
     INSERT INTO destinations(id, name) VALUES (1,'Hue'), (2,'Hanoi');
     CREATE TABLE trip_destinations (trip_id REFERENCES trips(id) ON DELETE CASCADE, destination_id REFERENCES destinations(id) ON DELETE CASCADE, destination_order, PRIMARY KEY (trip_id, destination_id), UNIQUE (trip_id, destination_order));
     CREATE TABLE trip_day_destinations (trip_id, activity_date, destination_id, PRIMARY KEY (trip_id, activity_date), FOREIGN KEY (trip_id, destination_id) REFERENCES trip_destinations(trip_id, destination_id) ON DELETE CASCADE);
