@@ -259,6 +259,15 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
     return () => { poller.stop(); if (pollerRef.current === poller) pollerRef.current = null; };
   }, [ready, status, paused, visible, online, getToken, tripId, refreshGeneration]);
 
+  // Open (or create) this trip's group conversation in Messages.
+  async function openGroupChat() {
+    try {
+      const result = await apiRequest(`/chat/trips/${tripId}`, { method: 'POST', getToken });
+      window.history.pushState(null, '', `/messages?c=${result.data.id}`);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    } catch (chatError) { setError(chatError.message); }
+  }
+
   async function saveTrip(values) {
     await withMutation(async () => {
       const result = await apiRequest(`/trips/${tripId}`, { method: 'PUT', body: values, getToken });
@@ -422,6 +431,7 @@ export default function TripDetail({ tripId, getToken, isSignedIn, profileStatus
                   </p>
                 </div>
                 <div className="trip-header-actions">
+                  <button className="text-button" type="button" onClick={openGroupChat}>{t("Group chat")}</button>
                   <button className="text-button" type="button" onClick={() => { pollerRef.current?.stop(); setEditingTrip(true); }}>{t("Edit trip")}</button>
                   {trip.role === 'owner' && (confirmDelete
                     ? <>

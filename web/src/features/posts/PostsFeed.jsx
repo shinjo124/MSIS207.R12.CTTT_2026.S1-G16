@@ -82,6 +82,21 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
   const [placesLoading, setPlacesLoading] = useState(false);
   const [placesUnavailable, setPlacesUnavailable] = useState(false);
   const canWrite = isSignedIn && profileStatus === 'ready';
+  const [messagingAuthor, setMessagingAuthor] = useState(null);
+
+  // Open (or create) the one-to-one chat with a story's author.
+  async function messageAuthor(post) {
+    if (!canWrite || post.isAuthor || messagingAuthor !== null) return;
+    setMessagingAuthor(post.authorId);
+    try {
+      const result = await apiRequest('/chat/direct', { method: 'POST', body: { userId: post.authorId }, getToken });
+      window.history.pushState(null, '', `/messages?c=${result.data.id}`);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    } catch (requestError) {
+      setError(requestError.message);
+      setMessagingAuthor(null);
+    }
+  }
 
   useEffect(() => {
     if (!photo) { setPhotoUrl(''); return undefined; }
@@ -404,7 +419,14 @@ export default function PostsFeed({ getToken, isSignedIn = false, profileStatus 
           <article className="story-card" key={post.id}>
             <div className="story-author">
               {post.authorAvatar ? <img className="story-avatar" src={post.authorAvatar} alt="" /> : <span className="story-avatar" aria-hidden="true">{post.author?.trim().charAt(0).toUpperCase() || '?'}</span>}
-              <p className="story-byline">{post.author} <span>{formatDateTime(post.createdAt, { dateStyle: 'medium' })}</span></p>
+              <p className="story-byline">{post.author} <span>{post.authorUsername && <><b className="story-username">@{post.authorUsername}</b> · </>}{formatDateTime(post.createdAt, { dateStyle: 'medium' })}</span></p>
+              {canWrite && !post.isAuthor && post.authorId > 0 && (
+                <button type="button" className="story-message" disabled={messagingAuthor === post.authorId} onClick={() => messageAuthor(post)}
+                  aria-label={t('Message {author}', { author: post.author })} title={t('Message {author}', { author: post.author })}>
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3C6.9 3 3 6.6 3 11.1c0 2.5 1.2 4.7 3.1 6.2L5.6 21l3.7-2.1c.9.2 1.8.3 2.7.3 5.1 0 9-3.6 9-8.1S17.1 3 12 3Z"/></svg>
+                  <span>{t('Message')}</span>
+                </button>
+              )}
               {canWrite && post.isAuthor && <details className="story-post-menu" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false; }}>
                 <summary aria-label={t('More options for your post by {author}', { author: post.author })} title={t("Post options")}><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></summary>
                 <div className="story-post-menu-panel">

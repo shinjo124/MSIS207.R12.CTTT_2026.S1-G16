@@ -22,7 +22,7 @@ test('public feed and comments return all pages and exclude private posts', asyn
   const db = new DatabaseSync(':memory:');
   t.after(() => db.close());
   db.exec(`
-    CREATE TABLE users (id, clerk_user_id, display_name, avatar_url);
+    CREATE TABLE users (id, clerk_user_id, display_name, username, avatar_url);
     CREATE TABLE posts (id INTEGER, body, created_at, trip_id, place_id, author_user_id, visibility);
     CREATE TABLE post_likes (post_id, user_id);
     CREATE TABLE post_comments (id INTEGER, post_id INTEGER, body, created_at, author_user_id);
@@ -31,7 +31,7 @@ test('public feed and comments return all pages and exclude private posts', asyn
     CREATE TABLE places (id INTEGER, destination_id INTEGER, name, category, address, map_query);
     INSERT INTO destinations VALUES (7, 'Da Lat', 'Đà Lạt', 'Lâm Đồng');
     INSERT INTO places VALUES (9, 7, 'Hồ Xuân Hương', 'Sightseeing', 'Phường 1, Đà Lạt', 'Ho Xuan Huong Da Lat');
-    INSERT INTO users (id, clerk_user_id, display_name) VALUES (1, 'a', 'Test');
+    INSERT INTO users (id, clerk_user_id, display_name, username) VALUES (1, 'a', 'Test', 'test.user');
     INSERT INTO posts VALUES (1,'older',1,NULL,NULL,1,'public'),(2,'newer',2,NULL,9,1,'public'),(3,'private',3,NULL,NULL,1,'private');
     INSERT INTO post_comments VALUES (1,1,'first',1,1),(2,1,'second',2,1);
     INSERT INTO post_likes VALUES (1,1);
@@ -51,6 +51,7 @@ test('public feed and comments return all pages and exclude private posts', asyn
   assert.deepEqual(first.data.map((p) => p.id), [2]);
   assert.equal(first.hasMore, true);
   assert.equal(calls.mock.callCount(), 2);
+  assert.deepEqual([first.data[0].authorId, first.data[0].authorUsername], [1, 'test.user']);
   assert.deepEqual(first.data[0].place, {
     id: 9, name: 'Hồ Xuân Hương', category: 'Sightseeing', address: 'Phường 1, Đà Lạt', mapQuery: 'Ho Xuan Huong Da Lat',
     destination: { id: 7, name: 'Đà Lạt', region: 'Lâm Đồng' },

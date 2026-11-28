@@ -131,7 +131,7 @@ router.get('/', async (req, res, next) => {
   try {
     const [posts] = await pool.execute(
       `SELECT p.id, p.body, p.created_at AS createdAt, p.trip_id AS tripId,
-              p.place_id AS placeId, u.display_name AS author, u.avatar_url AS authorAvatar,
+              p.place_id AS placeId, u.id AS authorId, u.display_name AS author, u.username AS authorUsername, u.avatar_url AS authorAvatar,
               (u.clerk_user_id = ?) AS isAuthor,
               EXISTS(SELECT 1 FROM post_likes l JOIN users v ON v.id = l.user_id
                      WHERE l.post_id = p.id AND v.clerk_user_id = ?) AS liked,
@@ -144,7 +144,7 @@ router.get('/', async (req, res, next) => {
       [viewer ?? null, viewer ?? null],
     );
 
-    const data = posts.slice(0, limit).map((post) => shapePlace({ ...post, isAuthor: Boolean(post.isAuthor), liked: Boolean(post.liked) }));
+    const data = posts.slice(0, limit).map((post) => shapePlace({ ...post, authorId: Number(post.authorId), authorUsername: post.authorUsername || null, isAuthor: Boolean(post.isAuthor), liked: Boolean(post.liked) }));
     res.set('Cache-Control', 'private, no-store').json({ data: await addPhotos(data), page, limit, hasMore: posts.length > limit && page < 1000 });
   } catch (error) {
     next(error);
