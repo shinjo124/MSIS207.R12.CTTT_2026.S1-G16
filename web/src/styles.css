@@ -141,6 +141,13 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .story-stats { margin-right: auto; color: var(--muted); font-size: 12px; }
 .story-stats span { padding: 0 5px; }
 .story-post-menu { position: relative; }
+.story-username { color: var(--teal); font-weight: 700; }
+.story-message { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; background: white; color: var(--teal-dark); cursor: pointer; font: inherit; font-size: 14px; font-weight: 700; }
+.story-message:hover { background: #edf5f0; }
+.story-message:focus-visible { outline: 3px solid rgb(11 116 117 / 30%); outline-offset: 2px; }
+.story-message:disabled { cursor: wait; opacity: .6; }
+.story-message svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
+@media (max-width: 520px) { .story-message span { display: none; } .story-message { width: 44px; padding: 0; justify-content: center; } }
 .story-post-menu > summary { display: grid; width: 44px; height: 44px; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: white; color: var(--teal-dark); cursor: pointer; list-style: none; }
 .story-post-menu > summary::-webkit-details-marker { display: none; }
 .story-post-menu > summary:hover, .story-post-menu[open] > summary { background: #edf5f0; }

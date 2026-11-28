@@ -29,6 +29,7 @@ export default {
   "You blocked this person. Unblock to send messages.": "Bạn đã chặn người này. Bỏ chặn để nhắn tin.",
   "You cannot message this person.": "Bạn không thể nhắn tin cho người này.",
   "Message": "Tin nhắn",
+  "Message {author}": "Nhắn tin cho {author}",
   "Write a message…": "Nhập tin nhắn…",
   "Group chat": "Nhắn nhóm",
   "Sign in to message other travellers.": "Đăng nhập để nhắn tin với mọi người.",

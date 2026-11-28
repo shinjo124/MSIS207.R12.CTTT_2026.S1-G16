@@ -947,7 +947,7 @@ paths:
         '429': { description: Request limit reached }
   /api/posts:
     get:
-      summary: Browse public travel stories
+      summary: Browse public travel stories (each with authorId, author, authorUsername and authorAvatar so readers can message the author)
       security: [{}, { bearerAuth: [] }]
       parameters:
         - in: query
