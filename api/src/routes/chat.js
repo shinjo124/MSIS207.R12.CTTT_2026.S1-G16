@@ -6,7 +6,7 @@ import { requireProfile } from '../middleware/require-profile.js';
 import { findEditableTrip } from '../services/trip-data.js';
 import { badRequest, parseId, sendError } from '../services/trip-rules.js';
 import { ably } from '../services/ably.js';
-import { directKey, messagePreview, tokenCapability, userChannel, validateMessageBody } from '../services/chat-rules.js';
+import { directKey, messagePreview, searchPattern, tokenCapability, userChannel, validateMessageBody } from '../services/chat-rules.js';
 
 // User-to-user chat: one-to-one conversations and one group per trip.
 // Messages are stored in the database; Ably (optional) only tells browsers that something changed.
@@ -115,17 +115,20 @@ router.get('/chat/unread', signedIn, async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-// People to start a chat with, by display name. Emails are never returned.
+// People to start a chat with, by Tripo username or display name. Emails are never returned.
+// Exact username first, then usernames starting with the text, then everything else by name.
 router.get('/chat/users', signedIn, async (req, res, next) => {
-  const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
-  if (q.length < 2 || q.length > 60) return res.json({ data: [] });
+  const raw = typeof req.query.q === 'string' ? req.query.q : '';
+  const { text, like, prefix } = searchPattern(raw);
+  if (text.length < 2 || text.length > 60) return res.json({ data: [] });
   try {
     const [rows] = await pool.execute(
-      `SELECT id, display_name AS name, avatar_url AS avatarUrl FROM users
-       WHERE id <> ? AND display_name LIKE ? ORDER BY display_name LIMIT 10`,
-      [req.userId, `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`],
+      `SELECT id, display_name AS name, username, avatar_url AS avatarUrl FROM users
+       WHERE id <> ? AND (username LIKE ? OR display_name LIKE ?)
+       ORDER BY (username = ?) DESC, (username LIKE ?) DESC, display_name LIMIT 10`,
+      [req.userId, like, like, text, prefix],
     );
-    res.json({ data: rows.map((row) => ({ id: Number(row.id), name: row.name, avatarUrl: row.avatarUrl || null })) });
+    res.json({ data: rows.map((row) => ({ id: Number(row.id), name: row.name, username: row.username || null, avatarUrl: row.avatarUrl || null })) });
   } catch (error) { next(error); }
 });
 
@@ -181,7 +184,7 @@ router.get('/chat/conversations/:id/messages', signedIn, async (req, res, next) 
       before ? [conversationId, before] : [conversationId],
     );
     const [people] = await pool.execute(
-      `SELECT u.id, u.display_name AS name, u.avatar_url AS avatarUrl FROM conversation_members cm JOIN users u ON u.id = cm.user_id
+      `SELECT u.id, u.display_name AS name, u.username, u.avatar_url AS avatarUrl FROM conversation_members cm JOIN users u ON u.id = cm.user_id
        WHERE cm.conversation_id = ? ORDER BY u.display_name`,
       [conversationId],
     );
@@ -195,7 +198,7 @@ router.get('/chat/conversations/:id/messages', signedIn, async (req, res, next) 
     res.set('Cache-Control', 'private, no-store').json({ data: {
       id: conversationId, viewerId: req.userId, kind: conversation.kind, tripId: conversation.tripId == null ? null : Number(conversation.tripId),
       title: conversation.kind === 'trip' ? conversation.title : others[0]?.name || '',
-      members: people.map((person) => ({ id: Number(person.id), name: person.name, avatarUrl: person.avatarUrl || null })),
+      members: people.map((person) => ({ id: Number(person.id), name: person.name, username: person.username || null, avatarUrl: person.avatarUrl || null })),
       blocked, blockedByMe: mine.some((row) => others.some((other) => Number(other.id) === Number(row.id))),
       messages, hasMore: rows.length > PAGE_SIZE,
     } });

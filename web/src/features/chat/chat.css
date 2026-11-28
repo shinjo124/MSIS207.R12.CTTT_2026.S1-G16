@@ -47,3 +47,15 @@
   .chat-back { display: inline; }
   .chat-message { max-width: 85%; }
 }
+
+.chat-username { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 6px; color: var(--muted, #5b6b66); font-size: 14px; }
+.chat-username strong { color: var(--teal-dark); }
+.chat-username-form { display: grid; gap: 6px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: #f3f8f5; }
+.chat-username-form label { color: var(--teal-dark); font-size: 14px; font-weight: 700; }
+.chat-username-form > div { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.chat-username-form > div > span { color: var(--teal-dark); font-weight: 700; }
+.chat-username-form input { flex: 1; min-width: 0; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--white); font-size: 15px; }
+.chat-username-form small { color: var(--muted, #5b6b66); font-size: 12px; }
+.chat-username-form .form-error { margin: 0; }
+.chat-person-text { display: grid; min-width: 0; }
+.chat-person-text small { color: var(--muted, #5b6b66); font-size: 13px; font-weight: 500; }

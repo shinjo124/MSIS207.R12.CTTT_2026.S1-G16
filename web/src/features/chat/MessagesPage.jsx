@@ -3,6 +3,7 @@ import { apiRequest } from '../../lib/api.js';
 import { emitLocalChatEvent, isRealtime, onChatEvent, startChatRealtime } from '../../lib/chat-realtime.js';
 import { getLanguage, t } from '../../lib/i18n.js';
 import { formatDateTime } from '../trips/trip-format.js';
+import UsernameCard from './UsernameCard.jsx';
 import './chat.css';
 
 function Avatar({ name, url, group = false }) {
@@ -26,6 +27,8 @@ export default function MessagesPage({ getToken, search = '' }) {
   const [sendError, setSendError] = useState('');
   const [query, setQuery] = useState('');
   const [people, setPeople] = useState([]);
+  const [searched, setSearched] = useState('');
+  const [searchError, setSearchError] = useState('');
   const listRef = useRef(null);
   const language = getLanguage();
 
@@ -69,9 +72,12 @@ export default function MessagesPage({ getToken, search = '' }) {
 
   useEffect(() => {
     const q = query.trim();
-    if (q.length < 2) { setPeople([]); return undefined; }
+    if (q.replace(/^@+/, '').length < 2) { setPeople([]); setSearched(''); setSearchError(''); return undefined; }
     const timer = setTimeout(() => {
-      apiRequest(`/chat/users?q=${encodeURIComponent(q)}`, { getToken }).then((result) => setPeople(result.data)).catch(() => setPeople([]));
+      apiRequest(`/chat/users?q=${encodeURIComponent(q)}`, { getToken })
+        .then((result) => { setPeople(result.data); setSearchError(''); })
+        .catch((error) => { setPeople([]); setSearchError(error.message); })
+        .finally(() => setSearched(q));
     }, 250);
     return () => clearTimeout(timer);
   }, [query, getToken]);
@@ -110,17 +116,20 @@ export default function MessagesPage({ getToken, search = '' }) {
     <section className={`chat-page${openId ? ' has-open' : ''}`} aria-label={t('Messages')}>
       <aside className="chat-sidebar">
         <h1>{t('Messages')}</h1>
+        <UsernameCard getToken={getToken} />
         <label className="chat-search">
           <span className="visually-hidden">{t('Find people')}</span>
-          <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('Find people to message…')} />
+          <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('Search by @username or name…')} />
         </label>
         {people.length > 0 && (
           <ul className="chat-people">
             {people.map((person) => (
-              <li key={person.id}><button type="button" onClick={() => startChat(person)}><Avatar name={person.name} url={person.avatarUrl} />{person.name}</button></li>
+              <li key={person.id}><button type="button" onClick={() => startChat(person)}><Avatar name={person.name} url={person.avatarUrl} /><span className="chat-person-text"><strong>{person.name}</strong>{person.username && <small>@{person.username}</small>}</span></button></li>
             ))}
           </ul>
         )}
+        {searchError && <p className="chat-hint error-state" role="alert">{searchError}</p>}
+        {!searchError && searched && searched === query.trim() && people.length === 0 && <p className="chat-hint" role="status">{t('No one found for “{query}”.', { query: searched })}</p>}
         {conversations === null && <p className="chat-hint" role="status">{t('Loading…')}</p>}
         {conversations?.length === 0 && !people.length && <p className="chat-hint">{t('No conversations yet. Search for someone above, or open a trip and press “Group chat”.')}</p>}
         <ul className="chat-list">
@@ -150,7 +159,7 @@ export default function MessagesPage({ getToken, search = '' }) {
               <Avatar name={thread.title} group={thread.kind === 'trip'} url={thread.kind === 'direct' ? thread.members.find((m) => m.id !== thread.viewerId)?.avatarUrl : null} />
               <div>
                 <strong>{thread.title}</strong>
-                <small>{thread.kind === 'trip' ? t('Trip group · {n} people', { n: thread.members.length }) : t('Direct message')}</small>
+                <small>{thread.kind === 'trip' ? t('Trip group · {n} people', { n: thread.members.length }) : (() => { const other = thread.members.find((m) => m.id !== thread.viewerId); return other?.username ? `@${other.username} · ${t('Direct message')}` : t('Direct message'); })()}</small>
               </div>
               {thread.kind === 'trip' && thread.tripId && <a className="text-button" href={`/trips/${thread.tripId}`}>{t('Open trip')}</a>}
               {thread.kind === 'direct' && <button type="button" className="text-button" onClick={toggleBlock}>{thread.blockedByMe ? t('Unblock') : t('Block')}</button>}

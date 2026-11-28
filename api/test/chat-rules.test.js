@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { directKey, messagePreview, tokenCapability, userChannel, validateMessageBody } from '../src/services/chat-rules.js';
+import { directKey, messagePreview, searchPattern, tokenCapability, userChannel, validateMessageBody, validateUsername } from '../src/services/chat-rules.js';
 import { createAblyClient, parseAblyKey } from '../src/services/ably.js';
 
 test('a pair of users always maps to the same direct conversation', () => {
@@ -35,4 +35,17 @@ test('Ably client sends basic auth and the token request body', async () => {
   assert.equal(typeof calls[0].body.timestamp, 'number');
   assert.equal(calls[1].url, 'https://main.realtime.ably.net/channels/tripo-chat%3Auser-1/messages');
   assert.deepEqual(calls[1].body, { name: 'conversation', data: { conversationId: 5 } });
+});
+
+test('usernames are lower-case handles without accents', () => {
+  assert.equal(validateUsername('@Kiet.Tran'), 'kiet.tran');
+  assert.equal(validateUsername(' linh_nguyen99 '), 'linh_nguyen99');
+  for (const bad of ['ab', 'x'.repeat(21), '_kiet', 'kiet.', 'ki..et', 'ki._et', 'hiền', 'kiet tran', 'admin', 5]) {
+    assert.equal(validateUsername(bad), null, String(bad));
+  }
+});
+
+test('the people search ignores a leading @ and escapes LIKE wildcards', () => {
+  assert.deepEqual(searchPattern('@Kiet'), { text: 'kiet', like: '%kiet%', prefix: 'kiet%' });
+  assert.equal(searchPattern('a_b%').like, '%a\\_b\\%%');
 });
