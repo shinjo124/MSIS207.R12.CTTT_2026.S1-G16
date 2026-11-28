@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { SignInButton, SignUpButton, Show, UserButton } from '@clerk/react';
 import { LANGUAGES, getLanguage, setLanguage, t } from './lib/i18n.js';
+import ChatNavLink from './features/chat/ChatNavLink.jsx';
 
 // Load feature screens when their routes first need them to keep the first bundle smaller.
 const PostsFeed = lazy(() => import('./features/posts/PostsFeed.jsx'));
@@ -11,6 +12,7 @@ const TripsPage = lazy(() => import('./features/trips/TripsPage.jsx'));
 const InvitePage = lazy(() => import('./features/trips/InvitePage.jsx'));
 const ExplorePage = lazy(() => import('./features/explore/ExplorePage.jsx'));
 const ProvincePage = lazy(() => import('./features/explore/ProvincePage.jsx'));
+const MessagesPage = lazy(() => import('./features/chat/MessagesPage.jsx'));
 const HomeHero = lazy(() => import('./features/home/HomeHero.jsx'));
 const HomeSuggestions = lazy(() => import('./features/home/HomeSuggestions.jsx'));
 
@@ -30,6 +32,7 @@ export function Topbar({ getToken, active, isSignedIn }) {
       <a className="brand" href="/" aria-label={t("Tripo home")}><span className="brand-mark" aria-hidden="true">T</span> tripo</a>
       <nav className="app-nav" aria-label={t("Main navigation")}>
         {[['home', '/', isSignedIn ? t("Dashboard") : t("Home")], ['trips', '/trips', t("My trips")], ['explore', '/explore', t("Explore")], ['stories', '/stories', t("Stories")]].map(([key, href, label]) => <a key={key} className="nav-link" href={href} aria-current={active === key ? 'page' : key === 'trips' && active === 'trip-detail' ? 'location' : undefined}><span style={{ viewTransitionName: `main-nav-label-${key}` }}>{label}</span></a>)}
+        {isSignedIn && getToken && <ChatNavLink getToken={getToken} active={active === 'messages'} />}
       </nav>
       <LanguageSwitch />
       {getToken ? <>
@@ -62,6 +65,13 @@ export default function App(props) {
 
   if (path === '/trips') {
     return <main className="page-shell"><Topbar getToken={props.getToken} isSignedIn={props.isSignedIn} active="trips" /><Suspense fallback={<p role="status">{t("Loading…")}</p>}><TripsPage {...props} /></Suspense></main>;
+  }
+  if (path === '/messages') {
+    return <main className="page-shell"><Topbar getToken={props.getToken} isSignedIn={props.isSignedIn} active="messages" />
+      {props.isSignedIn && props.profileStatus === 'ready'
+        ? <Suspense fallback={<p role="status">{t("Loading…")}</p>}><MessagesPage getToken={props.getToken} search={props.search} /></Suspense>
+        : <section className="panel empty-panel"><h1>{t('Messages')}</h1><p>{props.isSignedIn ? t('Setting up your profile…') : t('Sign in to message other travellers.')}</p></section>}
+    </main>;
   }
   const tripId = path.match(/^\/trips\/(\d+)$/)?.[1];
   if (tripId) {

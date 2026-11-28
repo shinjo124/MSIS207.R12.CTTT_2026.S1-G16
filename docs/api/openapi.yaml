@@ -328,6 +328,94 @@ paths:
         '200': { description: The updated split bill }
         '400': { description: INVALID_SPLIT or UNKNOWN_PERSON }
         '404': { description: ACTIVITY_NOT_FOUND or TRIP_NOT_FOUND }
+  /api/chat/conversations:
+    get:
+      summary: Conversations of the signed-in user (title, last message, unread count)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+        '401': { description: Not signed in }
+  /api/chat/unread:
+    get:
+      summary: Total unread chat messages
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+        '401': { description: Not signed in }
+  /api/chat/users:
+    get:
+      summary: Find people to message by display name (q, at least 2 characters); emails are never returned
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: query, name: q, required: true, schema: { type: string, minLength: 2, maxLength: 60 } }
+      responses:
+        '200': { description: OK }
+        '401': { description: Not signed in }
+  /api/chat/direct:
+    post:
+      summary: Open or create the one-to-one conversation with a user ({ userId })
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+        '401': { description: Not signed in }
+  /api/chat/trips/{tripId}:
+    post:
+      summary: Open or create the group conversation of a trip (owner and members only)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: tripId, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: OK }
+        '401': { description: Not signed in }
+  /api/chat/conversations/{id}/messages:
+    get:
+      summary: Messages of a conversation, oldest first (before = load older)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: OK }
+        '401': { description: Not signed in }
+    post:
+      summary: Send a message ({ body }, up to 2000 characters; 30 per minute)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: OK }
+        '401': { description: Not signed in }
+  /api/chat/conversations/{id}/read:
+    post:
+      summary: Mark messages read up to { messageId }
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: OK }
+        '401': { description: Not signed in }
+  /api/chat/blocks:
+    post:
+      summary: Block a user ({ userId }); blocked pairs cannot message each other
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+        '401': { description: Not signed in }
+  /api/chat/blocks/{userId}:
+    delete:
+      summary: Unblock a user
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: userId, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: OK }
+        '401': { description: Not signed in }
+  /api/chat/realtime-token:
+    get:
+      summary: Short-lived Ably token that can only subscribe to the user's own channel; enabled false when Ably is not set up
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+        '401': { description: Not signed in }
   /api/trips/{tripId}/assistant:
     post:
       summary: Ask Tribot (Google Gemini) about this trip or about travel
